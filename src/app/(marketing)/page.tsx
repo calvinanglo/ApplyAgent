@@ -112,7 +112,7 @@ export default function LandingPage() {
           Start free. Buy credits when you need more.
         </p>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3 pt-4">
           {CREDIT_PACKS.map((pack) => (
             <Card key={pack.id} className={`relative overflow-visible${pack.id === 'professional' ? ' border-primary' : ''}`}>
               {pack.id === 'professional' && (
