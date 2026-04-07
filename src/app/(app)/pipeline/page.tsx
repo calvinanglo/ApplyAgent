@@ -38,7 +38,7 @@ export default function PipelinePage() {
   const [newCompany, setNewCompany] = useState('')
   const [newTitle, setNewTitle] = useState('')
   const [processing, setProcessing] = useState<Record<string, boolean>>({})
-  const [activeTab, setActiveTab] = useState<'pending' | 'done' | 'errors' | 'all'>('pending')
+  const [activeTab, setActiveTab] = useState<'pending' | 'done' | 'errors' | 'processing'>('pending')
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
   const [processProgress, setProcessProgress] = useState<{ current: number; total: number } | null>(null)
@@ -238,9 +238,7 @@ export default function PipelinePage() {
     toast(`${ids.length} items moved back to pending`)
     await loadItems()
   }
-  const allFiltered = activeTab === 'all'
-    ? items
-    : activeTab === 'errors'
+  const allFiltered = activeTab === 'errors'
       ? items.filter(i => i.status === 'error')
       : activeTab === 'done'
       ? items.filter(i => i.status === 'done')
@@ -375,7 +373,7 @@ export default function PipelinePage() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b">
-        {(['pending', 'done', 'errors', 'all'] as const).map(tab => (
+        {(['pending', 'done', 'errors', 'processing'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => { setActiveTab(tab); setPage(1) }}
@@ -386,7 +384,7 @@ export default function PipelinePage() {
             {tab === 'pending' ? `Pending (${pendingCount})`
               : tab === 'done' ? `Done (${doneCount})`
               : tab === 'errors' ? `Errors (${errorCount})`
-              : 'All'}
+              : `Processing (${processingCount})`}
           </button>
         ))}
       </div>
