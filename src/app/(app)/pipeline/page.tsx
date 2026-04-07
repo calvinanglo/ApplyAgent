@@ -219,6 +219,7 @@ export default function PipelinePage() {
   }
 
   const [clearConfirm, setClearConfirm] = useState<'pending' | 'done' | 'errors' | null>(null)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
 
   const pendingCount = items.filter(i => i.status === 'pending').length
   const doneCount = items.filter(i => i.status === 'done').length
@@ -389,6 +390,31 @@ export default function PipelinePage() {
         ))}
       </div>
 
+      {/* Selection controls */}
+      {filteredItems.length > 0 && (
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" className="rounded" checked={selectedItems.size > 0 && filteredItems.every(i => selectedItems.has(i.id))} onChange={(e) => {
+              if (e.target.checked) setSelectedItems(new Set(filteredItems.map(i => i.id)))
+              else setSelectedItems(new Set())
+            }} />
+            Select all
+          </label>
+          {selectedItems.size > 0 && (
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+              if (window.confirm(`Remove ${selectedItems.size} selected item(s)?`)) {
+                const ids = Array.from(selectedItems)
+                setItems(prev => prev.filter(i => !ids.includes(i.id)))
+                ids.forEach(id => fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
+                setSelectedItems(new Set())
+              }
+            }}>
+              <Trash2 className="size-4" />Remove ({selectedItems.size})
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Items list */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -407,6 +433,11 @@ export default function PipelinePage() {
           {filteredItems.map((item) => (
             <div key={item.id} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">
+                <input type="checkbox" className="rounded mt-1 shrink-0" checked={selectedItems.has(item.id)} onChange={(e) => {
+                  const next = new Set(selectedItems)
+                  if (e.target.checked) next.add(item.id); else next.delete(item.id)
+                  setSelectedItems(next)
+                }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {item.company && <span className="font-medium text-sm">{item.company}</span>}

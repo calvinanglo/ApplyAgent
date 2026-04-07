@@ -33,6 +33,7 @@ export default function StoryBankPage() {
   const [loading, setLoading] = useState(true)
   const [reportMap, setReportMap] = useState<Record<string, Report>>({})
   const [filterTag, setFilterTag] = useState<string | null>(null)
+  const [selectedStories, setSelectedStories] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadStories()
@@ -142,6 +143,31 @@ export default function StoryBankPage() {
         </div>
       )}
 
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" className="rounded" checked={selectedStories.size > 0 && filtered.every(s => selectedStories.has(s.id))} onChange={(e) => {
+              if (e.target.checked) setSelectedStories(new Set(filtered.map(s => s.id)))
+              else setSelectedStories(new Set())
+            }} />
+            Select all
+          </label>
+          {selectedStories.size > 0 && (
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
+              if (window.confirm(`Remove ${selectedStories.size} selected story(ies)?`)) {
+                const supabase = createClient()
+                const ids = Array.from(selectedStories)
+                await (supabase as any).from('story_bank').delete().in('id', ids)
+                setStories(prev => prev.filter(s => !ids.includes(s.id)))
+                setSelectedStories(new Set())
+              }
+            }}>
+              <Trash2 className="size-4" />Remove ({selectedStories.size})
+            </Button>
+          )}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -164,6 +190,11 @@ export default function StoryBankPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                      <input type="checkbox" className="rounded shrink-0" checked={selectedStories.has(story.id)} onClick={(e) => e.stopPropagation()} onChange={(e) => {
+                        const next = new Set(selectedStories)
+                        if (e.target.checked) next.add(story.id); else next.delete(story.id)
+                        setSelectedStories(next)
+                      }} />
                       {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
                       <div>
                         <CardTitle className="text-base">{story.title}</CardTitle>

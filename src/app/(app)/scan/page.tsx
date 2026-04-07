@@ -145,6 +145,8 @@ export default function ScanPage() {
   const [suggesting] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [companiesOpen, setCompaniesOpen] = useState(true)
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set())
+  const [selectedUrls, setSelectedUrls] = useState<Set<number>>(new Set())
 
   // Filter state
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([])
@@ -296,17 +298,14 @@ export default function ScanPage() {
                   <RotateCcw className="size-4" />
                   Reset
                 </Button>
-                {companies.length > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    const backup = [...companies]
-                    setCompanies([])
-                    toast(`${backup.length} companies removed`, {
-                      action: { label: 'Undo', onClick: () => setCompanies(backup) },
-                      duration: 5000,
-                    })
+                {selectedCompanies.size > 0 && (
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                    if (window.confirm(`Remove ${selectedCompanies.size} selected company(ies)?`)) {
+                      setCompanies(prev => prev.filter((_, i) => !selectedCompanies.has(i)))
+                      setSelectedCompanies(new Set())
+                    }
                   }}>
-                    <Trash2 className="size-4" />
-                    Clear All
+                    <Trash2 className="size-4" />Remove ({selectedCompanies.size})
                   </Button>
                 )}
               </div>
@@ -316,13 +315,26 @@ export default function ScanPage() {
                   Suggesting companies based on your profile...
                 </div>
               )}
+              {companies.length > 0 && (
+                <div className="flex items-center justify-between mb-1">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" className="rounded" checked={selectedCompanies.size > 0 && selectedCompanies.size === companies.length} onChange={(e) => {
+                      if (e.target.checked) setSelectedCompanies(new Set(companies.map((_, i) => i)))
+                      else setSelectedCompanies(new Set())
+                    }} />
+                    Select all
+                  </label>
+                </div>
+              )}
               <div className={`space-y-1 ${companies.length > 8 ? 'max-h-64 overflow-y-auto' : ''}`}>
                 {companies.map((company, i) => (
                   <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
+                    <input type="checkbox" className="rounded shrink-0" checked={selectedCompanies.has(i)} onChange={(e) => {
+                      const next = new Set(selectedCompanies)
+                      if (e.target.checked) next.add(i); else next.delete(i)
+                      setSelectedCompanies(next)
+                    }} />
                     <span className="flex-1 text-sm">{company.name}</span>
-                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeCompany(i)}>
-                      <Trash2 className="size-3" />
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -448,12 +460,35 @@ export default function ScanPage() {
             <CardDescription>Paste specific job posting URLs to add directly to your pipeline</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {customUrls.length > 0 && (
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" className="rounded" checked={selectedUrls.size > 0 && selectedUrls.size === customUrls.length} onChange={(e) => {
+                    if (e.target.checked) setSelectedUrls(new Set(customUrls.map((_, i) => i)))
+                    else setSelectedUrls(new Set())
+                  }} />
+                  Select all
+                </label>
+                {selectedUrls.size > 0 && (
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                    if (window.confirm(`Remove ${selectedUrls.size} selected URL(s)?`)) {
+                      setCustomUrls(prev => prev.filter((_, i) => !selectedUrls.has(i)))
+                      setSelectedUrls(new Set())
+                    }
+                  }}>
+                    <Trash2 className="size-4" />Remove ({selectedUrls.size})
+                  </Button>
+                )}
+              </div>
+            )}
             {customUrls.map((url, i) => (
               <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <input type="checkbox" className="rounded shrink-0" checked={selectedUrls.has(i)} onChange={(e) => {
+                  const next = new Set(selectedUrls)
+                  if (e.target.checked) next.add(i); else next.delete(i)
+                  setSelectedUrls(next)
+                }} />
                 <span className="flex-1 text-xs font-mono truncate text-muted-foreground">{url}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeCustomUrl(i)}>
-                  <Trash2 className="size-3.5" />
-                </Button>
               </div>
             ))}
             <div className="flex gap-2">
