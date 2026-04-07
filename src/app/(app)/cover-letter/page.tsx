@@ -52,6 +52,7 @@ function CoverLetterContent() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [duplicateWarning, setDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
+  const [selectedClHistory, setSelectedClHistory] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     async function loadReports() {
@@ -470,12 +471,36 @@ function CoverLetterContent() {
         <Card className="border-dashed">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Cover Letters</CardTitle>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { if (window.confirm('Clear cover letter history? Files will remain in storage.')) setClHistory([]) }}>Clear</Button>
+            <div className="flex items-center gap-2">
+              {selectedClHistory.size > 0 && (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                  if (window.confirm(`Remove ${selectedClHistory.size} selected item(s) from history?`)) {
+                    setClHistory(prev => prev.filter((_, idx) => !selectedClHistory.has(idx)))
+                    setSelectedClHistory(new Set())
+                  }
+                }}>Remove ({selectedClHistory.size})</Button>
+              )}
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" className="rounded" checked={selectedClHistory.size > 0 && selectedClHistory.size === clHistory.length} onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedClHistory(new Set(clHistory.map((_, i) => i)))
+                  } else {
+                    setSelectedClHistory(new Set())
+                  }
+                }} />
+                Select all
+              </label>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {clHistory.map((h, i) => (
                 <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <input type="checkbox" className="rounded mr-2 shrink-0" checked={selectedClHistory.has(i)} onChange={(e) => {
+                    const next = new Set(selectedClHistory)
+                    if (e.target.checked) next.add(i); else next.delete(i)
+                    setSelectedClHistory(next)
+                  }} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{h.file_name}</p>
                     <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>

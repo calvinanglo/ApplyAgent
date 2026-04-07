@@ -35,6 +35,7 @@ function ResumeContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [userInitials, setUserInitials] = useState('')
   const [history, setHistory] = useState<Array<{ storage_path: string; file_name: string; created_at: string; report_id?: string }>>([])
+  const [selectedHistory, setSelectedHistory] = useState<Set<number>>(new Set())
 
 
   useEffect(() => {
@@ -456,12 +457,38 @@ function ResumeContent() {
         <Card className="border-dashed">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Resumes</CardTitle>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { if (window.confirm('Clear resume history? Files will remain in storage.')) setHistory([]) }}>Clear</Button>
+            <div className="flex items-center gap-2">
+              {selectedHistory.size > 0 && (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                  if (window.confirm(`Remove ${selectedHistory.size} selected item(s) from history?`)) {
+                    const filtered = history.filter(h => h.storage_path && h.storage_path.includes('/'))
+                    setHistory(prev => prev.filter((_, idx) => !selectedHistory.has(idx)))
+                    setSelectedHistory(new Set())
+                  }
+                }}>Remove ({selectedHistory.size})</Button>
+              )}
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" className="rounded" checked={selectedHistory.size > 0 && selectedHistory.size === history.filter(h => h.storage_path && h.storage_path.includes('/')).length} onChange={(e) => {
+                  if (e.target.checked) {
+                    const all = new Set(history.filter(h => h.storage_path && h.storage_path.includes('/')).map((_, i) => i))
+                    setSelectedHistory(all)
+                  } else {
+                    setSelectedHistory(new Set())
+                  }
+                }} />
+                Select all
+              </label>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {history.filter(h => h.storage_path && h.storage_path.includes('/')).map((h, i) => (
                 <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <input type="checkbox" className="rounded mr-2 shrink-0" checked={selectedHistory.has(i)} onChange={(e) => {
+                    const next = new Set(selectedHistory)
+                    if (e.target.checked) next.add(i); else next.delete(i)
+                    setSelectedHistory(next)
+                  }} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{h.file_name}</p>
                     <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
