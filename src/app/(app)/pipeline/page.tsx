@@ -241,7 +241,7 @@ export default function PipelinePage() {
   const allFiltered = activeTab === 'errors'
       ? items.filter(i => i.status === 'error')
       : activeTab === 'done'
-      ? items.filter(i => i.status === 'done')
+      ? items.filter(i => i.status === 'done').sort((a, b) => new Date(b.processed_at || 0).getTime() - new Date(a.processed_at || 0).getTime())
       : items.filter(i => i.status === activeTab)
   const totalPages = Math.ceil(allFiltered.length / PAGE_SIZE)
   const filteredItems = allFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
