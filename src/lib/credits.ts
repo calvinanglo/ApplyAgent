@@ -20,13 +20,55 @@ export const CREDIT_PACKS = [
   { id: 'power_user', name: 'Power User', credits: 800, price: 3000, priceDisplay: '$30' },
 ] as const
 
+export const SUBSCRIPTION_PLANS = [
+  {
+    id: 'starter_monthly',
+    name: 'Starter',
+    credits: 120,
+    priceMonthly: 1500,       // $15/mo
+    priceMonthlyDisplay: '$15',
+    priceAnnually: 1200,       // $12/mo billed annually
+    priceAnnuallyDisplay: '$12',
+    priceAnnualTotal: 14400,   // $144/yr
+    priceAnnualTotalDisplay: '$144',
+    badge: null,
+    features: ['120 credits/month', 'Unused credits roll over', 'All features included'],
+  },
+  {
+    id: 'growth_monthly',
+    name: 'Growth',
+    credits: 300,
+    priceMonthly: 3500,
+    priceMonthlyDisplay: '$35',
+    priceAnnually: 2800,
+    priceAnnuallyDisplay: '$28',
+    priceAnnualTotal: 33600,
+    priceAnnualTotalDisplay: '$336',
+    badge: 'Most Popular',
+    features: ['300 credits/month', 'Unused credits roll over', 'Priority processing', 'All features included'],
+  },
+  {
+    id: 'scale_monthly',
+    name: 'Scale',
+    credits: 750,
+    priceMonthly: 7900,
+    priceMonthlyDisplay: '$79',
+    priceAnnually: 6300,
+    priceAnnuallyDisplay: '$63',
+    priceAnnualTotal: 75600,
+    priceAnnualTotalDisplay: '$756',
+    badge: null,
+    features: ['750 credits/month', 'Unused credits roll over', 'Priority processing', 'Dedicated support', 'All features included'],
+  },
+] as const
+
 export const FREE_TIER = {
   evaluations_per_month: 3,
 } as const
 
 export function getActionLabel(action: CreditAction): string {
   const labels: Record<CreditAction, string> = {
-    evaluation: 'Job Evaluation (A-F)',
+    evaluation: 'Job Match Report',
     pdf: 'Resume',
     cover_letter: 'Cover Letter',
     portal_scan: 'Portal Scan',

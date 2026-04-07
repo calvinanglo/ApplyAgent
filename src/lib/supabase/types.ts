@@ -21,6 +21,7 @@ export interface Database {
           job_types: string[]
           willing_to_relocate: boolean
           onboarding_completed: boolean
+          stripe_customer_id: string | null
           referral_code: string | null
           referred_by: string | null
           created_at: string
@@ -43,6 +44,7 @@ export interface Database {
           job_types?: string[]
           willing_to_relocate?: boolean
           onboarding_completed?: boolean
+          stripe_customer_id?: string | null
           referral_code?: string | null
           referred_by?: string | null
           created_at?: string
@@ -65,6 +67,7 @@ export interface Database {
           job_types?: string[]
           willing_to_relocate?: boolean
           onboarding_completed?: boolean
+          stripe_customer_id?: string | null
           referral_code?: string | null
           referred_by?: string | null
           created_at?: string
@@ -632,6 +635,53 @@ export interface Database {
           referral_code?: string
           credits_awarded?: boolean
           created_at?: string
+        }
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          stripe_subscription_id: string
+          stripe_customer_id: string
+          plan_id: string
+          billing_period: 'monthly' | 'annually'
+          status: 'active' | 'canceled' | 'past_due' | 'incomplete'
+          credits_per_month: number
+          current_period_start: string
+          current_period_end: string
+          cancel_at_period_end: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          stripe_subscription_id: string
+          stripe_customer_id: string
+          plan_id: string
+          billing_period: 'monthly' | 'annually'
+          status?: 'active' | 'canceled' | 'past_due' | 'incomplete'
+          credits_per_month: number
+          current_period_start: string
+          current_period_end: string
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          stripe_subscription_id?: string
+          stripe_customer_id?: string
+          plan_id?: string
+          billing_period?: 'monthly' | 'annually'
+          status?: 'active' | 'canceled' | 'past_due' | 'incomplete'
+          credits_per_month?: number
+          current_period_start?: string
+          current_period_end?: string
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
         }
       }
     }

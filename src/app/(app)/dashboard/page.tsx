@@ -151,7 +151,7 @@ export default async function DashboardPage() {
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { href: '/evaluate', icon: Search, label: 'Evaluate Job', desc: 'Full A-F evaluation', credits: '10 cr' },
+              { href: '/evaluate', icon: Search, label: 'Evaluate Job', desc: 'Full match report', credits: '10 cr' },
               { href: '/cover-letter', icon: Mail, label: 'Cover Letter', desc: 'Tailored cover letter', credits: '5 cr' },
               { href: '/resume', icon: FileDown, label: 'Resume', desc: 'ATS-optimized PDF', credits: '3 cr' },
               { href: '/tools', icon: Wrench, label: 'Tools', desc: 'LinkedIn, research & more', credits: '2-5 cr' },

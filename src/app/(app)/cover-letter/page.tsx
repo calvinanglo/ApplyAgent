@@ -505,56 +505,63 @@ function CoverLetterContent() {
                     <p className="text-sm font-medium truncate">{h.file_name}</p>
                     <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                   </div>
-                  {h.storage_path && (
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const { createClient } = await import('@/lib/supabase/client')
-                        const supabase = createClient()
-                        const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path!)
-                        if (data?.publicUrl) {
-                          try {
-                            const res = await fetch(data.publicUrl)
-                            if (!res.ok) return
-                            const cl = await res.json()
-                            // Generate PDF client-side from the stored JSON
-                            const { jsPDF } = await import('jspdf')
-                            const pdf = new jsPDF({ unit: 'pt', format: 'letter' })
-                            const margin = 60
-                            const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2
-                            let y = margin
-                            pdf.setFont('times', 'normal')
-                            if (cl.header?.candidate_name) { pdf.setFontSize(14); pdf.setFont('times', 'bold'); pdf.text(cl.header.candidate_name, margin, y); y += 18 }
-                            const cnt = [cl.header?.candidate_email, cl.header?.candidate_phone, cl.header?.candidate_location].filter(Boolean).join(' | ')
-                            if (cnt) { pdf.setFontSize(9); pdf.setFont('times', 'normal'); pdf.setTextColor(100); pdf.text(cnt, margin, y); y += 20; pdf.setTextColor(0) }
-                            if (cl.header?.date) { pdf.setFontSize(11); pdf.text(cl.header.date, margin, y); y += 24 }
-                            pdf.setFontSize(11); pdf.setFont('times', 'normal')
-                            if (cl.greeting) { pdf.text(cl.greeting, margin, y); y += 20 }
-                            for (const para of (cl.body_paragraphs || [])) { const lines = pdf.splitTextToSize(para, pageWidth); if (y + lines.length * 15 > pdf.internal.pageSize.getHeight() - margin) { pdf.addPage(); y = margin } pdf.text(lines, margin, y); y += lines.length * 15 + 10 }
-                            if (cl.closing) { pdf.text(cl.closing, margin, y); y += 18 }
-                            if (cl.signature_name) { pdf.setFont('times', 'bold'); pdf.text(cl.signature_name, margin, y) }
-                            pdf.save((h.file_name || 'cover-letter') + '.pdf')
-                          } catch {}
-                        }
-                      }}>
-                        <FileDown className="size-4" />PDF
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const { createClient } = await import('@/lib/supabase/client')
-                        const supabase = createClient()
-                        const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path!)
-                        if (data?.publicUrl) {
-                          try {
-                            const res = await fetch(data.publicUrl)
-                            if (!res.ok) return
-                            const cl = await res.json()
-                            await buildCoverLetterDocx(cl, (h.file_name || 'cover-letter') + '.docx')
-                          } catch {}
-                        }
-                      }}>
-                        <Download className="size-4" />DOCX
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    {h.storage_path ? (
+                      <>
+                        <Button variant="outline" size="sm" onClick={async () => {
+                          const { createClient } = await import('@/lib/supabase/client')
+                          const supabase = createClient()
+                          const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path!)
+                          if (data?.publicUrl) {
+                            try {
+                              const res = await fetch(data.publicUrl)
+                              if (!res.ok) return
+                              const cl = await res.json()
+                              const { jsPDF } = await import('jspdf')
+                              const pdf = new jsPDF({ unit: 'pt', format: 'letter' })
+                              const margin = 60
+                              const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2
+                              let y = margin
+                              pdf.setFont('times', 'normal')
+                              if (cl.header?.candidate_name) { pdf.setFontSize(14); pdf.setFont('times', 'bold'); pdf.text(cl.header.candidate_name, margin, y); y += 18 }
+                              const cnt = [cl.header?.candidate_email, cl.header?.candidate_phone, cl.header?.candidate_location].filter(Boolean).join(' | ')
+                              if (cnt) { pdf.setFontSize(9); pdf.setFont('times', 'normal'); pdf.setTextColor(100); pdf.text(cnt, margin, y); y += 20; pdf.setTextColor(0) }
+                              if (cl.header?.date) { pdf.setFontSize(11); pdf.text(cl.header.date, margin, y); y += 24 }
+                              pdf.setFontSize(11); pdf.setFont('times', 'normal')
+                              if (cl.greeting) { pdf.text(cl.greeting, margin, y); y += 20 }
+                              for (const para of (cl.body_paragraphs || [])) { const lines = pdf.splitTextToSize(para, pageWidth); if (y + lines.length * 15 > pdf.internal.pageSize.getHeight() - margin) { pdf.addPage(); y = margin } pdf.text(lines, margin, y); y += lines.length * 15 + 10 }
+                              if (cl.closing) { pdf.text(cl.closing, margin, y); y += 18 }
+                              if (cl.signature_name) { pdf.setFont('times', 'bold'); pdf.text(cl.signature_name, margin, y) }
+                              pdf.save((h.file_name || 'cover-letter') + '.pdf')
+                            } catch {}
+                          }
+                        }}>
+                          <FileDown className="size-4" />PDF
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={async () => {
+                          const { createClient } = await import('@/lib/supabase/client')
+                          const supabase = createClient()
+                          const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path!)
+                          if (data?.publicUrl) {
+                            try {
+                              const res = await fetch(data.publicUrl)
+                              if (!res.ok) return
+                              const cl = await res.json()
+                              await buildCoverLetterDocx(cl, (h.file_name || 'cover-letter') + '.docx')
+                            } catch {}
+                          }
+                        }}>
+                          <Download className="size-4" />DOCX
+                        </Button>
+                      </>
+                    ) : h.report_id ? (
+                      <Link href={`/cover-letter?report_id=${h.report_id}`}>
+                        <Button variant="outline" size="sm">
+                          <Mail className="size-4" />Regenerate
+                        </Button>
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>

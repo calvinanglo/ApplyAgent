@@ -84,7 +84,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: 'user',
-              content: `Evaluate this job description and return the complete A-F evaluation as JSON:\n\n${jd}`,
+              content: `Evaluate this job description and return the complete evaluation as JSON:\n\n${jd}`,
             },
           ],
         })

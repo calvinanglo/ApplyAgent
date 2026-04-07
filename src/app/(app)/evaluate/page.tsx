@@ -181,7 +181,7 @@ export default function EvaluatePage() {
       <div>
         <h1 className="text-2xl font-bold">Evaluate Job Posting</h1>
         <p className="text-muted-foreground">
-          Paste a job description to get a full A-F evaluation with match analysis
+          Paste a job description to get a full match report with gap analysis
         </p>
       </div>
 
