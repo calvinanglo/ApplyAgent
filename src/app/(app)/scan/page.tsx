@@ -205,7 +205,7 @@ export default function ScanPage() {
         label: 'Undo',
         onClick: () => setCompanies(prev => [...prev.slice(0, i), removed, ...prev.slice(i)]),
       },
-      duration: 5000,
+      duration: 10000,
     })
   }
 

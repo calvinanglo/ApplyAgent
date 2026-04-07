@@ -92,7 +92,7 @@ export default function PipelinePage() {
           setItems(prev => [...prev, deleted].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
         },
       },
-      duration: 5000,
+      duration: 10000,
       onAutoClose: () => {
         if (!undone) {
           fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
@@ -186,6 +186,54 @@ export default function PipelinePage() {
     setProcessProgress(null)
   }
 
+  async function handleProcessSelected() {
+    const selected = items.filter(i => selectedItems.has(i.id) && i.status === 'pending')
+    if (!selected.length) { toast('No pending items selected'); return }
+    cancelRef.current = false
+    let completed = 0
+    let stopped = false
+    setProcessProgress({ current: 0, total: selected.length })
+    setSelectedItems(new Set())
+
+    setItems(prev => prev.map(it =>
+      selected.some(s => s.id === it.id) ? { ...it, status: 'processing' as const } : it
+    ))
+
+    for (let i = 0; i < selected.length; i += PARALLEL) {
+      if (cancelRef.current || stopped) {
+        toast(`Cancelled — ${completed} of ${selected.length} processed.`)
+        break
+      }
+      const batch = selected.slice(i, i + PARALLEL)
+      const results = await Promise.allSettled(
+        batch.map(async (item) => {
+          const controller = new AbortController()
+          abortRef.current = controller
+          const res = await fetch('/api/pipeline/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pipeline_item_id: item.id }),
+            signal: controller.signal,
+          })
+          return res.status
+        })
+      )
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          completed++
+          if (r.value === 402) { stopped = true; toast('Insufficient credits — processing stopped.') }
+        } else {
+          completed++
+          if (r.reason instanceof DOMException && r.reason.name === 'AbortError') { stopped = true; toast(`Cancelled — ${completed} processed.`) }
+        }
+      }
+      setProcessProgress({ current: Math.min(completed, selected.length), total: selected.length })
+      await loadItems()
+    }
+    abortRef.current = null
+    setProcessProgress(null)
+  }
+
   async function handleClearItems(type: 'pending' | 'done' | 'errors') {
     setClearConfirm(null)
     const cleared = type === 'pending'
@@ -204,7 +252,7 @@ export default function PipelinePage() {
           setItems(prev => [...prev, ...cleared].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
         },
       },
-      duration: 5000,
+      duration: 10000,
       onAutoClose: () => {
         if (!undone) {
           fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clear: type }) })
@@ -401,16 +449,25 @@ export default function PipelinePage() {
             Select all
           </label>
           {selectedItems.size > 0 && (
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
-              if (window.confirm(`Remove ${selectedItems.size} selected item(s)?`)) {
-                const ids = Array.from(selectedItems)
-                setItems(prev => prev.filter(i => !ids.includes(i.id)))
-                ids.forEach(id => fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
-                setSelectedItems(new Set())
-              }
-            }}>
-              <Trash2 className="size-4" />Remove ({selectedItems.size})
-            </Button>
+            <div className="flex items-center gap-2">
+              <CreditConfirmButton
+                credits={10 * items.filter(i => selectedItems.has(i.id) && i.status === 'pending').length}
+                label={`Process Selected (${items.filter(i => selectedItems.has(i.id) && i.status === 'pending').length})`}
+                loadingLabel="Processing..."
+                onConfirm={handleProcessSelected}
+                icon={<Play className="size-4" />}
+              />
+              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                if (window.confirm(`Remove ${selectedItems.size} selected item(s)?`)) {
+                  const ids = Array.from(selectedItems)
+                  setItems(prev => prev.filter(i => !ids.includes(i.id)))
+                  ids.forEach(id => fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
+                  setSelectedItems(new Set())
+                }
+              }}>
+                <Trash2 className="size-4" />Remove ({selectedItems.size})
+              </Button>
+            </div>
           )}
         </div>
       )}
