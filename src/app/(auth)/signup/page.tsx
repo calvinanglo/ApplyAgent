@@ -92,7 +92,7 @@ function SignupContent() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
-          <CardDescription>Start with 3 free uses</CardDescription>
+          <CardDescription>Set up in 2 minutes. Start applying today.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">
