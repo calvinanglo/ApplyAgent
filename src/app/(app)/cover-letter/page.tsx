@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Mail, Copy, Check, Search, Download, ArrowLeft } from 'lucide-react'
+import { Loader2, Mail, Copy, Check, Search, Download, ArrowLeft, FileDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { FileUpload } from '@/components/ui/file-upload'
@@ -225,45 +225,45 @@ function CoverLetterContent() {
     doc.save(`Cover-Letter-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.pdf`)
   }
 
-  async function handleDownloadDocx() {
-    if (!result) return
+  async function buildCoverLetterDocx(cl: any, downloadName: string) {
     const { Document, Packer, Paragraph, TextRun } = await import('docx')
     const children: InstanceType<typeof Paragraph>[] = []
 
-    // Header
-    if (result.header) {
-      if (result.header.candidate_name) children.push(new Paragraph({ children: [new TextRun({ text: result.header.candidate_name, bold: true, font: 'Garamond', size: 26 })] }))
-      const contactLine = [result.header.candidate_email, result.header.candidate_phone, result.header.candidate_location].filter(Boolean).join(' | ')
+    if (cl.header) {
+      if (cl.header.candidate_name) children.push(new Paragraph({ children: [new TextRun({ text: cl.header.candidate_name, bold: true, font: 'Garamond', size: 26 })] }))
+      const contactLine = [cl.header.candidate_email, cl.header.candidate_phone, cl.header.candidate_location].filter(Boolean).join(' | ')
       if (contactLine) children.push(new Paragraph({ children: [new TextRun({ text: contactLine, font: 'Garamond', size: 20, color: '666666' })] }))
       children.push(new Paragraph({ children: [] }))
-      if (result.header.date) children.push(new Paragraph({ children: [new TextRun({ text: result.header.date, font: 'Garamond', size: 22 })] }))
+      if (cl.header.date) children.push(new Paragraph({ children: [new TextRun({ text: cl.header.date, font: 'Garamond', size: 22 })] }))
       children.push(new Paragraph({ children: [] }))
     }
 
-    // Greeting
-    children.push(new Paragraph({ children: [new TextRun({ text: result.greeting || 'Dear Hiring Manager,', font: 'Garamond', size: 22 })] }))
+    children.push(new Paragraph({ children: [new TextRun({ text: cl.greeting || 'Dear Hiring Manager,', font: 'Garamond', size: 22 })] }))
     children.push(new Paragraph({ children: [] }))
 
-    // Body
-    for (const para of (result.body_paragraphs || [])) {
+    for (const para of (cl.body_paragraphs || [])) {
       children.push(new Paragraph({ children: [new TextRun({ text: para, font: 'Garamond', size: 22 })] }))
       children.push(new Paragraph({ children: [] }))
     }
 
-    // Closing + signature
-    children.push(new Paragraph({ children: [new TextRun({ text: result.closing || 'Best regards,', font: 'Garamond', size: 22 })] }))
-    if (result.signature_name) children.push(new Paragraph({ children: [new TextRun({ text: result.signature_name, bold: true, font: 'Garamond', size: 22 })] }))
+    children.push(new Paragraph({ children: [new TextRun({ text: cl.closing || 'Best regards,', font: 'Garamond', size: 22 })] }))
+    if (cl.signature_name) children.push(new Paragraph({ children: [new TextRun({ text: cl.signature_name, bold: true, font: 'Garamond', size: 22 })] }))
 
     const doc = new Document({ sections: [{ children }] })
     const blob = await Packer.toBlob(doc)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
-    const jobSlug = match ? `${match.company}-${match.role}` : (result.header?.recipient_company || 'General')
-    a.download = `Cover-Letter-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.docx`
+    a.download = downloadName
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function handleDownloadDocx() {
+    if (!result) return
+    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
+    const jobSlug = match ? `${match.company}-${match.role}` : (result.header?.recipient_company || 'General')
+    await buildCoverLetterDocx(result, `Cover-Letter-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.docx`)
   }
 
   const selectedMatch = reportId ? recentReports.find(r => r.report_id === reportId) : null
@@ -432,9 +432,6 @@ function CoverLetterContent() {
                   <Button variant="outline" size="sm" onClick={handleDownloadDocx}>
                     <Download className="size-4" />DOCX
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setResult(null)}>
-                    Clear
-                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -471,8 +468,9 @@ function CoverLetterContent() {
       {/* Generation history from cloud */}
       {clHistory.length > 0 && (
         <Card className="border-dashed">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Cover Letters</CardTitle>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setClHistory([])}>Clear</Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -482,18 +480,55 @@ function CoverLetterContent() {
                     <p className="text-sm font-medium truncate">{h.file_name}</p>
                     <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                   </div>
-                  {h.report_id && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0 ml-2"
-                      onClick={() => {
-                        setSelectedReportId(h.report_id!)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
-                    >
-                      <Download className="size-4" />Regenerate
-                    </Button>
+                  {h.storage_path && (
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <Button variant="outline" size="sm" onClick={async () => {
+                        const { createClient } = await import('@/lib/supabase/client')
+                        const supabase = createClient()
+                        const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path!)
+                        if (data?.publicUrl) {
+                          try {
+                            const res = await fetch(data.publicUrl)
+                            if (!res.ok) return
+                            const cl = await res.json()
+                            // Generate PDF client-side from the stored JSON
+                            const { jsPDF } = await import('jspdf')
+                            const pdf = new jsPDF({ unit: 'pt', format: 'letter' })
+                            const margin = 60
+                            const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2
+                            let y = margin
+                            pdf.setFont('times', 'normal')
+                            if (cl.header?.candidate_name) { pdf.setFontSize(14); pdf.setFont('times', 'bold'); pdf.text(cl.header.candidate_name, margin, y); y += 18 }
+                            const cnt = [cl.header?.candidate_email, cl.header?.candidate_phone, cl.header?.candidate_location].filter(Boolean).join(' | ')
+                            if (cnt) { pdf.setFontSize(9); pdf.setFont('times', 'normal'); pdf.setTextColor(100); pdf.text(cnt, margin, y); y += 20; pdf.setTextColor(0) }
+                            if (cl.header?.date) { pdf.setFontSize(11); pdf.text(cl.header.date, margin, y); y += 24 }
+                            pdf.setFontSize(11); pdf.setFont('times', 'normal')
+                            if (cl.greeting) { pdf.text(cl.greeting, margin, y); y += 20 }
+                            for (const para of (cl.body_paragraphs || [])) { const lines = pdf.splitTextToSize(para, pageWidth); if (y + lines.length * 15 > pdf.internal.pageSize.getHeight() - margin) { pdf.addPage(); y = margin } pdf.text(lines, margin, y); y += lines.length * 15 + 10 }
+                            if (cl.closing) { pdf.text(cl.closing, margin, y); y += 18 }
+                            if (cl.signature_name) { pdf.setFont('times', 'bold'); pdf.text(cl.signature_name, margin, y) }
+                            pdf.save((h.file_name || 'cover-letter') + '.pdf')
+                          } catch {}
+                        }
+                      }}>
+                        <FileDown className="size-4" />PDF
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={async () => {
+                        const { createClient } = await import('@/lib/supabase/client')
+                        const supabase = createClient()
+                        const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path!)
+                        if (data?.publicUrl) {
+                          try {
+                            const res = await fetch(data.publicUrl)
+                            if (!res.ok) return
+                            const cl = await res.json()
+                            await buildCoverLetterDocx(cl, (h.file_name || 'cover-letter') + '.docx')
+                          } catch {}
+                        }
+                      }}>
+                        <Download className="size-4" />DOCX
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}

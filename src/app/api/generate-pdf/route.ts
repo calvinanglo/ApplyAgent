@@ -227,6 +227,17 @@ export async function POST(request: Request) {
       })
     }
 
+    // Also upload content JSON for DOCX re-download from history
+    const jsonFilename = filename.replace(/\.pdf$/, '.json')
+    try {
+      await supabase.storage
+        .from('generated-files')
+        .upload(`${user.id}/${jsonFilename}`, JSON.stringify(content), {
+          contentType: 'application/json',
+          upsert: true,
+        })
+    } catch {}
+
     // Get public URL
     const { data: { publicUrl } } = supabase.storage.from('generated-files').getPublicUrl(`${user.id}/${filename}`)
 

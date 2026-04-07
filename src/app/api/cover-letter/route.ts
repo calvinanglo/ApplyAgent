@@ -149,16 +149,23 @@ Write the cover letter following your instructions. Use today's date in the head
       result = { body_paragraphs: [text] }
     }
 
-    // Save cover letter record for history (no file upload — cover letters are regenerated client-side)
+    // Save cover letter record + upload JSON to storage for re-download
     try {
       const company = reportCompany || (result as any).header?.recipient_company || 'Unknown'
       const role = reportRole || 'Cover Letter'
       const clFilename = `Cover-Letter-${company}-${role}`.replace(/[^a-zA-Z0-9 -]/g, '').replace(/\s+/g, '-').slice(0, 80)
+      const jsonPath = `${user.id}/${clFilename}.json`
+      await supabase.storage
+        .from('generated-files')
+        .upload(jsonPath, JSON.stringify(result), {
+          contentType: 'application/json',
+          upsert: true,
+        })
       await db.from('generated_files').insert({
         user_id: user.id,
         file_type: 'cover_letter',
         file_name: clFilename,
-        storage_path: '',
+        storage_path: jsonPath,
         report_id: body.report_id || null,
       })
     } catch {}

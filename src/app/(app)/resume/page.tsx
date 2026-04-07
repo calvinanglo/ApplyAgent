@@ -129,26 +129,21 @@ function ResumeContent() {
     }
   }
 
-  async function handleDownloadDocx() {
-    if (!result?.content) return
-    const c = result.content
+  async function buildResumeDocx(c: any, downloadName: string) {
     const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx')
     const children: InstanceType<typeof Paragraph>[] = []
 
-    // Name + contact
     children.push(new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: c.name || '', font: 'Garamond', size: 28, bold: true })] }))
     const contact = [c.email, c.location].filter(Boolean).join(' | ')
     if (contact) children.push(new Paragraph({ children: [new TextRun({ text: contact, font: 'Garamond', size: 20, color: '666666' })] }))
     children.push(new Paragraph({ children: [] }))
 
-    // Summary
     if (c.summary) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'PROFESSIONAL SUMMARY', font: 'Garamond', size: 22, bold: true })] }))
       children.push(new Paragraph({ children: [new TextRun({ text: c.summary, font: 'Garamond', size: 22 })] }))
       children.push(new Paragraph({ children: [] }))
     }
 
-    // GitHub Projects
     if (c.github_projects?.length) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'GITHUB PROJECTS', font: 'Garamond', size: 22, bold: true })] }))
       for (const proj of c.github_projects) {
@@ -160,7 +155,6 @@ function ResumeContent() {
       children.push(new Paragraph({ children: [] }))
     }
 
-    // Experience
     if (c.experience?.length) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'EXPERIENCE', font: 'Garamond', size: 22, bold: true })] }))
       for (const job of c.experience) {
@@ -176,7 +170,6 @@ function ResumeContent() {
       }
     }
 
-    // Education
     if (c.education?.length) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'EDUCATION', font: 'Garamond', size: 22, bold: true })] }))
       for (const edu of c.education) {
@@ -188,7 +181,6 @@ function ResumeContent() {
       children.push(new Paragraph({ children: [] }))
     }
 
-    // Certifications
     if (c.certifications?.length) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'CERTIFICATIONS', font: 'Garamond', size: 22, bold: true })] }))
       for (const cert of c.certifications) {
@@ -197,7 +189,6 @@ function ResumeContent() {
       children.push(new Paragraph({ children: [] }))
     }
 
-    // Skills
     if (c.skills?.length) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'SKILLS', font: 'Garamond', size: 22, bold: true })] }))
       for (const cat of c.skills) {
@@ -213,11 +204,16 @@ function ResumeContent() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
-    const jobSlug = match ? `${match.company}-${match.role}` : 'General'
-    a.download = `Resume-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.docx`
+    a.download = downloadName
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function handleDownloadDocx() {
+    if (!result?.content) return
+    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
+    const jobSlug = match ? `${match.company}-${match.role}` : 'General'
+    await buildResumeDocx(result.content, `Resume-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.docx`)
   }
 
   async function handleDownloadPdf() {
@@ -433,9 +429,6 @@ function ResumeContent() {
                         <Download className="size-4" />Download DOCX
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => setResult(null)}>
-                      Clear
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -461,8 +454,9 @@ function ResumeContent() {
       {/* Generation history */}
       {history.filter(h => h.storage_path && h.storage_path.includes('/')).length > 0 && (
         <Card className="border-dashed">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Resumes</CardTitle>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setHistory([])}>Clear</Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -490,14 +484,23 @@ function ResumeContent() {
                     }}>
                       <FileDown className="size-4" />PDF
                     </Button>
-                    {h.report_id && (
-                      <Button variant="outline" size="sm" onClick={() => {
-                        setSelectedReportId(h.report_id!)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}>
-                        <Download className="size-4" />Regenerate
-                      </Button>
-                    )}
+                    <Button variant="outline" size="sm" onClick={async () => {
+                      const { createClient } = await import('@/lib/supabase/client')
+                      const supabase = createClient()
+                      const jsonPath = h.storage_path.replace(/\.pdf$/, '.json')
+                      const { data } = supabase.storage.from('generated-files').getPublicUrl(jsonPath)
+                      if (data?.publicUrl) {
+                        try {
+                          const res = await fetch(data.publicUrl)
+                          if (!res.ok) return
+                          const content = await res.json()
+                          const docxName = (h.file_name || 'resume').replace(/\.pdf$/, '.docx')
+                          await buildResumeDocx(content, docxName)
+                        } catch {}
+                      }
+                    }}>
+                      <Download className="size-4" />DOCX
+                    </Button>
                   </div>
                 </div>
               ))}
