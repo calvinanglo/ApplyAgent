@@ -153,6 +153,11 @@ export async function POST(request: Request) {
       content.portfolio_url = userProfile.portfolio_url
       content.portfolio_display = userProfile.portfolio_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
     }
+    // Strip portfolio if user hasn't set one in profile (AI may hallucinate it from CV)
+    if (!userProfile?.portfolio_url) {
+      content.portfolio_url = ''
+      content.portfolio_display = ''
+    }
     if (userProfile?.phone && !content.phone) {
       content.phone = userProfile.phone
     }

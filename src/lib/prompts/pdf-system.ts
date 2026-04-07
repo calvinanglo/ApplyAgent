@@ -110,7 +110,7 @@ Return ONLY valid JSON with these fields:
   "linkedin_display": "(short display like linkedin.com/in/name, or empty string)",
   "github_url": "(github.com/username URL from CV — NOT .github.io sites, or empty string)",
   "github_display": "(short display like github.com/username, or empty string)",
-  "portfolio_url": "(personal website URL that is NOT linkedin or github, or empty string)",
+  "portfolio_url": "(personal website URL that is NOT linkedin, github.com, or *.github.io — or empty string)",
   "portfolio_display": "(short display, or empty string)",
   "location": "(from CV, e.g. Winnipeg, MB, Canada)",
   "summary": "4-sentence Professional Summary following the structure above",
