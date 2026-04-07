@@ -51,6 +51,7 @@ function CoverLetterContent() {
   const [clHistory, setClHistory] = useState<Array<{ file_name: string; created_at: string; report_id?: string; storage_path?: string }>>([])
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [duplicateWarning, setDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
 
   useEffect(() => {
     async function loadReports() {
@@ -86,17 +87,22 @@ function CoverLetterContent() {
     loadReports()
   }, [])
 
-  async function generateFromReport(id: string) {
+  async function generateFromReport(id: string, force = false) {
     setLoading(true)
     setError(null)
     setResult(null)
+    setDuplicateWarning(null)
     try {
       const res = await fetch('/api/cover-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_id: id }),
+        body: JSON.stringify({ report_id: id, force }),
       })
       const data = await res.json()
+      if (data.already_exists) {
+        setDuplicateWarning(data)
+        return
+      }
       if (!res.ok) { setError(data.error || 'Failed to generate'); return }
       setResult(data.cover_letter)
     } catch (err) {
@@ -380,6 +386,29 @@ function CoverLetterContent() {
       {error && (
         <Card className="border-destructive">
           <CardContent className="pt-6"><p className="text-sm text-destructive">{error}</p></CardContent>
+        </Card>
+      )}
+
+      {duplicateWarning && (
+        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <p className="font-medium text-yellow-900 dark:text-yellow-100">
+                A cover letter was already generated for this job on {new Date(duplicateWarning.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                {duplicateWarning.file_name} — You can regenerate to use credits for a fresh version.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => generateFromReport(selectedReportId!, true)}>
+                  Regenerate Anyway
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDuplicateWarning(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 

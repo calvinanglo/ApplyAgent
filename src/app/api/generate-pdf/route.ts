@@ -21,9 +21,29 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
-    let body: { jd_text?: string; report_id?: string }
+    let body: { jd_text?: string; report_id?: string; force?: boolean }
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
+
+    // Check for existing resume for this report
+    if (body.report_id && !body.force) {
+      const { data: existing } = await db
+        .from('generated_files')
+        .select('file_name, created_at, storage_path')
+        .eq('user_id', user.id)
+        .eq('file_type', 'resume')
+        .eq('report_id', body.report_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+      if (existing?.length) {
+        return Response.json({
+          already_exists: true,
+          file_name: existing[0].file_name,
+          created_at: existing[0].created_at,
+          storage_path: existing[0].storage_path,
+        })
+      }
+    }
 
     const anthropic = getAnthropicClient()
 

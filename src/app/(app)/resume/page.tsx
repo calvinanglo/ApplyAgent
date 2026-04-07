@@ -73,10 +73,13 @@ function ResumeContent() {
     loadReports()
   }, [])
 
-  async function handleGenerate() {
+  const [duplicateWarning, setDuplicateWarning] = useState<{ file_name: string; created_at: string; storage_path?: string } | null>(null)
+
+  async function handleGenerate(force = false) {
     setLoading(true)
     setError(null)
     setResult(null)
+    setDuplicateWarning(null)
 
     try {
       const res = await fetch('/api/generate-pdf', {
@@ -85,6 +88,7 @@ function ResumeContent() {
         body: JSON.stringify({
           jd_text: jdText || undefined,
           report_id: selectedReportId || undefined,
+          force,
         }),
       })
 
@@ -103,6 +107,11 @@ function ResumeContent() {
       }
 
       const data = await res.json()
+      if (data.already_exists) {
+        setDuplicateWarning(data)
+        setLoading(false)
+        return
+      }
       if (!res.ok) { setError(data.error || 'Failed to generate'); return }
 
       // If storage upload failed, API returns pdf_base64 instead of url — create a blob URL
@@ -359,6 +368,29 @@ function ResumeContent() {
       {error && (
         <Card className="border-destructive">
           <CardContent className="pt-6"><p className="text-sm text-destructive">{error}</p></CardContent>
+        </Card>
+      )}
+
+      {duplicateWarning && (
+        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <p className="font-medium text-yellow-900 dark:text-yellow-100">
+                A resume was already generated for this job on {new Date(duplicateWarning.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                {duplicateWarning.file_name} — You can download it below in history, or regenerate to use credits for a fresh version.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleGenerate(true)}>
+                  Regenerate Anyway
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDuplicateWarning(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 
