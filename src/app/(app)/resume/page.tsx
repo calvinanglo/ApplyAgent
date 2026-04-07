@@ -432,31 +432,39 @@ function ResumeContent() {
           <CardContent>
             <div className="space-y-2">
               {history.filter(h => h.storage_path && h.storage_path.includes('/')).map((h, i) => (
-                <button
-                  key={i}
-                  onClick={async () => {
-                    const { createClient } = await import('@/lib/supabase/client')
-                    const supabase = createClient()
-                    const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path)
-                    if (data?.publicUrl) {
-                      const res = await fetch(data.publicUrl)
-                      const blob = await res.blob()
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = h.file_name || 'resume.pdf'
-                      a.click()
-                      URL.revokeObjectURL(url)
-                    }
-                  }}
-                  className="flex items-center justify-between rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors w-full text-left"
-                >
+                <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{h.file_name}</p>
                     <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                   </div>
-                  <FileDown className="size-4 text-muted-foreground shrink-0 ml-2" />
-                </button>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <Button variant="outline" size="sm" onClick={async () => {
+                      const { createClient } = await import('@/lib/supabase/client')
+                      const supabase = createClient()
+                      const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path)
+                      if (data?.publicUrl) {
+                        const res = await fetch(data.publicUrl)
+                        const blob = await res.blob()
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = h.file_name || 'resume.pdf'
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }
+                    }}>
+                      <FileDown className="size-4" />PDF
+                    </Button>
+                    {h.report_id && (
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setSelectedReportId(h.report_id!)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}>
+                        <Download className="size-4" />Regenerate
+                      </Button>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </CardContent>
