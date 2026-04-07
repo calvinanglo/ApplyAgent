@@ -99,17 +99,17 @@ export default function ReportPage() {
         </div>
       </div>
 
-      {blocks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Evaluation Report</CardTitle>
-            {report.created_at && (
-              <CardDescription>
-                {new Date(report.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Evaluation Report</CardTitle>
+          {report.created_at && (
+            <CardDescription>
+              {new Date(report.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent>
+          {blocks.length > 0 ? (
             <Tabs defaultValue={blocks[0]?.key}>
               <TabsList className="flex flex-wrap h-auto">
                 {blocks.map((block) => (
@@ -124,9 +124,11 @@ export default function ReportPage() {
                 </TabsContent>
               ))}
             </Tabs>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-muted-foreground">This evaluation did not generate report data. Try re-evaluating the job from the Evaluate page.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {report.keywords?.length > 0 && (
         <Card>
