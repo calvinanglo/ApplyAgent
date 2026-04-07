@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{NAME}} — Cover Letter</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+  .page { width: 100%; max-width: {{PAGE_WIDTH}}; margin: 0 auto; padding: 0; }
+
+  /* Header — matches CV design */
+  .header { margin-bottom: 16px; }
+  .header h1 { font-size: 20px; font-weight: 700; color: #000; margin-bottom: 2px; }
+  .header-line { height: 1px; background: #000; margin-bottom: 4px; }
+  .contact-row { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 10px; color: #333; }
+  .contact-row a { color: #333; text-decoration: none; white-space: nowrap; }
+  .contact-row .separator { color: #999; }
+
+  /* Date and recipient */
+  .date { font-size: 11px; color: #000; margin-bottom: 12px; }
+  .recipient { font-size: 11px; color: #000; margin-bottom: 16px; line-height: 1.4; }
+
+  /* Letter body */
+  .greeting { font-size: 11px; color: #000; margin-bottom: 10px; }
+  .body p { font-size: 11px; line-height: 1.55; color: #000; margin-bottom: 10px; text-align: justify; }
+  .closing { font-size: 11px; color: #000; margin-top: 16px; }
+  .signature { font-size: 11px; font-weight: 700; color: #000; margin-top: 4px; }
+
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>{{NAME}}</h1>
+    <div class="header-line"></div>
+    <div class="contact-row">
+      <span>{{EMAIL}}</span>
+      <span class="separator">|</span>
+      <span>{{PHONE}}</span>
+      <span class="separator">|</span>
+      <a href="{{LINKEDIN_URL}}">{{LINKEDIN_DISPLAY}}</a>
+      <span class="separator">|</span>
+      <span>{{LOCATION}}</span>
+    </div>
+  </div>
+
+  <div class="date">{{DATE}}</div>
+
+  <div class="recipient">{{RECIPIENT}}</div>
+
+  <div class="greeting">{{GREETING}}</div>
+
+  <div class="body">
+    {{BODY}}
+  </div>
+
+  <div class="closing">{{CLOSING}}</div>
+  <div class="signature">{{NAME}}</div>
+
+</div>
+</body>
+</html>

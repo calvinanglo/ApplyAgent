@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /evaluate
+Disallow: /applications
+Disallow: /reports
+Disallow: /resume
+Disallow: /cover-letter
+Disallow: /scan
+Disallow: /pipeline
+Disallow: /settings
+Disallow: /billing
+Disallow: /story-bank
+Disallow: /tools
+
+Sitemap: https://careeops.com/sitemap.xml
