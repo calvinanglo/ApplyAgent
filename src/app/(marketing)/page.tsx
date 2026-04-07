@@ -26,7 +26,7 @@ const features = [
   },
   {
     icon: Mail,
-    title: 'Cover Letters That Sound Human',
+    title: 'Tailored Cover Letters',
     description: 'AI-powered cover letters with strict anti-detection rules. No "I am writing to express my interest" here.',
   },
   {
