@@ -456,7 +456,7 @@ function ResumeContent() {
         <Card className="border-dashed">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Resumes</CardTitle>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setHistory([])}>Clear</Button>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { if (window.confirm('Clear resume history? Files will remain in storage.')) setHistory([]) }}>Clear</Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
