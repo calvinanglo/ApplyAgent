@@ -115,17 +115,9 @@ export async function POST(request: Request) {
         role: 'user',
         content: `Today's date is ${today}.
 
-Here is the full job description:\n\n${jdText}${reportContext ? `\n\nEvaluation summary:\n${reportContext}` : ''}${evalContext}
+Job description:\n\n${jdText}${reportContext ? `\n\nEvaluation summary:\n${reportContext}` : ''}${evalContext}
 
-Step 1: Extract the EXACT company name, EXACT role title (use it verbatim, not paraphrased), and the 3 most important requirements from the JD.
-Step 2: For each requirement, find the specific matching evidence in my CV.
-Step 3: Write the cover letter using that mapping. Rules:
-- The EXACT job title must appear in the opening paragraph (e.g. "the Cloud Security Engineer role at Cloudflare" not just "the role")
-- The company name must appear at least once
-- Every paragraph must reference something specific from the JD and connect it to something real from my CV
-- Use the JD's own terminology and keywords naturally throughout
-- Use today's date in the header
-- The letter must read as if written for this ONE specific posting — a reader should be able to guess the exact job title just from reading it`,
+Write the cover letter following your instructions. Use today's date in the header.`,
       }],
     })
 

@@ -202,6 +202,18 @@ function ResumeContent() {
     URL.revokeObjectURL(url)
   }
 
+  async function handleDownloadPdf() {
+    if (!result?.url) return
+    const res = await fetch(result.url)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = result.filename || 'resume.pdf'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const selectedMatch = reportIdParam ? recentReports.find(r => r.report_id === reportIdParam) : null
   const q = searchQuery.toLowerCase()
   const filteredReports = q ? recentReports.filter(r =>
@@ -212,7 +224,7 @@ function ResumeContent() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Resume</h1>
-        <p className="text-muted-foreground">Generate an ATS-optimized, 1-page PDF tailored to a specific job description</p>
+        <p className="text-muted-foreground">Generate an ATS-optimized, tailored resume for a specific job description</p>
       </div>
 
       <Card>
@@ -308,11 +320,11 @@ function ResumeContent() {
             )}
 
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Costs 3 credits — Garamond, auto font-sized to fill exactly 1 page</p>
+              <p className="text-xs text-muted-foreground">Costs 3 credits — download as PDF or DOCX</p>
               <CreditConfirmButton
                 credits={3}
-                label="Generate PDF"
-                loadingLabel="Generating PDF..."
+                label="Generate"
+                loadingLabel="Generating..."
                 disabled={loading}
                 onConfirm={handleGenerate}
                 icon={<FileDown className="size-4" />}
@@ -358,9 +370,9 @@ function ResumeContent() {
                       </a>
                     )}
                     {result.url && (
-                      <a href={result.url} download className={cn(buttonVariants({ size: 'sm', variant: 'outline' }), 'inline-flex items-center gap-1.5')}>
+                      <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
                         <FileDown className="size-4" />Download PDF
-                      </a>
+                      </Button>
                     )}
                     {result.content && (
                       <Button variant="outline" size="sm" onClick={handleDownloadDocx}>
@@ -377,19 +389,12 @@ function ResumeContent() {
           {result.url && (
             <Card>
               <CardContent className="pt-6">
-                <object
-                  data={result.url}
-                  type="application/pdf"
+                <iframe
+                  src={result.url}
                   className="w-full rounded-md border"
                   style={{ height: '80vh' }}
-                >
-                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                    <p className="text-sm mb-2">PDF preview not available in this browser</p>
-                    <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">
-                      Open PDF in new tab
-                    </a>
-                  </div>
-                </object>
+                  title="Resume Preview"
+                />
               </CardContent>
             </Card>
           )}
@@ -411,7 +416,16 @@ function ResumeContent() {
                     const { createClient } = await import('@/lib/supabase/client')
                     const supabase = createClient()
                     const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path)
-                    if (data?.publicUrl) window.open(data.publicUrl, '_blank')
+                    if (data?.publicUrl) {
+                      const res = await fetch(data.publicUrl)
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = h.file_name || 'resume.pdf'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }
                   }}
                   className="flex items-center justify-between rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors w-full text-left"
                 >

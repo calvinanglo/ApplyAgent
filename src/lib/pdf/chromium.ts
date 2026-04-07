@@ -31,12 +31,17 @@ async function setFontSize(page: any, sizePx: number): Promise<void> {
   await page.evaluate((size: number) => {
     const style = document.getElementById('__font_override') || document.createElement('style')
     style.id = '__font_override'
+    // Two sizes: headings slightly larger, everything else uniform
+    const heading = Math.round(size * 1.15 * 10) / 10
     style.textContent = `
-      body { font-size: ${size}px !important; }
-      .section-title { font-size: ${size + 0.5}px !important; }
-      .job li, .project-desc, .cert-title, .skill-item, .skill-line { font-size: ${size - 0.5}px !important; }
-      .contact-row, .job-period, .edu-year, .cert-year, .job-location { font-size: ${size - 1}px !important; }
+      body, .summary-text, .job-role, .job li,
+      .project-desc, .cert-title,
+      .skill-item, .skill-line, .skill-category,
+      .contact-row, .job-period, .job-location, .edu-year, .edu-desc,
+      .cert-year, .project-tech, .competency-tag, .github-project,
+      .project-badge { font-size: ${size}px !important; }
       .header h1 { font-size: ${Math.round(size * 1.8)}px !important; }
+      .section-title, .job-company, .edu-title, .project-title { font-size: ${heading}px !important; }
     `
     document.head.appendChild(style)
   }, sizePx)
@@ -107,8 +112,8 @@ export async function getPdfBuffer(html: string, format: 'letter' | 'a4' = 'lett
     await setFontSize(page, currentSize)
     let pages = await countPages(page, format)
 
-    // Step down by 0.5px until 1 page
-    while (pages > 1 && currentSize > 8) {
+    // Step down by 0.5px until 1 page (floor at 9px for readability)
+    while (pages > 1 && currentSize > 9) {
       currentSize -= 0.5
       await setFontSize(page, currentSize)
       pages = await countPages(page, format)

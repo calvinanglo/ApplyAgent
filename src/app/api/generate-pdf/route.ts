@@ -176,17 +176,29 @@ export async function POST(request: Request) {
       .from('generated-files')
       .upload(`${user.id}/${filename}`, pdfBuffer, {
         contentType: 'application/pdf',
-        upsert: false,
+        upsert: true,
       })
 
     if (uploadError) {
-      // If storage fails, return PDF directly
-      return new Response(new Uint8Array(pdfBuffer), {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${filename}"`,
-          'X-Keywords': (content.keywords_extracted || []).slice(0, 10).join(','),
-        },
+      // Storage failed — still return JSON with content so DOCX download works
+      // Client will not get a preview URL but can still download DOCX
+      try {
+        await db.from('generated_files').insert({
+          user_id: user.id,
+          file_type: 'resume',
+          file_name: filename,
+          storage_path: '',
+          report_id: body.report_id || null,
+          keyword_coverage: content.keyword_coverage_pct || null,
+        })
+      } catch {}
+
+      return Response.json({
+        success: true,
+        filename,
+        keywords: content.keywords_extracted,
+        keyword_coverage_pct: content.keyword_coverage_pct,
+        content,
       })
     }
 
