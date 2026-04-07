@@ -103,6 +103,14 @@ function ResumeContent() {
 
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Failed to generate'); return }
+
+      // If storage upload failed, API returns pdf_base64 instead of url — create a blob URL
+      if (!data.url && data.pdf_base64) {
+        const bytes = Uint8Array.from(atob(data.pdf_base64), c => c.charCodeAt(0))
+        const blob = new Blob([bytes], { type: 'application/pdf' })
+        data.url = URL.createObjectURL(blob)
+      }
+
       setResult(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate')

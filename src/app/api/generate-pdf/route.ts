@@ -180,8 +180,7 @@ export async function POST(request: Request) {
       })
 
     if (uploadError) {
-      // Storage failed — still return JSON with content so DOCX download works
-      // Client will not get a preview URL but can still download DOCX
+      // Storage failed — include PDF as base64 so client can still preview/download
       try {
         await db.from('generated_files').insert({
           user_id: user.id,
@@ -196,6 +195,7 @@ export async function POST(request: Request) {
       return Response.json({
         success: true,
         filename,
+        pdf_base64: Buffer.from(pdfBuffer).toString('base64'),
         keywords: content.keywords_extracted,
         keyword_coverage_pct: content.keyword_coverage_pct,
         content,
