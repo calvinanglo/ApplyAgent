@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "CareerOps",
-    "slug": "career-ops",
+    "name": "ApplyAgent",
+    "slug": "apply-agent",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "updates": {
-      "url": "https://u.expo.dev/career-ops",
+      "url": "https://u.expo.dev/2c381589-1d10-4c4b-b1ba-9ec1f20716d5",
       "enabled": true,
       "fallbackToCacheTimeout": 0,
       "checkAutomatically": "ON_LOAD"
@@ -23,7 +23,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.careeops.app",
+      "bundleIdentifier": "com.applyagent.app",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Not used",
@@ -36,21 +36,22 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.careeops.app",
+      "package": "com.applyagent.app",
       "versionCode": 1,
       "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "careeops",
+    "scheme": "applyagent",
     "plugins": [
       "expo-secure-store"
     ],
     "extra": {
       "eas": {
-        "projectId": "replace-with-your-eas-project-id"
+        "projectId": "2c381589-1d10-4c4b-b1ba-9ec1f20716d5"
       }
-    }
+    },
+    "owner": "calvinanglo"
   }
 }

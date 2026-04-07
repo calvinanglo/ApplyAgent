@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { CookieConsent } from "@/components/cookie-consent";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,26 +14,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://careeops.com'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://applyagent.ca'
 
 export const metadata: Metadata = {
   title: {
-    default: "CareerOps - AI Job Search Command Center",
-    template: "%s | CareerOps",
+    default: "ApplyAgent - AI Job Search Command Center",
+    template: "%s | ApplyAgent",
   },
   description: "Evaluate job postings, generate tailored resumes, and track applications with AI. Built for IT and security professionals in Canada.",
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: 'website',
-    siteName: 'CareerOps',
-    title: 'CareerOps - AI Job Search Command Center',
+    siteName: 'ApplyAgent',
+    title: 'ApplyAgent - AI Job Search Command Center',
     description: 'Evaluate job postings, generate tailored resumes, and track applications with AI.',
     url: APP_URL,
   },
   twitter: {
     card: 'summary',
-    title: 'CareerOps - AI Job Search Command Center',
+    title: 'ApplyAgent - AI Job Search Command Center',
     description: 'Evaluate job postings, generate tailored resumes, and track applications with AI.',
+  },
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
   },
   robots: {
     index: true,
@@ -53,6 +58,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
+        <CookieConsent />
       </body>
     </html>
   );

@@ -24,7 +24,7 @@ function titleMatches(title: string): boolean {
 async function scanGreenhouse(slug: string, company: string): Promise<Array<{ title: string; url: string; company: string }>> {
   try {
     const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=false`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CareerOps/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
       signal: AbortSignal.timeout(10000),
     })
     if (!res.ok) return []

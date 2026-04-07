@@ -7,13 +7,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Loader2, Save, CheckCircle2 } from 'lucide-react'
+import { Loader2, Save, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { FileUpload } from '@/components/ui/file-upload'
+import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSaved, setPasswordSaved] = useState(false)
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const router = useRouter()
 
   const [profile, setProfile] = useState({
     full_name: '',
@@ -215,6 +225,71 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+          <CardDescription>Update your account password</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                placeholder="Min 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={8}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirm Password</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={8}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                disabled={passwordSaving || !newPassword}
+                onClick={async () => {
+                  setPasswordError(null)
+                  if (newPassword.length < 8) {
+                    setPasswordError('Password must be at least 8 characters.')
+                    return
+                  }
+                  if (newPassword !== confirmPassword) {
+                    setPasswordError('Passwords do not match.')
+                    return
+                  }
+                  setPasswordSaving(true)
+                  const supabase = createClient()
+                  const { error } = await supabase.auth.updateUser({ password: newPassword })
+                  if (error) {
+                    setPasswordError(error.message)
+                  } else {
+                    setPasswordSaved(true)
+                    setNewPassword('')
+                    setConfirmPassword('')
+                    setTimeout(() => setPasswordSaved(false), 3000)
+                  }
+                  setPasswordSaving(false)
+                }}
+              >
+                {passwordSaving ? <Loader2 className="size-4 animate-spin" /> : passwordSaved ? <CheckCircle2 className="size-4" /> : null}
+                {passwordSaved ? 'Updated!' : 'Update Password'}
+              </Button>
+            </div>
+          </div>
+          {passwordError && (
+            <p className="text-sm text-destructive">{passwordError}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>CV / Resume</CardTitle>
           <CardDescription>
             Upload your resume (PDF, DOCX) or paste it in Markdown format. This is the source of truth for all evaluations and generated documents.
@@ -234,6 +309,49 @@ export default function SettingsPage() {
             rows={20}
             className="font-mono text-sm"
           />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="size-4" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription>Permanently delete your account and all associated data.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!showDeleteConfirm ? (
+            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+              Delete Account
+            </Button>
+          ) : (
+            <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm font-medium text-destructive">
+                This action is permanent. All your evaluations, reports, credits, and saved data will be deleted and cannot be recovered.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  onClick={async () => {
+                    setDeleting(true)
+                    const supabase = createClient()
+                    await supabase.auth.signOut()
+                    // Account deletion requires a server-side endpoint with service role
+                    await fetch('/api/account/delete', { method: 'DELETE' })
+                    router.push('/login')
+                  }}
+                >
+                  {deleting ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {deleting ? 'Deleting...' : 'Yes, delete my account'}
+                </Button>
+                <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

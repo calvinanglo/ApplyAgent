@@ -5,6 +5,7 @@ import { detectArchetype } from '@/lib/prompts/shared-context'
 import { buildResumeHtml, type PdfContent } from '@/lib/pdf/generator'
 import { getPdfBuffer } from '@/lib/pdf/chromium'
 import { CREDIT_COSTS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 60
 
@@ -14,6 +15,11 @@ export async function POST(request: Request) {
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success: withinLimit } = rateLimit(`pdf:${user.id}`, 10, 60_000)
+    if (!withinLimit) {
+      return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
 
     let body: { jd_text?: string; report_id?: string }
     try { body = await request.json() }

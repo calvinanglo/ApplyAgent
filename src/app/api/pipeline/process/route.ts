@@ -6,7 +6,34 @@ import { CREDIT_COSTS } from '@/lib/credits'
 
 export const maxDuration = 60
 
+function isAllowedUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    // Block internal/private IPs and non-http protocols
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false
+    const hostname = parsed.hostname.toLowerCase()
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('172.') ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.local') ||
+      hostname === '169.254.169.254' || // Cloud metadata
+      hostname === 'metadata.google.internal'
+    ) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function fetchJdFromUrl(url: string): Promise<string> {
+  if (!isAllowedUrl(url)) {
+    throw new Error('URL not allowed: internal or private addresses are blocked')
+  }
   try {
     const res = await fetch(url, {
       headers: {

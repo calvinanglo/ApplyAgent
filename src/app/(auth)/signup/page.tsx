@@ -73,7 +73,7 @@ export default function SignupPage() {
               <Input
                 id="name"
                 type="text"
-                placeholder="Calvin Anglo"
+                placeholder="Jane Smith"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
@@ -102,6 +102,12 @@ export default function SignupPage() {
                 required
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              By creating an account, you agree to our{' '}
+              <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>
+              {' '}and{' '}
+              <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+            </p>
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}

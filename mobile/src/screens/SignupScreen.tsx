@@ -41,7 +41,7 @@ export function SignupScreen({ navigation }: any) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.inner}>
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Start your job search with CareerOps</Text>
+        <Text style={styles.subtitle}>Start your job search with ApplyAgent</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

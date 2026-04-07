@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: `CareerOps ${pack.name} Pack`,
+            name: `ApplyAgent ${pack.name} Pack`,
             description: `${pack.credits} credits`,
           },
           unit_amount: pack.price,

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'https://careeops.com'
+  const base = process.env.NEXT_PUBLIC_APP_URL || 'https://applyagent.ca'
 
   return [
     {
@@ -21,6 +21,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: 'yearly',
       priority: 0.5,
+    },
+    {
+      url: `${base}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    {
+      url: `${base}/terms`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    {
+      url: `${base}/contact`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.4,
     },
   ]
 }

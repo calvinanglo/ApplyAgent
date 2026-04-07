@@ -21,14 +21,14 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://careeops.com"
+        "EXPO_PUBLIC_API_URL": "https://applyagent.ca"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://careeops.com"
+        "EXPO_PUBLIC_API_URL": "https://applyagent.ca"
       }
     }
   },

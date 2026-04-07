@@ -51,7 +51,7 @@ export function Sidebar() {
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <FileText className="size-5" />
-          <span className="text-lg font-bold">CareerOps</span>
+          <span className="text-lg font-bold">ApplyAgent</span>
         </Link>
       </div>
 

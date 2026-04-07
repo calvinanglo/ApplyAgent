@@ -30,7 +30,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ tabBarLabel: 'Home', title: 'CareerOps' }}
+        options={{ tabBarLabel: 'Home', title: 'ApplyAgent' }}
       />
       <Tab.Screen
         name="Evaluate"

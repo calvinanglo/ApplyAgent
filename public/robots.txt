@@ -14,4 +14,4 @@ Disallow: /billing
 Disallow: /story-bank
 Disallow: /tools
 
-Sitemap: https://careeops.com/sitemap.xml
+Sitemap: https://applyagent.ca/sitemap.xml

@@ -54,7 +54,7 @@ export default function LandingPage() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <FileText className="size-5" />
-            <span className="text-lg font-bold">CareerOps</span>
+            <span className="text-lg font-bold">ApplyAgent</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login">
@@ -168,8 +168,23 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <p>CareerOps. Built with Next.js, Supabase, and Claude AI.</p>
+      <footer className="border-t py-12 text-sm text-muted-foreground">
+        <div className="mx-auto max-w-4xl px-4">
+          <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
+            <div className="flex items-center gap-2 font-semibold text-foreground">
+              <FileText className="size-4" />
+              ApplyAgent
+            </div>
+            <nav className="flex flex-wrap justify-center gap-6">
+              <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+              <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            </nav>
+          </div>
+          <div className="mt-6 text-center text-xs">
+            &copy; {new Date().getFullYear()} ApplyAgent. All rights reserved.
+          </div>
+        </div>
       </footer>
     </div>
   )

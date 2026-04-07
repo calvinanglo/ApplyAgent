@@ -25,7 +25,7 @@ export function LoginScreen({ navigation }: any) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.inner}>
-        <Text style={styles.title}>CareerOps</Text>
+        <Text style={styles.title}>ApplyAgent</Text>
         <Text style={styles.subtitle}>Sign in to your account</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

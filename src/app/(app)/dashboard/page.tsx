@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   if (!(profile as any)?.onboarding_completed) {
     return (
       <div className="mx-auto max-w-2xl space-y-6 py-12">
-        <h1 className="text-3xl font-bold">Welcome to CareerOps</h1>
+        <h1 className="text-3xl font-bold">Welcome to ApplyAgent</h1>
         <p className="text-muted-foreground">
           Let&apos;s get you set up. Upload your CV and configure your profile to start evaluating job offers.
         </p>

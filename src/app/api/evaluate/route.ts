@@ -3,6 +3,7 @@ import { getAnthropicClient, MODELS } from '@/lib/anthropic'
 import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +13,12 @@ export async function POST(request: Request) {
 
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Rate limit: 10 evaluations per minute per user
+  const { success: withinLimit } = rateLimit(`eval:${user.id}`, 10, 60_000)
+  if (!withinLimit) {
+    return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
   }
 
   let body: { jd_text?: string; jd_url?: string }
