@@ -114,9 +114,9 @@ export default function LandingPage() {
 
         <div className="grid gap-6 md:grid-cols-3">
           {CREDIT_PACKS.map((pack) => (
-            <Card key={pack.id} className={pack.id === 'professional' ? 'border-primary' : ''}>
+            <Card key={pack.id} className={`relative overflow-visible${pack.id === 'professional' ? ' border-primary' : ''}`}>
               {pack.id === 'professional' && (
-                <Badge className="absolute -top-2.5 left-4">Most Popular</Badge>
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">Most Popular</Badge>
               )}
               <CardHeader>
                 <CardTitle>{pack.name}</CardTitle>
