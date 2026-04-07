@@ -6,27 +6,46 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Mail, Copy, Check, Zap } from 'lucide-react'
+import { Loader2, Mail, Copy, Check, Search } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { FileUpload } from '@/components/ui/file-upload'
+import { CreditConfirmButton } from '@/components/ui/credit-confirm'
+import { cn } from '@/lib/utils'
+
+interface AppReport {
+  id: string
+  report_id: string
+  company: string
+  role: string
+  score: number
+}
 
 function CoverLetterContent() {
   const searchParams = useSearchParams()
   const reportId = searchParams.get('report_id')
 
   const [jdText, setJdText] = useState('')
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(reportId)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ body_paragraphs: string[]; greeting?: string; closing?: string; word_count?: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [autoGenerating, setAutoGenerating] = useState(false)
+  const [recentReports, setRecentReports] = useState<AppReport[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Auto-generate if coming from a report
   useEffect(() => {
-    if (reportId && !result) {
-      setAutoGenerating(true)
-      generateFromReport(reportId)
+    async function loadReports() {
+      try {
+        const res = await fetch('/api/applications?limit=20')
+        if (res.ok) {
+          const data = await res.json()
+          const items = Array.isArray(data) ? data : data.items || []
+          setRecentReports(items.filter((a: any) => a.report_id))
+        }
+      } catch {}
     }
-  }, [reportId])
+    loadReports()
+  }, [])
 
   async function generateFromReport(id: string) {
     setLoading(true)
@@ -49,8 +68,7 @@ function CoverLetterContent() {
     }
   }
 
-  async function handleGenerate(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleGenerate() {
     if (!jdText.trim()) return
     setLoading(true)
     setError(null)
@@ -81,71 +99,117 @@ function CoverLetterContent() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const selectedMatch = reportId ? recentReports.find(r => r.report_id === reportId) : null
+  const q = searchQuery.toLowerCase()
+  const filteredReports = q ? recentReports.filter(r =>
+    r.company.toLowerCase().includes(q) || r.role.toLowerCase().includes(q)
+  ) : recentReports
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Cover Letter</h1>
-        <p className="text-muted-foreground">Human-sounding, tailored to the job description. No AI tells.</p>
+        <p className="text-muted-foreground">Tailored cover letter matched to the job description.</p>
       </div>
 
-      {/* Auto-generating from report */}
-      {autoGenerating && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Loader2 className="size-5 animate-spin text-primary" />
-              <div>
-                <p className="font-medium">Generating from your evaluation report</p>
-                <p className="text-sm text-muted-foreground">Using Block B match data to tailor the letter...</p>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            {/* Coming from report page — show selected job only */}
+            {reportId && selectedMatch && (
+              <div className="flex items-center justify-between rounded-lg border border-primary bg-primary/5 p-3 text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-medium truncate">{selectedMatch.company}</span>
+                  <span className="text-muted-foreground truncate">{selectedMatch.role}</span>
+                </div>
+                <Badge variant={selectedMatch.score >= 4 ? 'default' : 'secondary'} className="text-xs shrink-0 ml-2">
+                  {selectedMatch.score.toFixed(1)}/5
+                </Badge>
               </div>
+            )}
+
+            {/* Normal flow — show selector */}
+            {!reportId && recentReports.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select from evaluated jobs</label>
+                {recentReports.length > 3 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by company or role..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 h-9 text-sm"
+                    />
+                  </div>
+                )}
+                <div className="grid gap-2 max-h-48 overflow-y-auto">
+                  {filteredReports.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setSelectedReportId(selectedReportId === r.report_id ? null : r.report_id)
+                        if (selectedReportId !== r.report_id) setJdText('')
+                      }}
+                      className={cn(
+                        'flex items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors',
+                        selectedReportId === r.report_id
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:bg-muted'
+                      )}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium truncate">{r.company}</span>
+                        <span className="text-muted-foreground truncate">{r.role}</span>
+                      </div>
+                      <Badge variant={r.score >= 4 ? 'default' : 'secondary'} className="text-xs shrink-0 ml-2">
+                        {r.score.toFixed(1)}/5
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!reportId && !selectedReportId && (
+              <>
+                {recentReports.length > 0 && (
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">or paste a new JD</span>
+                    </div>
+                  </div>
+                )}
+                <FileUpload
+                  onTextExtracted={(text) => setJdText(text)}
+                  label="Upload job description"
+                  description="PDF, DOCX, or TXT file"
+                />
+                <Textarea
+                  placeholder="Paste the job description here..."
+                  value={jdText}
+                  onChange={(e) => setJdText(e.target.value)}
+                  rows={8}
+                  className="font-mono text-sm"
+                />
+              </>
+            )}
+
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Costs 5 credits</p>
+              <CreditConfirmButton
+                credits={5}
+                label="Generate"
+                loadingLabel="Generating..."
+                disabled={loading || (!jdText.trim() && !selectedReportId && !reportId)}
+                onConfirm={reportId ? () => generateFromReport(reportId) : selectedReportId ? () => generateFromReport(selectedReportId) : handleGenerate}
+                icon={<Mail className="size-4" />}
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Manual JD input — shown when not coming from a report */}
-      {!reportId && (
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleGenerate} className="space-y-4">
-              <FileUpload
-                onTextExtracted={(text) => setJdText(text)}
-                label="Upload job description"
-                description="PDF, DOCX, or TXT file"
-              />
-              <Textarea
-                placeholder="Or paste the job description here..."
-                value={jdText}
-                onChange={(e) => setJdText(e.target.value)}
-                rows={10}
-                className="font-mono text-sm"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">Costs 5 credits</p>
-                <Button type="submit" disabled={loading || !jdText.trim()}>
-                  {loading ? <><Loader2 className="size-4 animate-spin" />Generating...</> : <><Mail className="size-4" />Generate</>}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Regenerate button when coming from report */}
-      {reportId && !autoGenerating && (
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="text-xs">Generated from evaluation report</Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => generateFromReport(reportId)}
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
-            Regenerate
-          </Button>
-        </div>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
       {error && (
         <Card className="border-destructive">

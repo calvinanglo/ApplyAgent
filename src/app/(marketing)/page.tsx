@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,7 @@ const features = [
   {
     icon: Mail,
     title: 'Tailored Cover Letters',
-    description: 'AI-powered cover letters with strict anti-detection rules. No "I am writing to express my interest" here.',
+    description: 'AI-powered cover letters tailored to each job description. Professional, natural, and ready to send.',
   },
   {
     icon: Briefcase,
@@ -53,7 +54,7 @@ export default function LandingPage() {
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <FileText className="size-5" />
+            <Image src="/icon.svg" alt="" width={28} height={28} />
             <span className="text-lg font-bold">ApplyAgent</span>
           </div>
           <div className="flex items-center gap-3">
@@ -69,7 +70,7 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="mx-auto max-w-4xl px-4 py-20 text-center">
-        <Badge variant="secondary" className="mb-4">3 free evaluations to start</Badge>
+        <Badge variant="secondary" className="mb-4">3 free uses to start</Badge>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
           Your AI-powered job search command center
         </h1>
@@ -172,8 +173,8 @@ export default function LandingPage() {
         <div className="mx-auto max-w-4xl px-4">
           <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
             <div className="flex items-center gap-2 font-semibold text-foreground">
-              <FileText className="size-4" />
-              ApplyAgent
+              <Image src="/icon.svg" alt="" width={20} height={20} />
+              <span>ApplyAgent</span>
             </div>
             <nav className="flex flex-wrap justify-center gap-6">
               <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>

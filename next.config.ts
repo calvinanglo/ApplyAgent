@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Optimize large package imports
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+
+  // Exclude server-only packages from client bundles
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min', 'pdf-parse', 'mammoth'],
+
   // Security headers applied to all responses
   async headers() {
     return [

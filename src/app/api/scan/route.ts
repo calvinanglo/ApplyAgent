@@ -1,24 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { CREDIT_COSTS } from '@/lib/credits'
 
-// Title filter keywords
-const TITLE_FILTERS = {
-  positive: [
-    'security', 'network', 'cloud', 'infrastructure', 'systems', 'IT', 'sysadmin',
-    'analyst', 'engineer', 'administrator', 'specialist', 'technician', 'support',
-    'DevOps', 'SRE', 'NOC', 'SOC', 'helpdesk', 'desktop', 'platform',
-  ],
-  negative: [
-    'intern', 'student', 'co-op', 'junior', 'entry-level', 'director', 'VP',
-    'chief', 'C-suite', 'principal', 'managing director', 'head of',
-  ],
-}
+const NEGATIVE_FILTERS = [
+  'intern', 'student', 'co-op', 'junior', 'entry-level', 'director', 'VP',
+  'chief', 'C-suite', 'principal', 'managing director', 'head of',
+]
 
-function titleMatches(title: string): boolean {
+function titleMatches(title: string, targetRoles: string[]): boolean {
   const t = title.toLowerCase()
-  const hasPositive = TITLE_FILTERS.positive.some(kw => t.includes(kw.toLowerCase()))
-  const hasNegative = TITLE_FILTERS.negative.some(kw => t.includes(kw.toLowerCase()))
-  return hasPositive && !hasNegative
+  const hasNegative = NEGATIVE_FILTERS.some(kw => t.includes(kw.toLowerCase()))
+  if (hasNegative) return false
+  // If user has no target roles, show all (except negative-filtered)
+  if (targetRoles.length === 0) return true
+  // Check if title matches any of the user's target role keywords
+  return targetRoles.some(role => {
+    const words = role.toLowerCase().split(/\s+/)
+    return words.some(word => word.length > 2 && t.includes(word))
+  })
 }
 
 async function scanGreenhouse(slug: string, company: string): Promise<Array<{ title: string; url: string; company: string }>> {
@@ -52,6 +50,14 @@ export async function POST(request: Request) {
     }
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
+
+    // Load user's profile for target roles filtering
+    const { data: profile } = await db
+      .from('profiles')
+      .select('target_roles')
+      .eq('id', user.id)
+      .single()
+    const targetRoles: string[] = profile?.target_roles || []
 
     const { data: creditResult } = await db.rpc('deduct_credits', {
       p_user_id: user.id,
@@ -95,8 +101,8 @@ export async function POST(request: Request) {
     // Add custom URLs as pipeline items directly
     const customUrls = (body.custom_urls || []).filter(url => url.trim())
 
-    // Filter by title
-    const filtered = foundJobs.filter(job => titleMatches(job.title))
+    // Filter by title using user's target roles
+    const filtered = foundJobs.filter(job => titleMatches(job.title, targetRoles))
     const skippedTitle = foundJobs.length - filtered.length
 
     // Dedup

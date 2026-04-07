@@ -26,8 +26,9 @@ export async function POST(request: Request) {
       text = await file.text()
     } else if (ext === 'pdf') {
       const buffer = Buffer.from(await file.arrayBuffer())
-      // pdf-parse v1 uses CommonJS — dynamic import with default
-      const pdfParse = (await import('pdf-parse' as any)).default
+      // Import pdf-parse/lib/pdf-parse.js directly to avoid the index.js debug mode
+      // bug that tries to read './test/data/05-versions-space.pdf'
+      const pdfParse = (await import('pdf-parse/lib/pdf-parse.js' as any)).default
       const parsed = await pdfParse(buffer)
       text = parsed.text
     } else if (ext === 'docx') {

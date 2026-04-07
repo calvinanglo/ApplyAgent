@@ -69,7 +69,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{(balance as any)?.balance || 0}</div>
             {freeLeft > 0 && (
-              <p className="text-xs text-muted-foreground mt-0.5">{freeLeft} free eval{freeLeft !== 1 ? 's' : ''} left</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{freeLeft} free use{freeLeft !== 1 ? 's' : ''} left</p>
             )}
           </CardContent>
         </Card>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { href: '/evaluate', icon: Search, label: 'Evaluate Job', desc: 'Full A-F evaluation', credits: '10 cr' },
-              { href: '/cover-letter', icon: Mail, label: 'Cover Letter', desc: 'Human-sounding letter', credits: '5 cr' },
+              { href: '/cover-letter', icon: Mail, label: 'Cover Letter', desc: 'Tailored cover letter', credits: '5 cr' },
               { href: '/resume', icon: FileDown, label: 'Resume PDF', desc: 'ATS-optimized PDF', credits: '3 cr' },
               { href: '/tools', icon: Wrench, label: 'Tools', desc: 'LinkedIn, research & more', credits: '2-5 cr' },
               { href: '/scan', icon: Inbox, label: 'Run Scanner', desc: 'Discover new openings', credits: '8 cr' },

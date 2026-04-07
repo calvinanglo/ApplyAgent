@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   Search,
-  FileText,
   Briefcase,
   CreditCard,
   Settings,
@@ -17,9 +16,14 @@ import {
   Wrench,
   List,
   BookOpen,
+  Menu,
+  X,
+  HelpCircle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,12 +36,26 @@ const navItems = [
   { href: '/scan', label: 'Scanner', icon: Inbox },
   { href: '/pipeline', label: 'Pipeline', icon: List },
   { href: '/billing', label: 'Billing', icon: CreditCard },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/settings', label: 'Profile', icon: Settings },
+  { href: '/instructions', label: 'How It Works', icon: HelpCircle },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [open, setOpen] = useState(false)
+
+  // Close sidebar on route change
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname])
+
+  // Listen for toggle event from topbar hamburger button
+  useEffect(() => {
+    function handleToggle() { setOpen(true) }
+    window.addEventListener('toggle-sidebar', handleToggle)
+    return () => window.removeEventListener('toggle-sidebar', handleToggle)
+  }, [])
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -46,16 +64,22 @@ export function Sidebar() {
     router.refresh()
   }
 
-  return (
-    <aside className="flex h-full w-64 flex-col border-r bg-card">
+  const sidebarContent = (
+    <>
       <div className="flex h-14 items-center border-b px-4">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <FileText className="size-5" />
+        <Link href="/" className="flex items-center gap-2">
+          <Image src="/icon.svg" alt="" width={28} height={28} />
           <span className="text-lg font-bold">ApplyAgent</span>
         </Link>
+        <button
+          onClick={() => setOpen(false)}
+          className="ml-auto md:hidden p-1 text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-5" />
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href)
           return (
@@ -85,6 +109,33 @@ export function Sidebar() {
           Sign out
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar (slide-in drawer) */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-card shadow-xl transition-transform duration-200 md:hidden',
+          open ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop sidebar (always visible) */}
+      <aside className="hidden h-full w-64 flex-col border-r bg-card md:flex">
+        {sidebarContent}
+      </aside>
+    </>
   )
 }

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Send, FileDown, Mail, Zap } from 'lucide-react'
+import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { BlockRenderer } from '@/components/evaluation/BlockRenderer'
 import { FileUpload } from '@/components/ui/file-upload'
 import Link from 'next/link'
@@ -30,8 +31,7 @@ export default function EvaluatePage() {
   const [pipelineDone, setPipelineDone] = useState<{ pdf?: string; coverLetter?: boolean } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  async function handleEvaluate(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleEvaluate() {
     if (!jdText.trim()) return
 
     setLoading(true)
@@ -187,7 +187,7 @@ export default function EvaluatePage() {
 
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={handleEvaluate} className="space-y-4">
+          <div className="space-y-4">
             <FileUpload
               onTextExtracted={(text) => setJdText(text)}
               label="Upload job description"
@@ -202,17 +202,18 @@ export default function EvaluatePage() {
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                Costs 10 credits (or 1 free evaluation)
+                Costs 10 credits (or 1 free use)
               </p>
-              <Button type="submit" disabled={loading || !jdText.trim()}>
-                {loading ? (
-                  <><Loader2 className="size-4 animate-spin" />Evaluating...</>
-                ) : (
-                  <><Send className="size-4" />Evaluate</>
-                )}
-              </Button>
+              <CreditConfirmButton
+                credits={10}
+                label="Evaluate"
+                loadingLabel="Evaluating..."
+                disabled={loading || !jdText.trim()}
+                onConfirm={handleEvaluate}
+                icon={<Send className="size-4" />}
+              />
             </div>
-          </form>
+          </div>
         </CardContent>
       </Card>
 

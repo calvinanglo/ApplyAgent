@@ -30,7 +30,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="mb-3 text-lg font-semibold text-foreground">4. Credits and Payment</h2>
-          <p>The Service operates on a credit-based system. New accounts receive 3 free evaluations (one-time, non-renewable). Additional credits may be purchased through our billing page. All purchases are processed securely through Stripe.</p>
+          <p>The Service operates on a credit-based system. New accounts receive 3 free uses (one-time, non-renewable) that can be applied to any feature. Additional credits may be purchased through our billing page. All purchases are processed securely through Stripe.</p>
           <p className="mt-2"><strong>Refunds:</strong> Credit purchases are generally non-refundable. If you experience a technical issue that prevents you from using purchased credits, contact us within 14 days of purchase at <a href="mailto:support@applyagent.ca" className="text-primary hover:underline">support@applyagent.ca</a> and we will review your request on a case-by-case basis.</p>
         </section>
 

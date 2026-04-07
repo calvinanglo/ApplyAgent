@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Trash2, Play, ExternalLink, RefreshCw } from 'lucide-react'
+import { Loader2, Plus, Trash2, Play, ExternalLink, AlertCircle, RotateCcw } from 'lucide-react'
+import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import Link from 'next/link'
 
 interface PipelineItem {
@@ -40,14 +41,14 @@ export default function PipelinePage() {
 
   const loadItems = useCallback(async () => {
     try {
-      const res = await fetch(`/api/pipeline?status=${activeTab}&limit=100`)
+      const res = await fetch('/api/pipeline?status=all&limit=200')
       if (res.ok) {
         const data = await res.json()
         setItems(data.items || [])
       }
     } catch {}
     setLoading(false)
-  }, [activeTab])
+  }, [])
 
   useEffect(() => {
     loadItems()
@@ -90,13 +91,11 @@ export default function PipelinePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pipeline_item_id: item.id }),
       })
-      if (res.ok) {
-        await loadItems()
-      } else {
+      if (!res.ok) {
         const data = await res.json()
         console.error('Process failed:', data.error)
-        await loadItems()
       }
+      await loadItems()
     } catch {
       await loadItems()
     }
@@ -110,8 +109,28 @@ export default function PipelinePage() {
     }
   }
 
+  async function handleClearItems(itemsToClear: PipelineItem[]) {
+    for (const item of itemsToClear) {
+      await fetch('/api/pipeline', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id }),
+      })
+    }
+    await loadItems()
+  }
+
+  const [clearConfirm, setClearConfirm] = useState<'pending' | 'done' | null>(null)
+
   const pendingCount = items.filter(i => i.status === 'pending').length
-  const doneCount = items.filter(i => i.status === 'done').length
+  const doneCount = items.filter(i => i.status !== 'pending').length
+  const pendingItems = items.filter(i => i.status === 'pending')
+  const doneItems = items.filter(i => i.status !== 'pending')
+  const filteredItems = activeTab === 'all'
+    ? items
+    : activeTab === 'done'
+      ? items.filter(i => i.status !== 'pending')
+      : items.filter(i => i.status === activeTab)
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -120,15 +139,51 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold">Pipeline</h1>
           <p className="text-muted-foreground">URL inbox — add offers to evaluate in bulk</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={loadItems}>
-            <RefreshCw className="size-4" />
-          </Button>
+        <div className="flex flex-wrap gap-2 items-center">
           {pendingCount > 0 && (
-            <Button size="sm" onClick={handleProcessAll}>
-              <Play className="size-4" />
-              Process All ({pendingCount})
-            </Button>
+            clearConfirm === 'pending' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">Clear {pendingCount} pending?</span>
+                <Button size="sm" variant="destructive" onClick={() => { setClearConfirm(null); handleClearItems(pendingItems) }}>
+                  Confirm
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setClearConfirm(null)}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setClearConfirm('pending')}>
+                <Trash2 className="size-4" />
+                Clear Pending
+              </Button>
+            )
+          )}
+          {doneCount > 0 && (
+            clearConfirm === 'done' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">Clear {doneCount} done?</span>
+                <Button size="sm" variant="destructive" onClick={() => { setClearConfirm(null); handleClearItems(doneItems) }}>
+                  Confirm
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setClearConfirm(null)}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setClearConfirm('done')}>
+                <Trash2 className="size-4" />
+                Clear Done
+              </Button>
+            )
+          )}
+          {pendingCount > 0 && (
+            <CreditConfirmButton
+              credits={10 * pendingCount}
+              label={`Process All (${pendingCount})`}
+              loadingLabel="Processing..."
+              onConfirm={handleProcessAll}
+              icon={<Play className="size-4" />}
+            />
           )}
         </div>
       </div>
@@ -176,7 +231,7 @@ export default function PipelinePage() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="py-12 text-center text-sm text-muted-foreground">
           {activeTab === 'pending' ? (
             <>No pending items. Add a URL above or run the <a href="/scan" className="underline">Scanner</a> to find new offers.</>
@@ -186,7 +241,7 @@ export default function PipelinePage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <div key={item.id} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
@@ -226,19 +281,25 @@ export default function PipelinePage() {
                       </Button>
                     </Link>
                   )}
-                  {item.status === 'pending' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleProcess(item)}
+                  {item.status === 'error' && (
+                    <CreditConfirmButton
+                      credits={10}
+                      label=""
+                      loadingLabel=""
                       disabled={processing[item.id]}
-                    >
-                      {processing[item.id] ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Play className="size-4" />
-                      )}
-                    </Button>
+                      onConfirm={() => handleProcess(item)}
+                      icon={<RotateCcw className="size-4" />}
+                    />
+                  )}
+                  {item.status === 'pending' && (
+                    <CreditConfirmButton
+                      credits={10}
+                      label=""
+                      loadingLabel=""
+                      disabled={processing[item.id]}
+                      onConfirm={() => handleProcess(item)}
+                      icon={processing[item.id] ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                    />
                   )}
                   {item.status !== 'processing' && (
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>

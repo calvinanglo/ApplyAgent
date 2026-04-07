@@ -192,6 +192,21 @@ export async function POST(request: Request) {
       report_id: report?.id,
     })
   } catch (err) {
+    // Ensure pipeline item is marked as error so it doesn't stay stuck at 'processing'
+    try {
+      const supabase = await createClient()
+      const db = supabase as any
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const body = await request.clone().json().catch(() => null)
+        if (body?.pipeline_item_id) {
+          await db.from('pipeline_items').update({
+            status: 'error',
+            error_message: err instanceof Error ? err.message : 'Server error',
+          }).eq('id', body.pipeline_item_id).eq('user_id', user.id)
+        }
+      }
+    } catch { /* best effort */ }
     return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
   }
 }

@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
 export async function DELETE() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -10,7 +10,7 @@ export async function DELETE() {
   }
 
   // Use service role to delete all user data and the auth user
-  const admin = createClient(
+  const admin = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )

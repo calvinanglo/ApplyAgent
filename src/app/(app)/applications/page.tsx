@@ -65,32 +65,43 @@ export default async function ApplicationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {apps.map((app) => (
-                  <TableRow key={app.id}>
-                    <TableCell className="font-mono text-xs">{app.sequence_number}</TableCell>
-                    <TableCell className="font-medium">
-                      <Link href={`/reports/${app.report_id || app.id}`} className="hover:underline">
-                        {app.company}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{app.role}</TableCell>
-                    <TableCell>
-                      {app.score && (
-                        <span className="font-mono text-sm font-bold">{app.score}/5</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusColors[app.status] || 'secondary'}>
-                        {app.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{app.has_pdf ? '✅' : '❌'}</TableCell>
-                    <TableCell>{app.has_cover_letter ? '✅' : '❌'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(app.created_at).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {apps.map((app) => {
+                  const href = `/reports/${app.report_id || app.id}`
+                  return (
+                    <TableRow key={app.id} className="cursor-pointer hover:bg-muted/50">
+                      <TableCell className="font-mono text-xs p-0">
+                        <Link href={href} className="block px-4 py-2">{app.sequence_number}</Link>
+                      </TableCell>
+                      <TableCell className="font-medium p-0">
+                        <Link href={href} className="block px-4 py-2">{app.company}</Link>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground p-0">
+                        <Link href={href} className="block px-4 py-2">{app.role}</Link>
+                      </TableCell>
+                      <TableCell className="p-0">
+                        <Link href={href} className="block px-4 py-2">
+                          {app.score && <span className="font-mono text-sm font-bold">{app.score}/5</span>}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="p-0">
+                        <Link href={href} className="block px-4 py-2">
+                          <Badge variant={statusColors[app.status] || 'secondary'}>{app.status}</Badge>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="p-0">
+                        <Link href={href} className="block px-4 py-2">{app.has_pdf ? '✅' : '❌'}</Link>
+                      </TableCell>
+                      <TableCell className="p-0">
+                        <Link href={href} className="block px-4 py-2">{app.has_cover_letter ? '✅' : '❌'}</Link>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground p-0">
+                        <Link href={href} className="block px-4 py-2">
+                          {new Date(app.created_at).toLocaleDateString()}
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

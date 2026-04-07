@@ -19,6 +19,7 @@ export default function GlobalError({
     <html lang="en">
       <body className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4 max-w-md px-4">
+          <img src="/logo.svg" alt="ApplyAgent" className="mx-auto mb-4 h-12" width={150} height={48} />
           <AlertTriangle className="size-12 text-destructive mx-auto" />
           <h1 className="text-2xl font-bold">Something went wrong</h1>
           <p className="text-muted-foreground text-sm">

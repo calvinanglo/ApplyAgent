@@ -92,7 +92,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{Math.max(0, 3 - freeUsed)}</div>
-            <p className="mt-1 text-sm text-muted-foreground">free evaluations remaining</p>
+            <p className="mt-1 text-sm text-muted-foreground">free uses remaining</p>
           </CardContent>
         </Card>
       </div>

@@ -112,7 +112,7 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <h1 className="text-2xl font-bold">Profile</h1>
           <p className="text-muted-foreground">Your profile and CV configuration</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
@@ -187,37 +187,62 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Target Roles (comma-separated)</Label>
+            <Label>Target Roles (comma-separated) <span className="text-destructive">*</span></Label>
             <Input
               placeholder="IT Security Analyst, Network Engineer, Cloud Engineer"
               value={targetRolesText}
               onChange={(e) => setTargetRolesText(e.target.value)}
+              required
             />
+            {!targetRolesText.trim() && (
+              <p className="text-xs text-destructive">Required — evaluations use this to match you to roles</p>
+            )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
-              <Label>Min Salary</Label>
+              <Label>Pay Type</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={(profile as any).salary_type || 'annual'}
+                onChange={(e) => setProfile({ ...profile, salary_type: e.target.value } as any)}
+              >
+                <option value="annual">Annual Salary</option>
+                <option value="hourly">Hourly Rate</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Min {(profile as any).salary_type === 'hourly' ? 'Rate' : 'Salary'}</Label>
               <Input
                 type="number"
+                placeholder={(profile as any).salary_type === 'hourly' ? 'e.g. 35' : 'e.g. 70000'}
                 value={profile.salary_min || ''}
                 onChange={(e) => setProfile({ ...profile, salary_min: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Max Salary</Label>
+              <Label>Max {(profile as any).salary_type === 'hourly' ? 'Rate' : 'Salary'}</Label>
               <Input
                 type="number"
+                placeholder={(profile as any).salary_type === 'hourly' ? 'e.g. 55' : 'e.g. 100000'}
                 value={profile.salary_max || ''}
                 onChange={(e) => setProfile({ ...profile, salary_max: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Input
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={profile.salary_currency || 'CAD'}
                 onChange={(e) => setProfile({ ...profile, salary_currency: e.target.value })}
-              />
+              >
+                <option value="CAD">CAD</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="AUD">AUD</option>
+                <option value="INR">INR</option>
+              </select>
             </div>
           </div>
         </CardContent>
@@ -229,19 +254,29 @@ export default function SettingsPage() {
           <CardDescription>Update your account password</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Current Password</Label>
+              <Input
+                type="password"
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+            <div />
             <div className="space-y-2">
               <Label>New Password</Label>
               <Input
                 type="password"
-                placeholder="Min 8 characters"
+                placeholder="Min 8 chars, number + special character"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 minLength={8}
               />
             </div>
             <div className="space-y-2">
-              <Label>Confirm Password</Label>
+              <Label>Confirm New Password</Label>
               <Input
                 type="password"
                 value={confirmPassword}
@@ -249,39 +284,53 @@ export default function SettingsPage() {
                 minLength={8}
               />
             </div>
-            <div className="flex items-end">
-              <Button
-                variant="outline"
-                disabled={passwordSaving || !newPassword}
-                onClick={async () => {
-                  setPasswordError(null)
-                  if (newPassword.length < 8) {
-                    setPasswordError('Password must be at least 8 characters.')
-                    return
-                  }
-                  if (newPassword !== confirmPassword) {
-                    setPasswordError('Passwords do not match.')
-                    return
-                  }
-                  setPasswordSaving(true)
-                  const supabase = createClient()
-                  const { error } = await supabase.auth.updateUser({ password: newPassword })
-                  if (error) {
-                    setPasswordError(error.message)
-                  } else {
-                    setPasswordSaved(true)
-                    setNewPassword('')
-                    setConfirmPassword('')
-                    setTimeout(() => setPasswordSaved(false), 3000)
-                  }
-                  setPasswordSaving(false)
-                }}
-              >
-                {passwordSaving ? <Loader2 className="size-4 animate-spin" /> : passwordSaved ? <CheckCircle2 className="size-4" /> : null}
-                {passwordSaved ? 'Updated!' : 'Update Password'}
-              </Button>
-            </div>
           </div>
+          <Button
+            variant="outline"
+            disabled={passwordSaving || !newPassword || !currentPassword}
+            onClick={async () => {
+              setPasswordError(null)
+              if (!currentPassword) {
+                setPasswordError('Please enter your current password.')
+                return
+              }
+              if (newPassword.length < 8 || !/\d/.test(newPassword) || !/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+                setPasswordError('Password must be at least 8 characters with a number and special character.')
+                return
+              }
+              if (newPassword !== confirmPassword) {
+                setPasswordError('Passwords do not match.')
+                return
+              }
+              setPasswordSaving(true)
+              const supabase = createClient()
+              // Verify current password by re-authenticating
+              const { data: { user } } = await supabase.auth.getUser()
+              const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: user?.email || '',
+                password: currentPassword,
+              })
+              if (signInError) {
+                setPasswordError('Current password is incorrect.')
+                setPasswordSaving(false)
+                return
+              }
+              const { error } = await supabase.auth.updateUser({ password: newPassword })
+              if (error) {
+                setPasswordError(error.message)
+              } else {
+                setPasswordSaved(true)
+                setNewPassword('')
+                setConfirmPassword('')
+                setCurrentPassword('')
+                setTimeout(() => setPasswordSaved(false), 3000)
+              }
+              setPasswordSaving(false)
+            }}
+          >
+            {passwordSaving ? <Loader2 className="size-4 animate-spin" /> : passwordSaved ? <CheckCircle2 className="size-4" /> : null}
+            {passwordSaved ? 'Updated!' : 'Update Password'}
+          </Button>
           {passwordError && (
             <p className="text-sm text-destructive">{passwordError}</p>
           )}

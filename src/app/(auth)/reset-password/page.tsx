@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2 } from 'lucide-react'
+import Image from 'next/image'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -32,8 +33,8 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError(null)
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    if (password.length < 8 || !/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      setError('Password must be at least 8 characters with a number and special character.')
       return
     }
 
@@ -77,6 +78,8 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-md">
+      <Image src="/logo.svg" alt="ApplyAgent" width={200} height={64} className="mx-auto mb-6" priority />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Set new password</CardTitle>
@@ -119,6 +122,7 @@ export default function ResetPasswordPage() {
           </p>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

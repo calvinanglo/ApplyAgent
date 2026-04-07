@@ -19,7 +19,7 @@ export function CreditBadge({ credits, freeRemaining }: CreditBadgeProps) {
       </Badge>
       {freeRemaining > 0 && (
         <span className="text-[10px] text-muted-foreground">
-          {freeRemaining} free eval{freeRemaining !== 1 ? 's' : ''}
+          {freeRemaining} free use{freeRemaining !== 1 ? 's' : ''}
         </span>
       )}
     </Link>
