@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Mail, Copy, Check, Search, Download } from 'lucide-react'
+import { Loader2, Mail, Copy, Check, Search, Download, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import Link from 'next/link'
 import { FileUpload } from '@/components/ui/file-upload'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { cn } from '@/lib/utils'
@@ -267,6 +268,11 @@ function CoverLetterContent() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      {reportId && (
+        <Link href={`/reports/${reportId}`}>
+          <Button variant="ghost" size="sm"><ArrowLeft className="size-4 mr-1" />Back to Report</Button>
+        </Link>
+      )}
       <div>
         <h1 className="text-2xl font-bold">Cover Letter</h1>
         <p className="text-muted-foreground">Tailored cover letter matched to the job description.</p>
