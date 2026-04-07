@@ -28,7 +28,7 @@ function ResumeContent() {
   const [jdText, setJdText] = useState('')
   const [selectedReportId, setSelectedReportId] = useState<string | null>(reportIdParam)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ url?: string; filename?: string; keywords?: string[]; keyword_coverage_pct?: number; content?: any } | null>(null)
+  const [result, setResult] = useState<{ url?: string; pdf_base64?: string; filename?: string; keywords?: string[]; keyword_coverage_pct?: number; content?: any } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<Report[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -211,9 +211,17 @@ function ResumeContent() {
   }
 
   async function handleDownloadPdf() {
-    if (!result?.url) return
-    const res = await fetch(result.url)
-    const blob = await res.blob()
+    if (!result) return
+    let blob: Blob
+    if (result.pdf_base64) {
+      const bytes = Uint8Array.from(atob(result.pdf_base64), c => c.charCodeAt(0))
+      blob = new Blob([bytes], { type: 'application/pdf' })
+    } else if (result.url) {
+      const res = await fetch(result.url)
+      blob = await res.blob()
+    } else {
+      return
+    }
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -377,7 +385,7 @@ function ResumeContent() {
                         <Eye className="size-4" />Preview
                       </a>
                     )}
-                    {result.url && (
+                    {(result.url || result.pdf_base64) && (
                       <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
                         <FileDown className="size-4" />Download PDF
                       </Button>

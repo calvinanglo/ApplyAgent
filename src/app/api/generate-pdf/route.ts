@@ -220,6 +220,7 @@ export async function POST(request: Request) {
     return Response.json({
       success: true,
       url: publicUrl,
+      pdf_base64: Buffer.from(pdfBuffer).toString('base64'),
       filename,
       keywords: content.keywords_extracted,
       keyword_coverage_pct: content.keyword_coverage_pct,
