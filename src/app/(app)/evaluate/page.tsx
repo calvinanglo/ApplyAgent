@@ -272,11 +272,11 @@ export default function EvaluatePage() {
                 <div className="flex flex-wrap gap-2">
                   {pipelineDone.pdf && pipelineDone.pdf !== 'downloaded' && (
                     <a href={pipelineDone.pdf} target="_blank" rel="noopener noreferrer">
-                      <Badge className="bg-green-600 cursor-pointer"><FileDown className="size-3 mr-1" />Resume PDF ready</Badge>
+                      <Badge className="bg-green-600 cursor-pointer"><FileDown className="size-3 mr-1" />Resume ready</Badge>
                     </a>
                   )}
                   {pipelineDone.pdf === 'downloaded' && (
-                    <Badge className="bg-green-600"><FileDown className="size-3 mr-1" />Resume PDF downloaded</Badge>
+                    <Badge className="bg-green-600"><FileDown className="size-3 mr-1" />Resume downloaded</Badge>
                   )}
                   {pipelineDone.coverLetter && reportId && (
                     <Link href={`/cover-letter?report_id=${reportId}`}>
@@ -291,7 +291,7 @@ export default function EvaluatePage() {
             {isHighScore && reportId && !pipelineDone && !pipelineLoading && (
               <div className="mt-2 flex gap-2 flex-wrap">
                 <Link href={`/resume?report_id=${reportId}`}>
-                  <Button variant="outline" size="sm"><FileDown className="size-4" />Resume PDF</Button>
+                  <Button variant="outline" size="sm"><FileDown className="size-4" />Resume</Button>
                 </Link>
                 <Link href={`/cover-letter?report_id=${reportId}`}>
                   <Button variant="outline" size="sm"><Mail className="size-4" />Cover Letter</Button>

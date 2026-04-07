@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Search, FileText, Briefcase, CreditCard, Inbox, FileDown, Mail, Wrench, BarChart3 } from 'lucide-react'
+import { Search, FileText, Briefcase, CreditCard, Inbox, FileDown, Mail, Wrench, BarChart3, CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -15,8 +15,9 @@ export default async function DashboardPage() {
     { data: recentApps },
     { data: balance },
     { count: pendingPipeline },
+    { data: cvDoc },
   ] = await Promise.all([
-    supabase.from('profiles').select('full_name, onboarding_completed').eq('id', user!.id).single(),
+    supabase.from('profiles').select('full_name, onboarding_completed, target_roles, email').eq('id', user!.id).single(),
     supabase.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user!.id),
     supabase.from('applications')
       .select('id, company, role, score, status, report_id, created_at')
@@ -25,18 +26,63 @@ export default async function DashboardPage() {
       .limit(5),
     supabase.from('credit_balances').select('balance, free_evaluations_used').eq('user_id', user!.id).single(),
     supabase.from('pipeline_items').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).eq('status', 'pending'),
+    supabase.from('cv_documents').select('id').eq('user_id', user!.id).eq('is_active', true).single(),
   ]) as any[]
 
-  if (!(profile as any)?.onboarding_completed) {
+  // Onboarding checklist
+  const p = profile as any
+  const hasName = !!p?.full_name?.trim()
+  const hasEmail = !!p?.email?.trim()
+  const hasCV = !!cvDoc
+  const hasRoles = (p?.target_roles || []).length > 0
+  const hasEvaluated = (totalApps || 0) > 0
+  const onboardingSteps = [
+    { done: hasName && hasEmail, label: 'Fill in your name and email', href: '/settings', action: 'Go to Profile' },
+    { done: hasCV, label: 'Upload your resume (PDF or DOCX)', href: '/settings', action: 'Upload CV' },
+    { done: hasRoles, label: 'Set your target roles', href: '/settings', action: 'Add Roles' },
+    { done: hasEvaluated, label: 'Evaluate your first job posting', href: '/evaluate', action: 'Evaluate' },
+  ]
+  const onboardingComplete = onboardingSteps.every(s => s.done)
+  const currentStep = onboardingSteps.findIndex(s => !s.done)
+
+  if (!onboardingComplete) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 py-12">
-        <h1 className="text-3xl font-bold">Welcome to ApplyAgent</h1>
-        <p className="text-muted-foreground">
-          Let&apos;s get you set up. Upload your CV and configure your profile to start evaluating job offers.
-        </p>
-        <Link href="/settings">
-          <Button size="lg">Complete Setup</Button>
-        </Link>
+      <div className="mx-auto max-w-2xl space-y-6 py-8">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome to ApplyAgent</h1>
+          <p className="text-muted-foreground mt-1">Complete these steps to get started. It only takes 2 minutes.</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              {onboardingSteps.map((step, i) => (
+                <div key={i} className={`flex items-center gap-3 ${i === currentStep ? '' : step.done ? 'opacity-60' : 'opacity-40'}`}>
+                  {step.done ? (
+                    <CheckCircle2 className="size-5 text-green-600 shrink-0" />
+                  ) : (
+                    <Circle className={`size-5 shrink-0 ${i === currentStep ? 'text-primary' : 'text-muted-foreground'}`} />
+                  )}
+                  <span className={`flex-1 text-sm ${step.done ? 'line-through text-muted-foreground' : i === currentStep ? 'font-medium' : ''}`}>
+                    {step.label}
+                  </span>
+                  {i === currentStep && (
+                    <Link href={step.href}>
+                      <Button size="sm">
+                        {step.action}
+                        <ArrowRight className="size-3 ml-1" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(onboardingSteps.filter(s => s.done).length / onboardingSteps.length) * 100}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{onboardingSteps.filter(s => s.done).length} of {onboardingSteps.length} complete</p>
+          </CardContent>
+        </Card>
+        <p className="text-xs text-muted-foreground">You get <strong>3 free uses</strong> to try any feature before buying credits.</p>
       </div>
     )
   }
@@ -107,7 +153,7 @@ export default async function DashboardPage() {
             {[
               { href: '/evaluate', icon: Search, label: 'Evaluate Job', desc: 'Full A-F evaluation', credits: '10 cr' },
               { href: '/cover-letter', icon: Mail, label: 'Cover Letter', desc: 'Tailored cover letter', credits: '5 cr' },
-              { href: '/resume', icon: FileDown, label: 'Resume PDF', desc: 'ATS-optimized PDF', credits: '3 cr' },
+              { href: '/resume', icon: FileDown, label: 'Resume', desc: 'ATS-optimized PDF', credits: '3 cr' },
               { href: '/tools', icon: Wrench, label: 'Tools', desc: 'LinkedIn, research & more', credits: '2-5 cr' },
               { href: '/scan', icon: Inbox, label: 'Run Scanner', desc: 'Discover new openings', credits: '8 cr' },
               { href: '/pipeline', icon: BarChart3, label: 'Process Pipeline', desc: `${pendingPipeline || 0} items pending`, credits: '' },

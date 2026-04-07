@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { Loader2, FileDown, ExternalLink, CheckCircle, Search } from 'lucide-react'
+import { Loader2, FileDown, ExternalLink, CheckCircle, Search, Download, Eye } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { FileUpload } from '@/components/ui/file-upload'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
@@ -28,10 +28,13 @@ function ResumeContent() {
   const [jdText, setJdText] = useState('')
   const [selectedReportId, setSelectedReportId] = useState<string | null>(reportIdParam)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ url?: string; filename?: string; keywords?: string[]; keyword_coverage_pct?: number } | null>(null)
+  const [result, setResult] = useState<{ url?: string; filename?: string; keywords?: string[]; keyword_coverage_pct?: number; content?: any } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<Report[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [userInitials, setUserInitials] = useState('')
+  const [history, setHistory] = useState<Array<{ storage_path: string; file_name: string; created_at: string; report_id?: string }>>([])
+
 
   useEffect(() => {
     async function loadReports() {
@@ -42,6 +45,27 @@ function ResumeContent() {
           const items = Array.isArray(data) ? data : data.items || []
           const withReports = items.filter((a: any) => a.report_id)
           setRecentReports(withReports)
+        }
+      } catch {}
+      // Load user initials + generated files history
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data } = await (supabase as any).from('profiles').select('full_name').eq('id', user.id).single()
+          if (data?.full_name) {
+            setUserInitials(data.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase())
+          }
+          // Load resume generation history from cloud
+          const { data: files } = await (supabase as any)
+            .from('generated_files')
+            .select('storage_path, file_name, created_at, report_id, keyword_coverage')
+            .eq('user_id', user.id)
+            .eq('file_type', 'resume')
+            .order('created_at', { ascending: false })
+            .limit(20)
+          if (files) setHistory(files)
         }
       } catch {}
     }
@@ -87,6 +111,97 @@ function ResumeContent() {
     }
   }
 
+  async function handleDownloadDocx() {
+    if (!result?.content) return
+    const c = result.content
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx')
+    const children: InstanceType<typeof Paragraph>[] = []
+
+    // Name + contact
+    children.push(new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: c.name || '', font: 'Garamond', size: 28, bold: true })] }))
+    const contact = [c.email, c.location].filter(Boolean).join(' | ')
+    if (contact) children.push(new Paragraph({ children: [new TextRun({ text: contact, font: 'Garamond', size: 20, color: '666666' })] }))
+    children.push(new Paragraph({ children: [] }))
+
+    // Summary
+    if (c.summary) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'PROFESSIONAL SUMMARY', font: 'Garamond', size: 22, bold: true })] }))
+      children.push(new Paragraph({ children: [new TextRun({ text: c.summary, font: 'Garamond', size: 22 })] }))
+      children.push(new Paragraph({ children: [] }))
+    }
+
+    // GitHub Projects
+    if (c.github_projects?.length) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'GITHUB PROJECTS', font: 'Garamond', size: 22, bold: true })] }))
+      for (const proj of c.github_projects) {
+        children.push(new Paragraph({ children: [
+          new TextRun({ text: proj.name, font: 'Garamond', size: 22, bold: true }),
+          new TextRun({ text: ` — ${proj.description}`, font: 'Garamond', size: 22 }),
+        ]}))
+      }
+      children.push(new Paragraph({ children: [] }))
+    }
+
+    // Experience
+    if (c.experience?.length) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'EXPERIENCE', font: 'Garamond', size: 22, bold: true })] }))
+      for (const job of c.experience) {
+        children.push(new Paragraph({ children: [
+          new TextRun({ text: `${job.role}`, font: 'Garamond', size: 22, bold: true }),
+          new TextRun({ text: ` — ${job.company}`, font: 'Garamond', size: 22 }),
+        ]}))
+        children.push(new Paragraph({ children: [new TextRun({ text: `${job.period}${job.location ? ' | ' + job.location : ''}`, font: 'Garamond', size: 20, italics: true, color: '666666' })] }))
+        for (const bullet of (job.bullets || [])) {
+          children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: bullet, font: 'Garamond', size: 22 })] }))
+        }
+        children.push(new Paragraph({ children: [] }))
+      }
+    }
+
+    // Education
+    if (c.education?.length) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'EDUCATION', font: 'Garamond', size: 22, bold: true })] }))
+      for (const edu of c.education) {
+        children.push(new Paragraph({ children: [
+          new TextRun({ text: edu.degree, font: 'Garamond', size: 22, bold: true }),
+          new TextRun({ text: ` — ${edu.institution} (${edu.year})`, font: 'Garamond', size: 22 }),
+        ]}))
+      }
+      children.push(new Paragraph({ children: [] }))
+    }
+
+    // Certifications
+    if (c.certifications?.length) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'CERTIFICATIONS', font: 'Garamond', size: 22, bold: true })] }))
+      for (const cert of c.certifications) {
+        children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: `${cert.name} — ${cert.issuer} (${cert.dates})`, font: 'Garamond', size: 22 })] }))
+      }
+      children.push(new Paragraph({ children: [] }))
+    }
+
+    // Skills
+    if (c.skills?.length) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'SKILLS', font: 'Garamond', size: 22, bold: true })] }))
+      for (const cat of c.skills) {
+        children.push(new Paragraph({ children: [
+          new TextRun({ text: `${cat.category}: `, font: 'Garamond', size: 22, bold: true }),
+          new TextRun({ text: (cat.items || []).join(', '), font: 'Garamond', size: 22 }),
+        ]}))
+      }
+    }
+
+    const doc = new Document({ sections: [{ children }] })
+    const blob = await Packer.toBlob(doc)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
+    const jobSlug = match ? `${match.company}-${match.role}` : 'General'
+    a.download = `Resume-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.docx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const selectedMatch = reportIdParam ? recentReports.find(r => r.report_id === reportIdParam) : null
   const q = searchQuery.toLowerCase()
   const filteredReports = q ? recentReports.filter(r =>
@@ -96,7 +211,7 @@ function ResumeContent() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Resume PDF</h1>
+        <h1 className="text-2xl font-bold">Resume</h1>
         <p className="text-muted-foreground">Generate an ATS-optimized, 1-page PDF tailored to a specific job description</p>
       </div>
 
@@ -214,41 +329,99 @@ function ResumeContent() {
       )}
 
       {result && (
-        <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="size-5 text-green-600 mt-0.5 shrink-0" />
-              <div className="flex-1 space-y-3">
-                <p className="font-medium text-green-900 dark:text-green-100">PDF generated successfully</p>
+        <>
+          <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="size-5 text-green-600 mt-0.5 shrink-0" />
+                <div className="flex-1 space-y-3">
+                  <p className="font-medium text-green-900 dark:text-green-100">PDF generated successfully</p>
 
-                {result.keyword_coverage_pct && (
-                  <div className="flex items-center gap-2">
+                  {result.keyword_coverage_pct && (
                     <p className="text-sm text-green-700 dark:text-green-300">
                       {result.keyword_coverage_pct}% keyword coverage
                     </p>
-                  </div>
-                )}
+                  )}
 
-                {result.keywords && result.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {result.keywords.slice(0, 15).map((kw, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{kw}</Badge>
-                    ))}
-                  </div>
-                )}
+                  {result.keywords && result.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {result.keywords.slice(0, 15).map((kw, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">{kw}</Badge>
+                      ))}
+                    </div>
+                  )}
 
-                {result.url && (
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(buttonVariants({ size: 'sm' }), 'inline-flex items-center gap-1.5')}
-                  >
-                    <ExternalLink className="size-4" />
-                    Download PDF
-                  </a>
-                )}
+                  <div className="flex flex-wrap gap-2">
+                    {result.url && (
+                      <a href={result.url} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: 'sm' }), 'inline-flex items-center gap-1.5')}>
+                        <Eye className="size-4" />Preview
+                      </a>
+                    )}
+                    {result.url && (
+                      <a href={result.url} download className={cn(buttonVariants({ size: 'sm', variant: 'outline' }), 'inline-flex items-center gap-1.5')}>
+                        <FileDown className="size-4" />Download PDF
+                      </a>
+                    )}
+                    {result.content && (
+                      <Button variant="outline" size="sm" onClick={handleDownloadDocx}>
+                        <Download className="size-4" />Download DOCX
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* PDF Preview */}
+          {result.url && (
+            <Card>
+              <CardContent className="pt-6">
+                <object
+                  data={result.url}
+                  type="application/pdf"
+                  className="w-full rounded-md border"
+                  style={{ height: '80vh' }}
+                >
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                    <p className="text-sm mb-2">PDF preview not available in this browser</p>
+                    <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">
+                      Open PDF in new tab
+                    </a>
+                  </div>
+                </object>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Generation history */}
+      {history.filter(h => h.storage_path && h.storage_path.includes('/')).length > 0 && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base text-muted-foreground">Previously Generated Resumes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {history.filter(h => h.storage_path && h.storage_path.includes('/')).map((h, i) => (
+                <button
+                  key={i}
+                  onClick={async () => {
+                    const { createClient } = await import('@/lib/supabase/client')
+                    const supabase = createClient()
+                    const { data } = supabase.storage.from('generated-files').getPublicUrl(h.storage_path)
+                    if (data?.publicUrl) window.open(data.publicUrl, '_blank')
+                  }}
+                  className="flex items-center justify-between rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors w-full text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{h.file_name}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  </div>
+                  <FileDown className="size-4 text-muted-foreground shrink-0 ml-2" />
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>

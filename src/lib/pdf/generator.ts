@@ -8,13 +8,21 @@ export interface PdfContent {
   lang?: string
   name?: string
   email?: string
+  phone?: string
   linkedin_url?: string
   linkedin_display?: string
+  github_url?: string
+  github_display?: string
   portfolio_url?: string
   portfolio_display?: string
   location?: string
   summary?: string
-  competencies?: string[]
+  competencies?: string[]  // legacy, no longer generated
+  github_projects?: Array<{
+    name: string
+    url: string
+    description: string
+  }>
   experience?: Array<{
     company: string
     role: string
@@ -68,7 +76,15 @@ export function buildResumeHtml(content: PdfContent): string {
   const pageWidth = content.paper_format === 'letter' ? '8.5in' : '210mm'
   const lang = content.lang || 'en'
 
-  // Build competencies HTML
+  // Build GitHub projects HTML (replaces old competencies section)
+  const hasGithubProjects = (content.github_projects || []).length > 0
+  const githubProjectsHtml = hasGithubProjects
+    ? (content.github_projects || []).map(p =>
+      `<div class="github-project"><a href="${p.url}" class="github-link">${escHtml(p.name)}</a><span class="github-desc">${escHtml(p.description)}</span></div>`
+    ).join('\n')
+    : ''
+
+  // Legacy competencies fallback (in case old format is returned)
   const competenciesHtml = (content.competencies || [])
     .map(c => `<span class="competency-tag">${escHtml(c)}</span>`)
     .join('\n      ')
@@ -121,18 +137,21 @@ export function buildResumeHtml(content: PdfContent): string {
     <span class="skill-category">${escHtml(s.category)}:</span> ${s.items.map(i => escHtml(i)).join(' \u00b7 ')}
   </div>`).join('\n')
 
-  // Build contact row — only include portfolio if it exists
+  // Build contact row — LinkedIn | GitHub | Portfolio | Location
+  const hasLinkedin = !!(content.linkedin_display || content.linkedin_url)
+  const hasGithub = !!(content.github_display || content.github_url)
   const hasPortfolio = !!(content.portfolio_display || content.portfolio_url)
+  const hasPhone = !!content.phone
+  const contactParts: string[] = []
+  contactParts.push(`<span>${escHtml(content.email || '')}</span>`)
+  if (hasPhone) contactParts.push(`<span>${escHtml(content.phone || '')}</span>`)
+  if (hasLinkedin) contactParts.push(`<a href="${content.linkedin_url || '#'}">${escHtml(content.linkedin_display || 'LinkedIn')}</a>`)
+  if (hasGithub) contactParts.push(`<a href="${content.github_url || '#'}">${escHtml(content.github_display || 'GitHub')}</a>`)
+  if (hasPortfolio) contactParts.push(`<a href="${content.portfolio_url || '#'}">${escHtml(content.portfolio_display || 'Portfolio')}</a>`)
+  contactParts.push(`<span>${escHtml(content.location || '')}</span>`)
   const contactRowHtml = `
       <div class="contact-row">
-        <span>${escHtml(content.email || '')}</span>
-        <span class="separator">|</span>
-        <a href="${content.linkedin_url || '#'}">${escHtml(content.linkedin_display || content.linkedin_url || '')}</a>
-        ${hasPortfolio ? `
-        <span class="separator">|</span>
-        <a href="${content.portfolio_url || '#'}">${escHtml(content.portfolio_display || content.portfolio_url || '')}</a>` : ''}
-        <span class="separator">|</span>
-        <span>${escHtml(content.location || '')}</span>
+        ${contactParts.join('\n        <span class="separator">|</span>\n        ')}
       </div>`
 
   // Replace contact row placeholder — keep the template's static contact row
@@ -141,16 +160,19 @@ export function buildResumeHtml(content: PdfContent): string {
     '{{LANG}}': lang,
     '{{PAGE_WIDTH}}': pageWidth,
     '{{NAME}}': escHtml(content.name || ''),
+    '{{CONTACT_ROW}}': contactRowHtml,
     '{{EMAIL}}': escHtml(content.email || ''),
     '{{LINKEDIN_URL}}': content.linkedin_url || '#',
     '{{LINKEDIN_DISPLAY}}': escHtml(content.linkedin_display || content.linkedin_url || ''),
+    '{{GITHUB_URL}}': content.github_url || '#',
+    '{{GITHUB_DISPLAY}}': escHtml(content.github_display || content.github_url || ''),
     '{{PORTFOLIO_URL}}': content.portfolio_url || '#',
     '{{PORTFOLIO_DISPLAY}}': escHtml(content.portfolio_display || content.portfolio_url || ''),
     '{{LOCATION}}': escHtml(content.location || ''),
     '{{SECTION_SUMMARY}}': 'Professional Summary',
     '{{SUMMARY_TEXT}}': escHtml(content.summary || ''),
-    '{{SECTION_COMPETENCIES}}': 'Core Competencies',
-    '{{COMPETENCIES}}': competenciesHtml,
+    '{{SECTION_COMPETENCIES}}': hasGithubProjects ? 'GitHub Projects' : 'Core Competencies',
+    '{{COMPETENCIES}}': hasGithubProjects ? githubProjectsHtml : competenciesHtml,
     '{{SECTION_EXPERIENCE}}': 'Work Experience',
     '{{EXPERIENCE}}': experienceHtml,
     '{{SECTION_PROJECTS}}': 'Projects',
@@ -167,7 +189,15 @@ export function buildResumeHtml(content: PdfContent): string {
     html = html.replaceAll(placeholder, value)
   }
 
-  // Post-process: remove empty sections (header present but no content)
+  // Post-process: remove empty sections
+  // Remove GitHub Projects / Competencies section when empty
+  if (!hasGithubProjects && !(content.competencies || []).length) {
+    html = html.replace(
+      /<div class="section">\s*<div class="section-title">(?:Core Competencies|GitHub Projects)<\/div>\s*<div class="competencies-grid">\s*<\/div>\s*<\/div>/,
+      ''
+    )
+  }
+
   // Remove Projects section entirely when empty
   if (!hasProjects) {
     html = html.replace(

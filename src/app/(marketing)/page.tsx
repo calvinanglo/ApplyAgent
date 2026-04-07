@@ -70,7 +70,6 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="mx-auto max-w-4xl px-4 py-20 text-center">
-        <Badge variant="secondary" className="mb-4">3 free uses to start</Badge>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
           Your AI-powered job search command center
         </h1>

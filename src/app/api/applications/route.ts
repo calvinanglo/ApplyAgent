@@ -33,7 +33,7 @@ export async function PATCH(request: Request) {
   const { id } = body
 
   // Whitelist allowed fields to prevent mass-assignment
-  const ALLOWED_FIELDS = ['status', 'notes', 'company', 'role', 'url', 'salary', 'applied_at'] as const
+  const ALLOWED_FIELDS = ['status', 'notes', 'company', 'role', 'url', 'applied_date'] as const
   const updates: Record<string, unknown> = {}
   for (const field of ALLOWED_FIELDS) {
     if (field in body) updates[field] = body[field]

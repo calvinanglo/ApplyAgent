@@ -2,6 +2,15 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  // Redirect Vercel preview URLs to custom domain
+  const host = request.headers.get('host') || ''
+  if (host.includes('vercel.app') && !host.includes('localhost')) {
+    const url = new URL(request.url)
+    url.host = 'applyagent.ca'
+    url.protocol = 'https'
+    return NextResponse.redirect(url, 301)
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })

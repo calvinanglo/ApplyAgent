@@ -5,22 +5,91 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Inbox, Plus, Trash2, Search, Sparkles } from 'lucide-react'
+import { Loader2, Plus, Trash2, Search, ChevronDown, ChevronUp, RotateCcw, List } from 'lucide-react'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
+import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+
+// Scanner auto-detects which ATS platform a company uses (Greenhouse, Lever, or Ashby)
+
+// Verified companies across Greenhouse, Lever, Ashby, SmartRecruiters
+const ALL_COMPANIES: Company[] = [
+  // Greenhouse
+  { name: 'Airbnb', slug: 'airbnb', platform: 'greenhouse' },
+  { name: 'Airtable', slug: 'airtable', platform: 'greenhouse' },
+  { name: 'Amplitude', slug: 'amplitude', platform: 'greenhouse' },
+  { name: 'Asana', slug: 'asana', platform: 'greenhouse' },
+  { name: 'Chime', slug: 'chime', platform: 'greenhouse' },
+  { name: 'Cloudflare', slug: 'cloudflare', platform: 'greenhouse' },
+  { name: 'CockroachDB', slug: 'cockroachlabs', platform: 'greenhouse' },
+  { name: 'Coinbase', slug: 'coinbase', platform: 'greenhouse' },
+  { name: 'Confluent', slug: 'confluent', platform: 'greenhouse' },
+  { name: 'Databricks', slug: 'databricks', platform: 'greenhouse' },
+  { name: 'Datadog', slug: 'datadog', platform: 'greenhouse' },
+  { name: 'Discord', slug: 'discord', platform: 'greenhouse' },
+  { name: 'DoorDash', slug: 'doordash', platform: 'greenhouse' },
+  { name: 'Dropbox', slug: 'dropbox', platform: 'greenhouse' },
+  { name: 'Duolingo', slug: 'duolingo', platform: 'greenhouse' },
+  { name: 'Elastic', slug: 'elastic', platform: 'greenhouse' },
+  { name: 'Faire', slug: 'faire', platform: 'greenhouse' },
+  { name: 'Fastly', slug: 'fastly', platform: 'greenhouse' },
+  { name: 'Figma', slug: 'figma', platform: 'greenhouse' },
+  { name: 'GitLab', slug: 'gitlab', platform: 'greenhouse' },
+  { name: 'Gusto', slug: 'gusto', platform: 'greenhouse' },
+  { name: 'HubSpot', slug: 'hubspot', platform: 'greenhouse' },
+  { name: 'Instacart', slug: 'instacart', platform: 'greenhouse' },
+  { name: 'Intercom', slug: 'intercom', platform: 'greenhouse' },
+  { name: 'Lyft', slug: 'lyft', platform: 'greenhouse' },
+  { name: 'Mixpanel', slug: 'mixpanel', platform: 'greenhouse' },
+  { name: 'Okta', slug: 'okta', platform: 'greenhouse' },
+  { name: 'PagerDuty', slug: 'pagerduty', platform: 'greenhouse' },
+  { name: 'Palantir', slug: 'palantir', platform: 'greenhouse' },
+  { name: 'Plaid', slug: 'plaid', platform: 'greenhouse' },
+  { name: 'Point72', slug: 'point72', platform: 'greenhouse' },
+  { name: 'Reddit', slug: 'reddit', platform: 'greenhouse' },
+  { name: 'Robinhood', slug: 'robinhood', platform: 'greenhouse' },
+  { name: 'Samsara', slug: 'samsara', platform: 'greenhouse' },
+  { name: 'Stripe', slug: 'stripe', platform: 'greenhouse' },
+  { name: 'Tailscale', slug: 'tailscale', platform: 'greenhouse' },
+  { name: 'Twilio', slug: 'twilio', platform: 'greenhouse' },
+  { name: 'Twitch', slug: 'twitch', platform: 'greenhouse' },
+  { name: 'Zscaler', slug: 'zscaler', platform: 'greenhouse' },
+  // Lever
+  { name: 'Netflix', slug: 'netflix', platform: 'lever' },
+  { name: 'Spotify', slug: 'spotify', platform: 'lever' },
+  // Ashby
+  { name: 'Linear', slug: 'linear', platform: 'ashby' },
+  { name: 'Notion', slug: 'notion', platform: 'ashby' },
+  { name: 'OpenAI', slug: 'openai', platform: 'ashby' },
+  { name: 'Ramp', slug: 'ramp', platform: 'ashby' },
+  { name: 'Supabase', slug: 'supabase', platform: 'ashby' },
+  { name: 'Vercel', slug: 'vercel', platform: 'ashby' },
+  // SmartRecruiters
+  { name: 'Visa', slug: 'Visa', platform: 'smartrecruiters' },
+  // Workday (slug format: subdomain/wd#/siteId)
+  { name: 'NVIDIA', slug: 'nvidia/wd5/NVIDIAExternalCareerSite', platform: 'workday' },
+  { name: 'Intel', slug: 'intel/wd1/External', platform: 'workday' },
+  { name: 'PayPal', slug: 'paypal/wd1/Jobs', platform: 'workday' },
+  { name: 'Salesforce', slug: 'salesforce/wd12/External_Career_Site', platform: 'workday' },
+  { name: 'NXP', slug: 'nxp/wd3/careers', platform: 'workday' },
+  { name: 'Marvell', slug: 'marvell/wd1/MarvellCareers', platform: 'workday' },
+]
 
 const EXAMPLE_COMPANIES: Company[] = [
-  { name: 'Cloudflare', greenhouse_slug: 'cloudflare' },
-  { name: 'GitLab', greenhouse_slug: 'gitlab' },
-  { name: 'Elastic', greenhouse_slug: 'elastic' },
-  { name: 'Datadog', greenhouse_slug: 'datadog' },
-  { name: 'Okta', greenhouse_slug: 'okta' },
-  { name: 'Zscaler', greenhouse_slug: 'zscaler' },
+  ALL_COMPANIES.find(c => c.name === 'Cloudflare')!,
+  ALL_COMPANIES.find(c => c.name === 'GitLab')!,
+  ALL_COMPANIES.find(c => c.name === 'Datadog')!,
+  ALL_COMPANIES.find(c => c.name === 'Netflix')!,
+  ALL_COMPANIES.find(c => c.name === 'Notion')!,
+  ALL_COMPANIES.find(c => c.name === 'OpenAI')!,
 ]
 
 interface Company {
   name: string
+  slug?: string | null
+  platform?: string
+  // backwards compat
   greenhouse_slug?: string | null
-  careers_url?: string
 }
 
 interface ScanResult {
@@ -28,11 +97,22 @@ interface ScanResult {
     found: number
     filtered: number
     skipped_title: number
+    skipped_filters: number
     skipped_dup: number
     added: number
   }
   new_items: Array<{ title: string; url: string; company: string; source: string }>
 }
+
+const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Permanent', 'Fixed Term'] as const
+const WORK_ARRANGEMENTS = ['Remote', 'Hybrid', 'On-site'] as const
+const DATE_OPTIONS = [
+  { value: 'any', label: 'Any time' },
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '3d', label: 'Last 3 days' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '14d', label: 'Last 14 days' },
+] as const
 
 const STORAGE_KEY = 'applyagent_scan_companies'
 
@@ -40,7 +120,15 @@ function loadSavedCompanies(): Company[] {
   if (typeof window === 'undefined') return EXAMPLE_COMPANIES
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved) {
-    try { return JSON.parse(saved) } catch { /* fall through */ }
+    try {
+      const parsed = JSON.parse(saved)
+      // Migrate old format: greenhouse_slug → slug + platform
+      return parsed.map((c: any) => ({
+        name: c.name,
+        slug: c.slug || c.greenhouse_slug || null,
+        platform: c.platform || (c.greenhouse_slug ? 'greenhouse' : 'greenhouse'),
+      }))
+    } catch { /* fall through */ }
   }
   return EXAMPLE_COMPANIES
 }
@@ -54,46 +142,69 @@ export default function ScanPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [suggesting, setSuggesting] = useState(false)
+  const [suggesting] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [companiesOpen, setCompaniesOpen] = useState(true)
 
-  // Load saved companies on mount, or fetch AI suggestions if first visit
+  // Filter state
+  const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([])
+  const [selectedArrangements, setSelectedArrangements] = useState<string[]>([])
+  const [datePosted, setDatePosted] = useState('any')
+  const [locationFilter, setLocationFilter] = useState('')
+
+  // Load saved companies + profile preferences
   useEffect(() => {
+    // Load profile preferences for filter defaults
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      ;(supabase as any).from('profiles').select('work_arrangement, job_types').eq('id', user.id).single()
+        .then(({ data }: any) => {
+          if (data?.work_arrangement?.length) setSelectedArrangements(data.work_arrangement)
+          if (data?.job_types?.length) setSelectedJobTypes(data.job_types)
+        })
+    })
+
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try {
-        setCompanies(JSON.parse(saved))
+        const parsed = JSON.parse(saved)
+        setCompanies(parsed.map((c: any) => ({
+          name: c.name,
+          slug: c.slug || c.greenhouse_slug || null,
+          platform: c.platform || (c.greenhouse_slug ? 'greenhouse' : 'greenhouse'),
+        })))
         return
       } catch { /* fall through to suggestions */ }
     }
-    // First visit — fetch personalized suggestions
-    setSuggesting(true)
-    fetch('/api/suggest-companies')
-      .then(res => res.json())
-      .then(data => {
-        if (data.companies?.length > 0) {
-          setCompanies(data.companies)
-        } else {
-          setCompanies(EXAMPLE_COMPANIES)
-        }
-      })
-      .catch(() => setCompanies(EXAMPLE_COMPANIES))
-      .finally(() => setSuggesting(false))
+    // First visit — use default companies
+    setCompanies(EXAMPLE_COMPANIES)
   }, [])
 
-  // Persist to localStorage whenever companies change
+  // Persist companies
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(companies))
   }, [companies])
 
   function addCompany() {
     if (!newCompanyName) return
-    setCompanies([...companies, { name: newCompanyName, greenhouse_slug: newCompanySlug || null }])
+    // Auto-generate slug from company name (lowercase, no spaces)
+    const autoSlug = newCompanySlug || newCompanyName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    setCompanies([...companies, { name: newCompanyName, slug: autoSlug }])
     setNewCompanyName('')
     setNewCompanySlug('')
   }
 
   function removeCompany(i: number) {
+    const removed = companies[i]
     setCompanies(companies.filter((_, idx) => idx !== i))
+    toast(`${removed.name} removed`, {
+      action: {
+        label: 'Undo',
+        onClick: () => setCompanies(prev => [...prev.slice(0, i), removed, ...prev.slice(i)]),
+      },
+      duration: 5000,
+    })
   }
 
   function addCustomUrl() {
@@ -106,6 +217,16 @@ export default function ScanPage() {
     setCustomUrls(customUrls.filter((_, idx) => idx !== i))
   }
 
+  function resetCompanies() {
+    localStorage.removeItem(STORAGE_KEY)
+    setCompanies(EXAMPLE_COMPANIES)
+    toast('Reset to default companies')
+  }
+
+  function toggleChip(value: string, selected: string[], setSelected: (v: string[]) => void) {
+    setSelected(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value])
+  }
+
   async function handleScan() {
     setLoading(true)
     setError(null)
@@ -115,7 +236,16 @@ export default function ScanPage() {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companies, custom_urls: customUrls }),
+        body: JSON.stringify({
+          companies,
+          custom_urls: customUrls,
+          filters: {
+            job_types: selectedJobTypes.map(t => t.toLowerCase()),
+            work_arrangement: selectedArrangements.map(a => a.toLowerCase()),
+            date_posted: datePosted,
+            location: locationFilter.trim() || undefined,
+          },
+        }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Scan failed'); return }
@@ -136,43 +266,182 @@ export default function ScanPage() {
 
       <div className="space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Companies to Scan</CardTitle>
-            <CardDescription>Companies with Greenhouse ATS will be scanned via API. Others can be scanned by adding their careers URL.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {suggesting && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                <Loader2 className="size-4 animate-spin" />
-                Suggesting companies based on your resume...
-              </div>
-            )}
-            <div className="space-y-2">
-              {companies.map((company, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                  <span className="flex-1 text-sm font-medium">{company.name}</span>
-                  {company.greenhouse_slug && (
-                    <Badge variant="secondary" className="text-xs">Greenhouse: {company.greenhouse_slug}</Badge>
-                  )}
-                  {company.careers_url && (
-                    <Badge variant="outline" className="text-xs">Custom URL</Badge>
-                  )}
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeCompany(i)}>
-                    <Trash2 className="size-3.5" />
+          <button
+            onClick={() => setCompaniesOpen(!companiesOpen)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left"
+          >
+            <div>
+              <p className="text-sm font-semibold">Companies to Scan ({companies.length})</p>
+              <p className="text-xs text-muted-foreground">
+                We automatically check Greenhouse, Lever, Ashby, and SmartRecruiters job boards.
+              </p>
+            </div>
+            {companiesOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+          {companiesOpen && (
+            <CardContent className="pt-0 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button variant="ghost" size="sm" onClick={() => {
+                  const existing = new Set(companies.map(c => c.slug))
+                  const available = ALL_COMPANIES.filter(c => !existing.has(c.slug))
+                  if (available.length === 0) { toast('All companies already added'); return }
+                  const pick = available[Math.floor(Math.random() * available.length)]
+                  setCompanies([...companies, pick])
+                  toast(`Added ${pick.name}`)
+                }}>
+                  <Plus className="size-4" />
+                  Suggest Company
+                </Button>
+                <Button variant="ghost" size="sm" onClick={resetCompanies}>
+                  <RotateCcw className="size-4" />
+                  Reset
+                </Button>
+                {companies.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    const backup = [...companies]
+                    setCompanies([])
+                    toast(`${backup.length} companies removed`, {
+                      action: { label: 'Undo', onClick: () => setCompanies(backup) },
+                      duration: 5000,
+                    })
+                  }}>
+                    <Trash2 className="size-4" />
+                    Clear All
                   </Button>
+                )}
+              </div>
+              {suggesting && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Suggesting companies based on your profile...
                 </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <Input placeholder="Company name" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} />
-              <Input placeholder="Greenhouse slug (optional)" value={newCompanySlug} onChange={e => setNewCompanySlug(e.target.value)} />
-              <Button type="button" variant="outline" onClick={addCompany}>
-                <Plus className="size-4" />
-              </Button>
-            </div>
-          </CardContent>
+              )}
+              <div className={`space-y-1 ${companies.length > 8 ? 'max-h-64 overflow-y-auto' : ''}`}>
+                {companies.map((company, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
+                    <span className="flex-1 text-sm">{company.name}</span>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeCompany(i)}>
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add company name"
+                  value={newCompanyName}
+                  onChange={e => setNewCompanyName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCompany() } }}
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" onClick={addCompany}>
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
+        {/* Filters */}
+        <Card>
+          <button
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left"
+          >
+            <div>
+              <p className="text-sm font-semibold">Filters</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || locationFilter.trim()
+                  ? `${[...selectedJobTypes, ...selectedArrangements, datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '', locationFilter.trim()].filter(Boolean).join(', ')}`
+                  : 'No filters applied — showing all results'}
+              </p>
+            </div>
+            {filtersOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+          {filtersOpen && (
+            <CardContent className="pt-0 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Job Type</label>
+                <div className="flex flex-wrap gap-2">
+                  {JOB_TYPES.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => toggleChip(type, selectedJobTypes, setSelectedJobTypes)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                        selectedJobTypes.includes(type)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Work Arrangement</label>
+                <div className="flex flex-wrap gap-2">
+                  {WORK_ARRANGEMENTS.map(arr => (
+                    <button
+                      key={arr}
+                      onClick={() => toggleChip(arr, selectedArrangements, setSelectedArrangements)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                        selectedArrangements.includes(arr)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {arr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Date Posted</label>
+                <div className="flex flex-wrap gap-2">
+                  {DATE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDatePosted(opt.value)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                        datePosted === opt.value
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Location (country, state, or city)</label>
+                <Input
+                  placeholder="e.g. Canada, Ontario, Toronto, Remote..."
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+
+              {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || locationFilter.trim()) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setSelectedJobTypes([]); setSelectedArrangements([]); setDatePosted('any'); setLocationFilter('') }}
+                  className="text-xs"
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Custom URLs */}
         <Card>
           <CardHeader>
             <CardTitle>Add Individual Job URLs</CardTitle>
@@ -221,6 +490,51 @@ export default function ScanPage() {
         </Card>
       )}
 
+      {/* Status banners — shown first */}
+      {result && result.stats.added > 0 && (
+        <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-green-900 dark:text-green-100">
+                  {result.stats.added} new {result.stats.added === 1 ? 'job' : 'jobs'} added to your pipeline
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Go to Pipeline to review and process them.
+                </p>
+              </div>
+              <a href="/pipeline">
+                <Button size="sm">
+                  <List className="size-4" />
+                  Go to Pipeline
+                </Button>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {result && result.stats.added === 0 && result.stats.found > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
+          <CardContent className="pt-6">
+            <p className="text-sm text-center text-yellow-800 dark:text-yellow-200">
+              No new jobs to add — {result.stats.skipped_dup > 0 ? `${result.stats.skipped_dup} were duplicates` : 'all were filtered out'}. Try adjusting your filters or adding more companies.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {result && result.stats.found === 0 && (
+        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
+          <CardContent className="pt-6">
+            <p className="text-sm text-center text-yellow-800 dark:text-yellow-200">
+              No jobs found. The companies in your list may not have active job boards on Greenhouse, Lever, or Ashby. Try clicking <strong>Reset</strong> to get AI-suggested companies, or add companies you know are hiring.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detailed results below */}
       {result && (
         <Card>
           <CardHeader>
@@ -254,12 +568,6 @@ export default function ScanPage() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {result.stats.added > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Go to <a href="/pipeline" className="underline font-medium">Pipeline</a> to evaluate these new offers.
-              </p>
             )}
           </CardContent>
         </Card>

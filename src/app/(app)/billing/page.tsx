@@ -6,11 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CREDIT_PACKS, CREDIT_COSTS, getActionLabel, type CreditAction } from '@/lib/credits'
-import { CreditCard, Loader2, CheckCircle2 } from 'lucide-react'
+import { CreditCard, Loader2, CheckCircle2, Gift, Copy, Check } from 'lucide-react'
 
 export default function BillingPage() {
   const [balance, setBalance] = useState<number>(0)
   const [freeUsed, setFreeUsed] = useState<number>(0)
+  const [referral, setReferral] = useState<{ code: string; referrals: number; link: string } | null>(null)
+  const [refCopied, setRefCopied] = useState(false)
   const [transactions, setTransactions] = useState<Array<{
     id: string
     amount: number
@@ -41,6 +43,13 @@ export default function BillingPage() {
       setFreeUsed(balanceRes.data.free_evaluations_used)
     }
     if (txRes.data) setTransactions(txRes.data)
+
+    // Load referral info
+    try {
+      const refRes = await fetch('/api/referral')
+      if (refRes.ok) setReferral(await refRes.json())
+    } catch {}
+
     setLoading(false)
   }
 
@@ -175,6 +184,36 @@ export default function BillingPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Referral Program */}
+      {referral && (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Gift className="size-5 text-primary" />
+              Refer a Friend, Get 50 Credits
+            </CardTitle>
+            <CardDescription>Share your link. When someone signs up, you both get 50 free credits.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-sm truncate">
+                {referral.link}
+              </div>
+              <Button variant="outline" size="sm" onClick={async () => {
+                await navigator.clipboard.writeText(referral.link)
+                setRefCopied(true)
+                setTimeout(() => setRefCopied(false), 2000)
+              }}>
+                {refCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Your code: <strong>{referral.code}</strong> &middot; {referral.referrals} referral{referral.referrals !== 1 ? 's' : ''} so far
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

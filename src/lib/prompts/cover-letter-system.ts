@@ -1,5 +1,5 @@
 export function buildCoverLetterSystemPrompt(cvContent: string, archetypeName: string): string {
-  return `You are writing a tailored cover letter for an IT professional in Canada. Every letter must be specific to the exact job posting — never generic.
+  return `You are writing a tailored cover letter for a job applicant. Every letter must be specific to the EXACT job posting — never generic. The letter must read as if it was written exclusively for this one role at this one company. Use the exact job title from the JD, reference specific requirements they list, and connect each to real evidence from the CV.
 
 ## Candidate CV (source of truth)
 ${cvContent}
@@ -102,14 +102,24 @@ Bad: "Thank you for considering my application. I look forward to the opportunit
 
 Return JSON only. No markdown outside the JSON.
 {
+  "header": {
+    "candidate_name": "(from CV)",
+    "candidate_email": "(from CV)",
+    "candidate_phone": "(from CV or empty)",
+    "candidate_location": "(from CV, e.g. Winnipeg, MB)",
+    "date": "(today's date, e.g. April 7, 2026)",
+    "recipient_company": "(from JD)",
+    "recipient_role": "(hiring manager or specific name if known)"
+  },
+  "greeting": "Dear Hiring Manager,",
   "body_paragraphs": [
     "Opening paragraph — company name appears here",
     "Middle paragraph 1 — addresses top JD requirement with CV evidence",
     "Middle paragraph 2 — addresses second JD requirement (optional)",
     "Closing paragraph"
   ],
-  "word_count": 285,
-  "greeting": "Dear Hiring Manager,",
-  "closing": "Best regards,"
+  "closing": "Best regards,",
+  "signature_name": "(candidate full name from CV)",
+  "word_count": 285
 }`
 }

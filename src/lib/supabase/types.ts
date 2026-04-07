@@ -17,8 +17,12 @@ export interface Database {
           salary_min: number | null
           salary_max: number | null
           salary_currency: string
+          work_arrangement: string[]
+          job_types: string[]
           willing_to_relocate: boolean
           onboarding_completed: boolean
+          referral_code: string | null
+          referred_by: string | null
           created_at: string
           updated_at: string
         }
@@ -35,8 +39,12 @@ export interface Database {
           salary_min?: number | null
           salary_max?: number | null
           salary_currency?: string
+          work_arrangement?: string[]
+          job_types?: string[]
           willing_to_relocate?: boolean
           onboarding_completed?: boolean
+          referral_code?: string | null
+          referred_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -53,8 +61,12 @@ export interface Database {
           salary_min?: number | null
           salary_max?: number | null
           salary_currency?: string
+          work_arrangement?: string[]
+          job_types?: string[]
           willing_to_relocate?: boolean
           onboarding_completed?: boolean
+          referral_code?: string | null
+          referred_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -509,8 +521,10 @@ export interface Database {
           url: string
           company: string | null
           role: string | null
+          title: string | null
           source: string | null
-          status: 'pending' | 'processing' | 'evaluated' | 'skipped' | 'error'
+          status: 'pending' | 'processing' | 'done' | 'evaluated' | 'skipped' | 'error'
+          score: number | null
           report_id: string | null
           error_message: string | null
           created_at: string
@@ -522,8 +536,10 @@ export interface Database {
           url: string
           company?: string | null
           role?: string | null
+          title?: string | null
           source?: string | null
-          status?: 'pending' | 'processing' | 'evaluated' | 'skipped' | 'error'
+          status?: 'pending' | 'processing' | 'done' | 'evaluated' | 'skipped' | 'error'
+          score?: number | null
           report_id?: string | null
           error_message?: string | null
           created_at?: string
@@ -535,8 +551,10 @@ export interface Database {
           url?: string
           company?: string | null
           role?: string | null
+          title?: string | null
           source?: string | null
-          status?: 'pending' | 'processing' | 'evaluated' | 'skipped' | 'error'
+          status?: 'pending' | 'processing' | 'done' | 'evaluated' | 'skipped' | 'error'
+          score?: number | null
           report_id?: string | null
           error_message?: string | null
           created_at?: string
@@ -588,6 +606,32 @@ export interface Database {
           source_report_id?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      referrals: {
+        Row: {
+          id: string
+          referrer_id: string
+          referred_id: string
+          referral_code: string
+          credits_awarded: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          referrer_id: string
+          referred_id: string
+          referral_code: string
+          credits_awarded?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          referrer_id?: string
+          referred_id?: string
+          referral_code?: string
+          credits_awarded?: boolean
+          created_at?: string
         }
       }
     }

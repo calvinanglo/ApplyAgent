@@ -3,6 +3,7 @@ import { getAnthropicClient, MODELS } from '@/lib/anthropic'
 import { buildProjectSystemPrompt } from '@/lib/prompts/project-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +11,9 @@ export async function POST(request: Request) {
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success: withinLimit } = rateLimit(`project:${user.id}`, 10, 60_000)
+    if (!withinLimit) return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     let body: { project_description: string; target_role?: string }
     try { body = await request.json() }

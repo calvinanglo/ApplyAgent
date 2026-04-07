@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Mail, Copy, Check, Search } from 'lucide-react'
+import { Loader2, Mail, Copy, Check, Search, Download } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { FileUpload } from '@/components/ui/file-upload'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
@@ -27,10 +27,28 @@ function CoverLetterContent() {
   const [jdText, setJdText] = useState('')
   const [selectedReportId, setSelectedReportId] = useState<string | null>(reportId)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ body_paragraphs: string[]; greeting?: string; closing?: string; word_count?: number } | null>(null)
+  const [result, setResult] = useState<{
+    body_paragraphs: string[]
+    greeting?: string
+    closing?: string
+    word_count?: number
+    signature_name?: string
+    header?: {
+      candidate_name?: string
+      candidate_email?: string
+      candidate_phone?: string
+      candidate_location?: string
+      date?: string
+      recipient_company?: string
+      recipient_role?: string
+    }
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [recentReports, setRecentReports] = useState<AppReport[]>([])
+  const [userInitials, setUserInitials] = useState('')
+  const [clHistory, setClHistory] = useState<Array<{ file_name: string; created_at: string; report_id?: string; storage_path?: string }>>([])
+
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -41,6 +59,26 @@ function CoverLetterContent() {
           const data = await res.json()
           const items = Array.isArray(data) ? data : data.items || []
           setRecentReports(items.filter((a: any) => a.report_id))
+        }
+      } catch {}
+      // Load user initials + cover letter history
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data } = await (supabase as any).from('profiles').select('full_name').eq('id', user.id).single()
+          if (data?.full_name) {
+            setUserInitials(data.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase())
+          }
+          const { data: files } = await (supabase as any)
+            .from('generated_files')
+            .select('file_name, created_at, report_id, storage_path')
+            .eq('user_id', user.id)
+            .eq('file_type', 'cover_letter')
+            .order('created_at', { ascending: false })
+            .limit(20)
+          if (files) setClHistory(files)
         }
       } catch {}
     }
@@ -64,7 +102,6 @@ function CoverLetterContent() {
       setError(err instanceof Error ? err.message : 'Failed to generate')
     } finally {
       setLoading(false)
-      setAutoGenerating(false)
     }
   }
 
@@ -90,13 +127,136 @@ function CoverLetterContent() {
   }
 
   const fullText = result
-    ? [result.greeting || 'Dear Hiring Manager,', '', ...(result.body_paragraphs || []), '', result.closing || 'Best regards,'].join('\n\n')
+    ? [
+        ...(result.header ? [
+          result.header.candidate_name,
+          [result.header.candidate_email, result.header.candidate_phone, result.header.candidate_location].filter(Boolean).join(' | '),
+          '',
+          result.header.date,
+          '',
+        ].filter(v => v !== undefined) : []),
+        result.greeting || 'Dear Hiring Manager,',
+        '',
+        ...(result.body_paragraphs || []),
+        '',
+        result.closing || 'Best regards,',
+        result.signature_name || '',
+      ].join('\n\n')
     : ''
 
   async function handleCopy() {
     await navigator.clipboard.writeText(fullText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleDownloadPdf() {
+    if (!result) return
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' })
+    const margin = 60
+    const pageWidth = doc.internal.pageSize.getWidth() - margin * 2
+    let y = margin
+
+    doc.setFont('times', 'normal')
+
+    // Header
+    if (result.header) {
+      if (result.header.candidate_name) {
+        doc.setFontSize(14)
+        doc.setFont('times', 'bold')
+        doc.text(result.header.candidate_name, margin, y)
+        y += 18
+      }
+      const contact = [result.header.candidate_email, result.header.candidate_phone, result.header.candidate_location].filter(Boolean).join(' | ')
+      if (contact) {
+        doc.setFontSize(9)
+        doc.setFont('times', 'normal')
+        doc.setTextColor(100)
+        doc.text(contact, margin, y)
+        y += 20
+        doc.setTextColor(0)
+      }
+      if (result.header.date) {
+        doc.setFontSize(11)
+        doc.text(result.header.date, margin, y)
+        y += 24
+      }
+    }
+
+    // Greeting
+    doc.setFontSize(11)
+    doc.setFont('times', 'normal')
+    if (result.greeting) {
+      doc.text(result.greeting, margin, y)
+      y += 20
+    }
+
+    // Body paragraphs
+    for (const para of (result.body_paragraphs || [])) {
+      const lines = doc.splitTextToSize(para, pageWidth)
+      if (y + lines.length * 15 > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage()
+        y = margin
+      }
+      doc.text(lines, margin, y)
+      y += lines.length * 15 + 10
+    }
+
+    // Closing
+    if (result.closing) {
+      doc.text(result.closing, margin, y)
+      y += 18
+    }
+    if (result.signature_name) {
+      doc.setFont('times', 'bold')
+      doc.text(result.signature_name, margin, y)
+    }
+
+    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
+    const jobSlug = match ? `${match.company}-${match.role}` : (result.header?.recipient_company || 'General')
+    doc.save(`Cover-Letter-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.pdf`)
+  }
+
+  async function handleDownloadDocx() {
+    if (!result) return
+    const { Document, Packer, Paragraph, TextRun } = await import('docx')
+    const children: InstanceType<typeof Paragraph>[] = []
+
+    // Header
+    if (result.header) {
+      if (result.header.candidate_name) children.push(new Paragraph({ children: [new TextRun({ text: result.header.candidate_name, bold: true, font: 'Garamond', size: 26 })] }))
+      const contactLine = [result.header.candidate_email, result.header.candidate_phone, result.header.candidate_location].filter(Boolean).join(' | ')
+      if (contactLine) children.push(new Paragraph({ children: [new TextRun({ text: contactLine, font: 'Garamond', size: 20, color: '666666' })] }))
+      children.push(new Paragraph({ children: [] }))
+      if (result.header.date) children.push(new Paragraph({ children: [new TextRun({ text: result.header.date, font: 'Garamond', size: 22 })] }))
+      children.push(new Paragraph({ children: [] }))
+    }
+
+    // Greeting
+    children.push(new Paragraph({ children: [new TextRun({ text: result.greeting || 'Dear Hiring Manager,', font: 'Garamond', size: 22 })] }))
+    children.push(new Paragraph({ children: [] }))
+
+    // Body
+    for (const para of (result.body_paragraphs || [])) {
+      children.push(new Paragraph({ children: [new TextRun({ text: para, font: 'Garamond', size: 22 })] }))
+      children.push(new Paragraph({ children: [] }))
+    }
+
+    // Closing + signature
+    children.push(new Paragraph({ children: [new TextRun({ text: result.closing || 'Best regards,', font: 'Garamond', size: 22 })] }))
+    if (result.signature_name) children.push(new Paragraph({ children: [new TextRun({ text: result.signature_name, bold: true, font: 'Garamond', size: 22 })] }))
+
+    const doc = new Document({ sections: [{ children }] })
+    const blob = await Packer.toBlob(doc)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : selectedMatch
+    const jobSlug = match ? `${match.company}-${match.role}` : (result.header?.recipient_company || 'General')
+    a.download = `Cover-Letter-${userInitials ? userInitials + '-' : ''}${jobSlug.replace(/\s+/g, '-')}.docx`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const selectedMatch = reportId ? recentReports.find(r => r.report_id === reportId) : null
@@ -218,25 +378,87 @@ function CoverLetterContent() {
       )}
 
       {result && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Cover Letter</CardTitle>
-                {result.word_count && <CardDescription>{result.word_count} words</CardDescription>}
+        <>
+          {/* Action buttons */}
+          <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-green-900 dark:text-green-100">Cover letter generated</p>
+                  {result.word_count && <p className="text-sm text-green-700 dark:text-green-300">{result.word_count} words</p>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={handleCopy}>
+                    {copied ? <><Check className="size-4" />Copied</> : <><Copy className="size-4" />Copy</>}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
+                    <Download className="size-4" />PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownloadDocx}>
+                    <Download className="size-4" />DOCX
+                  </Button>
+                </div>
               </div>
-              <Button variant="outline" size="sm" onClick={handleCopy}>
-                {copied ? <><Check className="size-4" />Copied</> : <><Copy className="size-4" />Copy</>}
-              </Button>
-            </div>
+            </CardContent>
+          </Card>
+
+          {/* Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 font-serif border rounded-lg p-6 bg-white dark:bg-zinc-950">
+                {result.header && (
+                  <div className="space-y-1 pb-4 border-b mb-4">
+                    {result.header.candidate_name && <p className="font-bold text-base">{result.header.candidate_name}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {[result.header.candidate_email, result.header.candidate_phone, result.header.candidate_location].filter(Boolean).join(' | ')}
+                    </p>
+                    {result.header.date && <p className="text-sm mt-3">{result.header.date}</p>}
+                  </div>
+                )}
+                {result.greeting && <p className="font-medium not-italic">{result.greeting}</p>}
+                {(result.body_paragraphs || []).map((para, i) => (
+                  <p key={i} className="text-sm leading-relaxed">{para}</p>
+                ))}
+                {result.closing && <p className="font-medium">{result.closing}</p>}
+                {result.signature_name && <p className="font-medium">{result.signature_name}</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Generation history from cloud */}
+      {clHistory.length > 0 && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base text-muted-foreground">Previously Generated Cover Letters</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4 font-serif">
-              {result.greeting && <p className="font-medium not-italic">{result.greeting}</p>}
-              {(result.body_paragraphs || []).map((para, i) => (
-                <p key={i} className="text-sm leading-relaxed">{para}</p>
+            <div className="space-y-2">
+              {clHistory.map((h, i) => (
+                <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{h.file_name}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  </div>
+                  {h.report_id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 ml-2"
+                      onClick={() => {
+                        setSelectedReportId(h.report_id!)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                    >
+                      <Download className="size-4" />Regenerate
+                    </Button>
+                  )}
+                </div>
               ))}
-              {result.closing && <p className="font-medium">{result.closing}</p>}
             </div>
           </CardContent>
         </Card>

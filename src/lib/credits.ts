@@ -27,7 +27,7 @@ export const FREE_TIER = {
 export function getActionLabel(action: CreditAction): string {
   const labels: Record<CreditAction, string> = {
     evaluation: 'Job Evaluation (A-F)',
-    pdf: 'Resume PDF',
+    pdf: 'Resume',
     cover_letter: 'Cover Letter',
     portal_scan: 'Portal Scan',
     apply_assist: 'Apply Assistant',

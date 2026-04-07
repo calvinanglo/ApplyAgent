@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { CreditBadge } from '@/components/layout/credit-badge'
 import { MobileMenuButton } from '@/components/layout/mobile-menu-button'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 export async function Topbar() {
   const supabase = await createClient()
@@ -24,8 +25,9 @@ export async function Topbar() {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-4 md:px-6">
       <MobileMenuButton />
-      <div className="flex items-center gap-3 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <CreditBadge credits={credits} freeRemaining={freeRemaining} />
+        <ThemeToggle />
         <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
       </div>
     </header>

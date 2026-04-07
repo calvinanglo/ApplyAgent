@@ -27,28 +27,42 @@ export async function POST(request: Request) {
 
     const anthropic = getAnthropicClient()
 
-    const { data: cvDoc } = await db
-      .from('cv_documents')
-      .select('content')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single()
+    const [cvRes, profileRes] = await Promise.all([
+      db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single(),
+      db.from('profiles').select('github_url, linkedin_url, portfolio_url, full_name, email, phone, location').eq('id', user.id).single(),
+    ])
+    const cvDoc = cvRes.data
+    const userProfile = profileRes.data
     if (!cvDoc) return Response.json({ error: 'No CV found. Upload your CV in Settings.' }, { status: 400 })
+
+    let cvContent = cvDoc.content
+    if (userProfile?.github_url && !cvContent.includes('github.com')) {
+      cvContent += `\n\nGitHub: ${userProfile.github_url}`
+    }
+    if (userProfile?.linkedin_url && !cvContent.includes('linkedin.com')) {
+      cvContent += `\nLinkedIn: ${userProfile.linkedin_url}`
+    }
 
     // Load all report data in one fetch
     let jdText = body.jd_text || ''
     let reportContext = ''
     let evalContext = ''
+    let reportKeywords: string[] = []
+    let reportCompany = ''
+    let reportRole = ''
 
     if (body.report_id) {
       const { data: report } = await db
         .from('reports')
-        .select('jd_text, company, role, score, archetype, block_b')
+        .select('jd_text, company, role, score, archetype, keywords, block_a, block_b')
         .eq('id', body.report_id)
         .single()
 
       if (report) {
-        jdText = report.jd_text || jdText
+        reportCompany = report.company || ''
+        reportRole = report.role || ''
+        if (report.jd_text) jdText = report.jd_text
+        if (report.keywords) reportKeywords = report.keywords
         reportContext = `Company: ${report.company}\nRole: ${report.role}\nScore: ${report.score}/5\nArchetype: ${report.archetype}`
 
         // Pull strong CV matches from the evaluation to help tailoring
@@ -61,6 +75,20 @@ export async function POST(request: Request) {
           if (strongMatches) {
             evalContext = `\n\nStrong CV matches already confirmed by evaluation (use these as the backbone):\n${strongMatches}`
           }
+        }
+
+        // If no JD text, reconstruct context from report data
+        if (!jdText && report.company && report.role) {
+          const parts = [`Job: ${report.role} at ${report.company}`]
+          if (reportKeywords.length) parts.push(`Key requirements: ${reportKeywords.join(', ')}`)
+          if (report.block_a?.tldr) parts.push(`Role summary: ${report.block_a.tldr}`)
+          if (report.block_b?.gaps) {
+            const gaps = Array.isArray(report.block_b.gaps)
+              ? report.block_b.gaps.map((g: any) => typeof g === 'string' ? g : g.skill || g.requirement).join(', ')
+              : ''
+            if (gaps) parts.push(`Areas to address: ${gaps}`)
+          }
+          jdText = parts.join('\n')
         }
       }
     }
@@ -75,7 +103,9 @@ export async function POST(request: Request) {
     }
 
     const archetype = detectArchetype(jdText)
-    const systemPrompt = buildCoverLetterSystemPrompt(cvDoc.content, archetype.name)
+    const systemPrompt = buildCoverLetterSystemPrompt(cvContent, archetype.name)
+
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
     const response = await anthropic.messages.create({
       model: MODELS.cover_letter,
@@ -83,11 +113,19 @@ export async function POST(request: Request) {
       system: systemPrompt,
       messages: [{
         role: 'user',
-        content: `Here is the full job description:\n\n${jdText}${reportContext ? `\n\nEvaluation summary:\n${reportContext}` : ''}${evalContext}
+        content: `Today's date is ${today}.
 
-Step 1: Extract the company name, role title, and the 3 most important requirements from the JD above.
+Here is the full job description:\n\n${jdText}${reportContext ? `\n\nEvaluation summary:\n${reportContext}` : ''}${evalContext}
+
+Step 1: Extract the EXACT company name, EXACT role title (use it verbatim, not paraphrased), and the 3 most important requirements from the JD.
 Step 2: For each requirement, find the specific matching evidence in my CV.
-Step 3: Write the cover letter using that mapping. The company name must appear in the opening paragraph. Every paragraph must reference something specific from the JD and connect it to something real from my CV.`,
+Step 3: Write the cover letter using that mapping. Rules:
+- The EXACT job title must appear in the opening paragraph (e.g. "the Cloud Security Engineer role at Cloudflare" not just "the role")
+- The company name must appear at least once
+- Every paragraph must reference something specific from the JD and connect it to something real from my CV
+- Use the JD's own terminology and keywords naturally throughout
+- Use today's date in the header
+- The letter must read as if written for this ONE specific posting — a reader should be able to guess the exact job title just from reading it`,
       }],
     })
 
@@ -99,6 +137,20 @@ Step 3: Write the cover letter using that mapping. The company name must appear 
     } catch {
       result = { body_paragraphs: [text] }
     }
+
+    // Save cover letter record for history (no file upload — cover letters are regenerated client-side)
+    try {
+      const company = reportCompany || (result as any).header?.recipient_company || 'Unknown'
+      const role = reportRole || 'Cover Letter'
+      const clFilename = `Cover-Letter-${company}-${role}`.replace(/[^a-zA-Z0-9 -]/g, '').replace(/\s+/g, '-').slice(0, 80)
+      await db.from('generated_files').insert({
+        user_id: user.id,
+        file_type: 'cover_letter',
+        file_name: clFilename,
+        storage_path: '',
+        report_id: body.report_id || null,
+      })
+    } catch {}
 
     return Response.json({ success: true, cover_letter: result })
   } catch (err) {

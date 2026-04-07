@@ -31,7 +31,7 @@ const navItems = [
   { href: '/applications', label: 'Applications', icon: Briefcase },
   { href: '/cover-letter', label: 'Cover Letter', icon: Mail },
   { href: '/tools', label: 'Tools', icon: Wrench },
-  { href: '/resume', label: 'Resume PDF', icon: FileDown },
+  { href: '/resume', label: 'Resume', icon: FileDown },
   { href: '/story-bank', label: 'Story Bank', icon: BookOpen },
   { href: '/scan', label: 'Scanner', icon: Inbox },
   { href: '/pipeline', label: 'Pipeline', icon: List },

@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Loader2, Save, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
 import { FileUpload } from '@/components/ui/file-upload'
+import { LocationSelect } from '@/components/location-select'
 import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
@@ -37,10 +39,76 @@ export default function SettingsPage() {
     salary_min: 0,
     salary_max: 0,
     salary_currency: 'CAD',
+    work_arrangement: [] as string[],
+    job_types: [] as string[],
   })
   const [targetRolesText, setTargetRolesText] = useState('')
   const [cvContent, setCvContent] = useState('')
   const [userId, setUserId] = useState('')
+
+  const [previousProfile, setPreviousProfile] = useState<typeof profile | null>(null)
+  const [previousTargetRoles, setPreviousTargetRoles] = useState('')
+
+  // Auto-fill profile fields from CV text
+  function autofillFromCv(text: string) {
+    if (!text) return
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    const updates: Partial<typeof profile> = {}
+
+    // Email
+    const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/i)
+    if (emailMatch && !profile.email) updates.email = emailMatch[0]
+
+    // Phone
+    const phoneMatch = text.match(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/)
+    if (phoneMatch && !profile.phone) updates.phone = phoneMatch[0]
+
+    // LinkedIn
+    const linkedinMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+\/?/i)
+    if (linkedinMatch && !profile.linkedin_url) updates.linkedin_url = linkedinMatch[0].startsWith('http') ? linkedinMatch[0] : `https://${linkedinMatch[0]}`
+
+    // GitHub
+    const githubMatch = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w-]+\/?/i)
+    if (githubMatch && !profile.github_url) updates.github_url = githubMatch[0].startsWith('http') ? githubMatch[0] : `https://${githubMatch[0]}`
+
+    // Portfolio (non-linkedin, non-github URLs)
+    const urlMatches = text.match(/https?:\/\/[\w.-]+\.[\w]{2,}[\w/.-]*/gi) || []
+    const portfolioUrl = urlMatches.find(u => !u.includes('linkedin.com') && !u.includes('github.com') && !u.includes('credly.com'))
+    if (portfolioUrl && !profile.portfolio_url) updates.portfolio_url = portfolioUrl
+
+    // Name — first non-empty line that looks like a name (2-4 capitalized words, no special chars)
+    if (!profile.full_name) {
+      for (const line of lines.slice(0, 5)) {
+        const cleaned = line.replace(/[#*_]/g, '').trim()
+        if (/^[A-Z][a-z]+ [A-Z][a-z]+/.test(cleaned) && cleaned.length < 40) {
+          updates.full_name = cleaned
+          break
+        }
+        // Also catch ALL CAPS names like "CALVIN ANGLO"
+        if (/^[A-Z]{2,}\s+[A-Z]{2,}$/.test(cleaned) && cleaned.length < 40) {
+          updates.full_name = cleaned.split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
+          break
+        }
+      }
+    }
+
+    // Location — look for patterns like "City, Province" or "City, Province, Country"
+    if (!profile.location) {
+      // Try "City, Province, Country" first
+      const loc3 = text.match(/(?:^|\||\n)\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+)?,\s*[A-Z][a-z]+(?:\s[A-Z][a-z]+)?,\s*[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s*(?:\||\n|$)/m)
+      if (loc3) {
+        updates.location = loc3[1].trim()
+      } else {
+        // Try "City, Province/State"
+        const loc2 = text.match(/(?:^|\||\n)\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+)?,\s*(?:[A-Z]{2}|[A-Z][a-z]+(?:\s[A-Z][a-z]+)?))\s*(?:\||\n|$)/m)
+        if (loc2) updates.location = loc2[1].trim()
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setProfile(prev => ({ ...prev, ...updates }))
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -65,7 +133,16 @@ export default function SettingsPage() {
     setLoading(false)
   }
 
+  // Input sanitization
+  function sanitizeName(v: string) { return v.replace(/[^a-zA-ZÀ-ÿ\s'-]/g, '').slice(0, 100) }
+  function sanitizeEmail(v: string) { return v.replace(/[^a-zA-Z0-9@._+-]/g, '').slice(0, 254) }
+  function sanitizePhone(v: string) { return v.replace(/[^0-9()+\s.-]/g, '').slice(0, 20) }
+  function sanitizeUrl(v: string) { return v.replace(/[^a-zA-Z0-9:/.?&=_%-]/g, '').slice(0, 500) }
+  function sanitizeLocation(v: string) { return v.replace(/[^a-zA-ZÀ-ÿ\s,'-]/g, '').slice(0, 100) }
+
   async function handleSave() {
+    setPreviousProfile({ ...profile })
+    setPreviousTargetRoles(targetRolesText)
     setSaving(true)
     setSaved(false)
     const supabase = createClient()
@@ -98,6 +175,19 @@ export default function SettingsPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+    toast('Profile saved', {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          if (previousProfile) {
+            setProfile(previousProfile)
+            setTargetRolesText(previousTargetRoles)
+            toast('Changes reverted — click Save to apply')
+          }
+        },
+      },
+      duration: 5000,
+    })
   }
 
   if (loading) {
@@ -115,7 +205,13 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Profile</h1>
           <p className="text-muted-foreground">Your profile and CV configuration</p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={() => {
+          if (!profile.full_name?.trim()) { alert('Full Name is required'); return }
+          if (!profile.email?.trim()) { alert('Email is required'); return }
+          if (!profile.phone?.trim()) { alert('Phone number is required'); return }
+          if (!cvContent.trim()) { alert('Resume/CV is required — upload or paste your resume below'); return }
+          handleSave()
+        }} disabled={saving}>
           {saving ? (
             <Loader2 className="size-4 animate-spin" />
           ) : saved ? (
@@ -135,65 +231,162 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Full Name</Label>
+              <Label>Full Name <span className="text-destructive">*</span></Label>
               <Input
                 value={profile.full_name || ''}
-                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                onChange={(e) => setProfile({ ...profile, full_name: sanitizeName(e.target.value) })}
+                required
+                maxLength={100}
               />
+              {!profile.full_name?.trim() && <p className="text-xs text-destructive">Required</p>}
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>Email <span className="text-destructive">*</span></Label>
               <Input
                 type="email"
                 value={profile.email || ''}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                onChange={(e) => setProfile({ ...profile, email: sanitizeEmail(e.target.value) })}
+                required
+                maxLength={254}
               />
+              {!profile.email?.trim() && <p className="text-xs text-destructive">Required</p>}
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input
-                value={profile.phone || ''}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-              />
+              <Label>Phone <span className="text-destructive">*</span></Label>
+              <div className="flex gap-1.5">
+                <select
+                  className="h-9 w-[105px] shrink-0 rounded-md border border-input bg-background px-2 text-sm"
+                  value={(profile.phone || '').match(/^\+\d+/)?.[0] || '+1'}
+                  onChange={(e) => {
+                    const currentNum = (profile.phone || '').replace(/^\+\d+\s*/, '')
+                    setProfile({ ...profile, phone: `${e.target.value} ${currentNum}` })
+                  }}
+                >
+                  {[
+                    ['+1','CA/US'],['+44','UK'],['+61','AU'],['+64','NZ'],['+353','IE'],['+91','IN'],['+65','SG'],['+852','HK'],['+27','ZA'],['+971','AE'],['+63','PH'],['+234','NG'],['+254','KE'],['+1876','JM'],['+1868','TT'],
+                    ['+93','AF'],['+355','AL'],['+213','DZ'],['+376','AD'],['+244','AO'],['+54','AR'],['+374','AM'],['+43','AT'],['+994','AZ'],['+973','BH'],['+880','BD'],['+375','BY'],['+32','BE'],['+501','BZ'],['+229','BJ'],
+                    ['+975','BT'],['+591','BO'],['+387','BA'],['+267','BW'],['+55','BR'],['+673','BN'],['+359','BG'],['+226','BF'],['+257','BI'],['+855','KH'],['+237','CM'],['+238','CV'],['+236','CF'],['+235','TD'],['+56','CL'],
+                    ['+86','CN'],['+57','CO'],['+269','KM'],['+242','CG'],['+243','CD'],['+506','CR'],['+385','HR'],['+53','CU'],['+357','CY'],['+420','CZ'],['+45','DK'],['+253','DJ'],['+593','EC'],['+20','EG'],['+503','SV'],
+                    ['+240','GQ'],['+291','ER'],['+372','EE'],['+251','ET'],['+679','FJ'],['+358','FI'],['+33','FR'],['+241','GA'],['+220','GM'],['+995','GE'],['+49','DE'],['+233','GH'],['+30','GR'],['+502','GT'],['+224','GN'],
+                    ['+592','GY'],['+509','HT'],['+504','HN'],['+36','HU'],['+354','IS'],['+62','ID'],['+98','IR'],['+964','IQ'],['+972','IL'],['+39','IT'],['+225','CI'],['+81','JP'],['+962','JO'],['+7','KZ'],['+82','KR'],
+                    ['+965','KW'],['+996','KG'],['+856','LA'],['+371','LV'],['+961','LB'],['+266','LS'],['+231','LR'],['+218','LY'],['+423','LI'],['+370','LT'],['+352','LU'],['+261','MG'],['+265','MW'],['+60','MY'],['+960','MV'],
+                    ['+223','ML'],['+356','MT'],['+222','MR'],['+230','MU'],['+52','MX'],['+373','MD'],['+377','MC'],['+976','MN'],['+382','ME'],['+212','MA'],['+258','MZ'],['+95','MM'],['+264','NA'],['+977','NP'],['+31','NL'],
+                    ['+505','NI'],['+227','NE'],['+47','NO'],['+968','OM'],['+92','PK'],['+507','PA'],['+675','PG'],['+595','PY'],['+51','PE'],['+48','PL'],['+351','PT'],['+974','QA'],['+40','RO'],['+7','RU'],['+250','RW'],
+                    ['+966','SA'],['+221','SN'],['+381','RS'],['+232','SL'],['+421','SK'],['+386','SI'],['+252','SO'],['+34','ES'],['+94','LK'],['+249','SD'],['+597','SR'],['+268','SZ'],['+46','SE'],['+41','CH'],['+886','TW'],
+                    ['+992','TJ'],['+255','TZ'],['+66','TH'],['+228','TG'],['+216','TN'],['+90','TR'],['+993','TM'],['+256','UG'],['+380','UA'],['+598','UY'],['+998','UZ'],['+58','VE'],['+84','VN'],['+967','YE'],['+260','ZM'],['+263','ZW'],
+                  ].map(([code, label]) => (
+                    <option key={code + label} value={code}>{code} {label}</option>
+                  ))}
+                </select>
+                <Input
+                  type="tel"
+                  placeholder="555-123-4567"
+                  value={(profile.phone || '').replace(/^\+\d+\s*/, '')}
+                  onChange={(e) => {
+                    const code = (profile.phone || '').match(/^\+\d+/)?.[0] || '+1'
+                    setProfile({ ...profile, phone: `${code} ${sanitizePhone(e.target.value)}` })
+                  }}
+                  maxLength={15}
+                  required
+                  className="flex-1"
+                />
+              </div>
+              {!profile.phone?.trim() && <p className="text-xs text-destructive">Required</p>}
             </div>
-            <div className="space-y-2">
-              <Label>Location</Label>
-              <Input
-                value={profile.location || ''}
-                onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-              />
-            </div>
+          </div>
+
+          <LocationSelect
+            value={profile.location || ''}
+            onChange={(loc) => setProfile({ ...profile, location: loc })}
+          />
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label>LinkedIn URL</Label>
               <Input
                 value={profile.linkedin_url || ''}
-                onChange={(e) => setProfile({ ...profile, linkedin_url: e.target.value })}
+                onChange={(e) => setProfile({ ...profile, linkedin_url: sanitizeUrl(e.target.value) })}
+                placeholder="https://linkedin.com/in/..."
+                maxLength={500}
               />
             </div>
             <div className="space-y-2">
               <Label>GitHub URL</Label>
               <Input
                 value={profile.github_url || ''}
-                onChange={(e) => setProfile({ ...profile, github_url: e.target.value })}
+                onChange={(e) => setProfile({ ...profile, github_url: sanitizeUrl(e.target.value) })}
+                placeholder="https://github.com/..."
+                maxLength={500}
               />
             </div>
             <div className="space-y-2">
               <Label>Portfolio URL</Label>
               <Input
                 value={profile.portfolio_url || ''}
-                onChange={(e) => setProfile({ ...profile, portfolio_url: e.target.value })}
+                onChange={(e) => setProfile({ ...profile, portfolio_url: sanitizeUrl(e.target.value) })}
+                placeholder="https://..."
+                maxLength={500}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Target Roles (comma-separated) <span className="text-destructive">*</span></Label>
-            <Input
-              placeholder="IT Security Analyst, Network Engineer, Cloud Engineer"
-              value={targetRolesText}
-              onChange={(e) => setTargetRolesText(e.target.value)}
-              required
-            />
+            <Label>Target Roles <span className="text-destructive">*</span></Label>
+            <div className="flex flex-wrap gap-1.5 min-h-[38px] rounded-md border border-input bg-background px-3 py-2">
+              {targetRolesText.split(',').map(r => r.trim()).filter(Boolean).map((role, i) => (
+                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-sm">
+                  {role}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const roles = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
+                      roles.splice(i, 1)
+                      setTargetRolesText(roles.join(', '))
+                    }}
+                    className="ml-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                id="role-input"
+                placeholder="Type a role title..."
+                className="flex-1"
+                onKeyDown={(e) => {
+                  const val = e.currentTarget.value.trim()
+                  if ((e.key === 'Enter' || e.key === ',') && val) {
+                    e.preventDefault()
+                    const existing = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
+                    if (!existing.includes(val)) {
+                      setTargetRolesText([...existing, val].join(', '))
+                    }
+                    e.currentTarget.value = ''
+                  }
+                  if (e.key === 'Backspace' && !e.currentTarget.value) {
+                    const existing = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
+                    if (existing.length) {
+                      existing.pop()
+                      setTargetRolesText(existing.join(', '))
+                    }
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={() => {
+                const input = document.getElementById('role-input') as HTMLInputElement
+                const val = input?.value?.trim()
+                if (!val) return
+                const existing = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
+                if (!existing.includes(val)) {
+                  setTargetRolesText([...existing, val].join(', '))
+                }
+                input.value = ''
+                input.focus()
+              }}>
+                Add
+              </Button>
+            </div>
             {!targetRolesText.trim() && (
               <p className="text-xs text-destructive">Required — evaluations use this to match you to roles</p>
             )}
@@ -236,14 +429,78 @@ export default function SettingsPage() {
                 value={profile.salary_currency || 'CAD'}
                 onChange={(e) => setProfile({ ...profile, salary_currency: e.target.value })}
               >
-                <option value="CAD">CAD</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="AUD">AUD</option>
-                <option value="INR">INR</option>
+                <option value="CAD">CAD — Canadian Dollar</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="AUD">AUD — Australian Dollar</option>
+                <option value="NZD">NZD — New Zealand Dollar</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="INR">INR — Indian Rupee</option>
+                <option value="SGD">SGD — Singapore Dollar</option>
+                <option value="HKD">HKD — Hong Kong Dollar</option>
+                <option value="ZAR">ZAR — South African Rand</option>
+                <option value="AED">AED — UAE Dirham</option>
+                <option value="PHP">PHP — Philippine Peso</option>
+                <option value="NGN">NGN — Nigerian Naira</option>
+                <option value="KES">KES — Kenyan Shilling</option>
+                <option value="JMD">JMD — Jamaican Dollar</option>
+                <option value="TTD">TTD — Trinidad Dollar</option>
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Work Arrangement</Label>
+            <div className="flex flex-wrap gap-2">
+              {['Remote', 'Hybrid', 'On-site'].map(opt => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    const arr = profile.work_arrangement || []
+                    setProfile({
+                      ...profile,
+                      work_arrangement: arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt],
+                    })
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium border transition-colors ${
+                    (profile.work_arrangement || []).includes(opt)
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted border-input'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Used as default filters when scanning for jobs</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Job Type</Label>
+            <div className="flex flex-wrap gap-2">
+              {['Full-time', 'Part-time', 'Contract', 'Temporary', 'Permanent', 'Fixed Term'].map(opt => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    const arr = profile.job_types || []
+                    setProfile({
+                      ...profile,
+                      job_types: arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt],
+                    })
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium border transition-colors ${
+                    (profile.job_types || []).includes(opt)
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted border-input'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Used as default filters when scanning for jobs</p>
           </div>
         </CardContent>
       </Card>
@@ -339,25 +596,38 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>CV / Resume</CardTitle>
+          <CardTitle>CV / Resume <span className="text-destructive">*</span></CardTitle>
           <CardDescription>
             Upload your resume (PDF, DOCX) or paste it in Markdown format. This is the source of truth for all evaluations and generated documents.
           </CardDescription>
+          {!cvContent.trim() && <p className="text-xs text-destructive mt-1">Required — upload or paste your resume to use ApplyAgent</p>}
         </CardHeader>
         <CardContent className="space-y-4">
           <FileUpload
-            onTextExtracted={(text) => setCvContent(text)}
+            onTextExtracted={(text) => { setCvContent(text); autofillFromCv(text) }}
             accept=".pdf,.docx,.txt,.md"
             label="Upload your resume"
             description="PDF, DOCX, TXT, or Markdown. Text will be extracted and editable below."
           />
           <Textarea
-            placeholder="# Your Name&#10;&#10;## Professional Summary&#10;...&#10;&#10;## Work Experience&#10;..."
+            placeholder="Paste your resume here in plain text or Markdown format..."
             value={cvContent}
             onChange={(e) => setCvContent(e.target.value)}
             rows={20}
             className="font-mono text-sm"
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Export Data</CardTitle>
+          <CardDescription>Download all your data as JSON (profile, CV, applications, reports, credits).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a href="/api/export" download>
+            <Button variant="outline" size="sm">Download My Data</Button>
+          </a>
         </CardContent>
       </Card>
 

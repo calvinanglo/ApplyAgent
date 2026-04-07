@@ -3,8 +3,9 @@ import { getAnthropicClient, MODELS } from '@/lib/anthropic'
 import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 
-export const maxDuration = 60
+export const maxDuration = 300 // 5 minutes — evaluation + URL fetch + DB can take time
 
 function isAllowedUrl(url: string): boolean {
   try {
@@ -63,6 +64,9 @@ export async function POST(request: Request) {
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success: withinLimit } = rateLimit(`process:${user.id}`, 10, 60_000)
+    if (!withinLimit) return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     let body: { pipeline_item_id: string }
     try { body = await request.json() }
@@ -174,13 +178,14 @@ export async function POST(request: Request) {
       })
     }
 
-    // Mark pipeline item as done
+    // Mark pipeline item as done — clear any previous error message
     await db.from('pipeline_items').update({
       status: 'done',
       company,
       title: role,
       report_id: report?.id || null,
       score: evaluation.score || 0,
+      error_message: null,
       processed_at: new Date().toISOString(),
     }).eq('id', item.id)
 

@@ -20,31 +20,47 @@ ${cvContent}
 - Keep bullet points concise — max 1.5 lines each
 - The summary must reference real company names and real contexts from the CV, not generic industry descriptions
 
-## JD Tailoring — CRITICAL
+## JD Tailoring — CRITICAL (this is the #1 priority of this entire task)
 Before generating any content, read the job description carefully and extract:
-1. The role title and company name
-2. The top 10 hard requirements (skills, tools, certifications they mention)
-3. The top 5 soft requirements (leadership, collaboration, communication themes)
+1. The EXACT role title (e.g. "Cloud Security Engineer" not just "Security Engineer")
+2. The company name
+3. The top 10 hard requirements (skills, tools, certifications they mention)
+4. The top 5 soft requirements (leadership, collaboration, communication themes)
+5. Any specific technologies, frameworks, or methodologies mentioned
 
-Then apply this tailoring to every section:
+Then apply this tailoring to EVERY section:
+
+### Role Title Matching (MANDATORY)
+- The candidate's current/target title in the summary MUST reflect the JD's role title
+- If the JD says "Cloud and AI Strategic Negotiator" — frame the summary around negotiation, cloud strategy, and AI procurement
+- If the JD says "Systems Test Engineer" — frame around testing, validation, QA, and systems engineering
+- NEVER use a generic title like "IT Professional" when the JD has a specific title
+- The reader should immediately see that this resume was written for THIS exact role
 
 ### Professional Summary
 - The summary MUST be tailored to the specific job being applied for
+- Open with a framing that mirrors the JD's role title and core focus
 - Reference the target role or industry in the summary framing
 - Lead with the CV experience that most directly matches the JD's top requirements
 - Use JD vocabulary to describe real achievements from the CV
-- Do NOT write a generic IT summary. It must read as if written specifically for this posting.
+- Do NOT write a generic IT summary. It must read as if written specifically for this posting
+- If the JD emphasizes a specific domain (cloud, security, networking, procurement), the summary must lead with that domain
 
 ### Bullet Point Distribution (STRICT)
 - Current/most recent job: 5-6 bullet points
 - Second most recent job: 3-4 bullet points
 - Third and older jobs: 2-3 bullet points each
-- Within each job, reorder bullets so the most JD-relevant achievements appear first
+- Within each job, reorder bullets so the most JD-relevant achievements appear FIRST
 - Reframe bullet wording to use JD keywords where the underlying fact supports it
+- Every bullet should feel like it was written to answer a specific JD requirement
 
-### Competencies
-- Populate the 8 competency tags primarily from JD keywords that map to real CV evidence
-- Order them by relevance to the JD (most relevant first)
+### GitHub Projects
+- The CV may include a list of real GitHub repositories fetched from the GitHub API
+- From those repos, select ONLY the ones relevant to the JD (max 3-4 projects)
+- For each selected project: use the real repo name and URL, then write a 1-line description that highlights why this project is relevant to the JD
+- Do NOT include every repo — only the ones that demonstrate skills the JD asks for
+- If none of the repos are relevant to the JD, return an empty array
+- NEVER invent projects — only use repos listed in the CV
 
 ## What to generate
 
@@ -57,13 +73,22 @@ Extract 15-20 keywords from the JD. Then produce JSON with these fields:
   "lang": "en",
   "name": "(from CV)",
   "email": "(from CV)",
-  "linkedin_url": "(from CV or empty string)",
+  "phone": "(from CV or empty string)",
+  "linkedin_url": "(from CV — must be the linkedin.com/in/username URL, or empty string)",
   "linkedin_display": "(short display like linkedin.com/in/name or empty string)",
-  "portfolio_url": "(from CV or empty string)",
+  "github_url": "(from CV — must be the github.com/username URL, NOT a github.io portfolio site, or empty string)",
+  "github_display": "(short display like github.com/username or empty string)",
+  "portfolio_url": "(from CV — a personal website URL that is NOT linkedin or github, or empty string)",
   "portfolio_display": "(short display or empty string)",
   "location": "(from CV, e.g. Manitoba, Canada)",
   "summary": "3-4 sentence Professional Summary — keyword-dense, uses JD vocabulary, references real achievements from CV. Bridge to target role.",
-  "competencies": ["keyword phrase 1", "keyword phrase 2", "keyword phrase 3", "keyword phrase 4", "keyword phrase 5", "keyword phrase 6", "keyword phrase 7", "keyword phrase 8"],
+  "github_projects": [
+    {
+      "name": "project-name",
+      "url": "https://github.com/username/project-name",
+      "description": "1-line description tailored to JD"
+    }
+  ],
   "experience": [
     {
       "company": "Company Name",

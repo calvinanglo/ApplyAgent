@@ -27,19 +27,59 @@ export async function POST(request: Request) {
 
     const anthropic = getAnthropicClient()
 
-    const { data: cvDoc } = await db
-      .from('cv_documents')
-      .select('content')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single()
+    const [cvRes, profileRes] = await Promise.all([
+      db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single(),
+      db.from('profiles').select('github_url, linkedin_url, portfolio_url, full_name, email, phone, location').eq('id', user.id).single(),
+    ])
+    const cvDoc = cvRes.data
+    const userProfile = profileRes.data
     if (!cvDoc) return Response.json({ error: 'No CV found. Upload your CV in Settings.' }, { status: 400 })
 
-    // Load JD text from report if provided
+    // Append profile URLs to CV content so Claude can find them
+    let cvContent = cvDoc.content
+    if (userProfile?.github_url && !cvContent.includes('github.com')) {
+      cvContent += `\n\nGitHub: ${userProfile.github_url}`
+    }
+    if (userProfile?.linkedin_url && !cvContent.includes('linkedin.com')) {
+      cvContent += `\nLinkedIn: ${userProfile.linkedin_url}`
+    }
+    if (userProfile?.portfolio_url && !cvContent.includes(userProfile.portfolio_url)) {
+      cvContent += `\nPortfolio: ${userProfile.portfolio_url}`
+    }
+
+    // Fetch real GitHub repos if profile has a GitHub URL
+    if (userProfile?.github_url) {
+      try {
+        const ghMatch = userProfile.github_url.match(/github\.com\/([^/\s?#]+)/)
+        if (ghMatch) {
+          const ghUsername = ghMatch[1]
+          const ghRes = await fetch(`https://api.github.com/users/${ghUsername}/repos?sort=updated&per_page=10`, {
+            headers: { 'User-Agent': 'ApplyAgent/1.0' },
+            signal: AbortSignal.timeout(5000),
+          })
+          if (ghRes.ok) {
+            const repos = await ghRes.json() as Array<{ name: string; description: string | null; html_url: string; language: string | null; fork: boolean; updated_at: string }>
+            const ownRepos = repos.filter(r => !r.fork && r.description)
+            if (ownRepos.length > 0) {
+              cvContent += `\n\n## GitHub Repositories (real, from API — pick the ones most relevant to the JD)\n`
+              ownRepos.forEach(r => {
+                cvContent += `- ${r.name}: ${r.description} (${r.html_url}) [${r.language || 'N/A'}]\n`
+              })
+            }
+          }
+        }
+      } catch { /* GitHub fetch failed — continue without repos */ }
+    }
+
+    // Load JD text and keywords from report if provided
     let jdText = body.jd_text || ''
-    if (body.report_id && !jdText) {
-      const { data: report } = await db.from('reports').select('jd_text').eq('id', body.report_id).single()
-      if (report?.jd_text) jdText = report.jd_text
+    let reportKeywords: string[] = []
+    let reportData: any = null
+    if (body.report_id) {
+      const { data: report } = await db.from('reports').select('jd_text, jd_url, keywords, role, company, block_a, block_b').eq('id', body.report_id).single()
+      reportData = report
+      if (report?.jd_text && !jdText) jdText = report.jd_text
+      if (report?.keywords) reportKeywords = report.keywords
     }
 
     const { data: creditResult } = await db.rpc('deduct_credits', {
@@ -49,20 +89,44 @@ export async function POST(request: Request) {
     }) as any
     if (!creditResult?.success) return Response.json({ error: creditResult?.error || 'Insufficient credits' }, { status: 402 })
 
-    const archetype = detectArchetype(jdText || cvDoc.content)
-    const systemPrompt = buildPdfSystemPrompt(cvDoc.content, archetype.name)
+    const archetype = detectArchetype(jdText || cvContent)
+    const systemPrompt = buildPdfSystemPrompt(cvContent, archetype.name)
+
+    // Build user message with all available context
+    let userMessage = ''
+    if (jdText) {
+      userMessage = `Tailor my resume SPECIFICALLY for this job description. The resume must look like it was written exclusively for this role. Match the exact job title, use their terminology, and reorder everything to prioritize what THIS job cares about most.\n\nJob Description:\n\n${jdText}`
+    } else if (reportData) {
+      // No JD text but we have report data — reconstruct context
+      const parts = [`Tailor my resume SPECIFICALLY for this role. The resume must look like it was written exclusively for this position:`]
+      if (reportData.company) parts.push(`Company: ${reportData.company}`)
+      if (reportData.role) parts.push(`Exact Role Title: ${reportData.role} — use this title to frame the entire resume`)
+      if (reportKeywords.length) parts.push(`Key requirements/keywords: ${reportKeywords.join(', ')}`)
+      if (reportData.block_a?.tldr) parts.push(`Role summary: ${reportData.block_a.tldr}`)
+      if (reportData.block_b?.match_pct) parts.push(`CV match: ${reportData.block_b.match_pct}%`)
+      if (reportData.block_b?.strong_matches) {
+        const matches = Array.isArray(reportData.block_b.strong_matches)
+          ? reportData.block_b.strong_matches.map((m: any) => typeof m === 'string' ? m : m.skill || m.requirement).join(', ')
+          : ''
+        if (matches) parts.push(`Strong matches: ${matches}`)
+      }
+      if (reportData.block_b?.gaps) {
+        const gaps = Array.isArray(reportData.block_b.gaps)
+          ? reportData.block_b.gaps.map((g: any) => typeof g === 'string' ? g : g.skill || g.requirement).join(', ')
+          : ''
+        if (gaps) parts.push(`Gaps to address: ${gaps}`)
+      }
+      userMessage = parts.join('\n')
+    } else {
+      userMessage = 'Generate a well-formatted resume from my CV. No specific JD — use a general IT/Security/Network focus.'
+    }
 
     // Generate tailored CV content via Claude
     const response = await anthropic.messages.create({
       model: MODELS.pdf,
       max_tokens: 4000,
       system: systemPrompt,
-      messages: [{
-        role: 'user',
-        content: jdText
-          ? `Tailor my resume for this job description:\n\n${jdText}`
-          : 'Generate a well-formatted resume from my CV. No specific JD — use a general IT/Security/Network focus.',
-      }],
+      messages: [{ role: 'user', content: userMessage }],
     })
 
     const text = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
@@ -74,6 +138,25 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to parse CV content from AI response' }, { status: 500 })
     }
 
+    // Ensure profile URLs are in the content (Claude might miss them)
+    if (userProfile?.github_url && !content.github_url) {
+      content.github_url = userProfile.github_url
+      const ghMatch = userProfile.github_url.match(/github\.com\/([^/\s?#]+)/)
+      content.github_display = ghMatch ? `github.com/${ghMatch[1]}` : 'GitHub'
+    }
+    if (userProfile?.linkedin_url && !content.linkedin_url) {
+      content.linkedin_url = userProfile.linkedin_url
+      const liMatch = userProfile.linkedin_url.match(/linkedin\.com\/in\/([^/\s?#]+)/)
+      content.linkedin_display = liMatch ? `linkedin.com/in/${liMatch[1]}` : 'LinkedIn'
+    }
+    if (userProfile?.portfolio_url && !content.portfolio_url) {
+      content.portfolio_url = userProfile.portfolio_url
+      content.portfolio_display = userProfile.portfolio_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    }
+    if (userProfile?.phone && !content.phone) {
+      content.phone = userProfile.phone
+    }
+
     // Build HTML from template
     const html = buildResumeHtml(content)
 
@@ -81,8 +164,14 @@ export async function POST(request: Request) {
     const format = content.paper_format === 'a4' ? 'a4' : 'letter'
     const pdfBuffer = await getPdfBuffer(html, format)
 
-    // Upload to Supabase Storage
-    const filename = `resume-${Date.now()}.pdf`
+    // Upload to Supabase Storage — name file after applicant + role
+    const initials = userProfile?.full_name
+      ? userProfile.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase()
+      : ''
+    const roleSlug = reportData?.role
+      ? `${reportData.company}-${reportData.role}`.replace(/[^a-zA-Z0-9 ]+/g, '').replace(/\s+/g, '-').slice(0, 60)
+      : Date.now().toString()
+    const filename = `Resume-${initials ? initials + '-' : ''}${roleSlug}.pdf`
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('generated-files')
       .upload(`${user.id}/${filename}`, pdfBuffer, {
@@ -104,21 +193,17 @@ export async function POST(request: Request) {
     // Get public URL
     const { data: { publicUrl } } = supabase.storage.from('generated-files').getPublicUrl(`${user.id}/${filename}`)
 
-    // Save to generated_files table
+    // Save to generated_files table (best-effort)
+    try {
     await db.from('generated_files').insert({
       user_id: user.id,
-      file_type: 'resume_pdf',
-      filename,
+      file_type: 'resume',
+      file_name: filename,
       storage_path: `${user.id}/${filename}`,
-      public_url: publicUrl,
       report_id: body.report_id || null,
-      metadata: {
-        keywords: content.keywords_extracted,
-        keyword_coverage_pct: content.keyword_coverage_pct,
-        archetype: archetype.name,
-        paper_format: format,
-      },
+      keyword_coverage: content.keyword_coverage_pct || null,
     })
+    } catch {}
 
     return Response.json({
       success: true,
@@ -126,6 +211,7 @@ export async function POST(request: Request) {
       filename,
       keywords: content.keywords_extracted,
       keyword_coverage_pct: content.keyword_coverage_pct,
+      content,
     })
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })

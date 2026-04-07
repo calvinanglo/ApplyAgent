@@ -25,17 +25,22 @@ export async function GET() {
     const client = getAnthropicClient()
     const response = await client.messages.create({
       model: MODELS.quick,
-      max_tokens: 500,
+      max_tokens: 600,
       messages: [{
         role: 'user',
-        content: `Based on this person's profile, suggest 6 companies that would be good to scan for job openings. Only suggest companies that use Greenhouse ATS (boards-api.greenhouse.io).
+        content: `Based on this person's profile, suggest 6 companies that would be good to scan for job openings. Suggest a mix of companies across these ATS platforms:
+
+- Greenhouse (slug used at: boards-api.greenhouse.io/v1/boards/{slug}/jobs)
+- Lever (slug used at: api.lever.co/v0/postings/{slug})
+- Ashby (slug used at: api.ashbyhq.com/posting-api/job-board/{slug})
+- SmartRecruiters (slug used at: api.smartrecruiters.com/v1/companies/{slug}/postings)
 
 Target roles: ${targetRoles.join(', ') || 'Not specified'}
 Location: ${location || 'Not specified'}
 Resume snippet: ${cvSnippet}
 
-Return ONLY a JSON array of objects with "name" and "greenhouse_slug" fields. The slug must be the exact Greenhouse board slug. No explanation, just JSON.
-Example: [{"name":"Cloudflare","greenhouse_slug":"cloudflare"}]`,
+Return ONLY a JSON array of objects with "name", "slug", and "platform" fields. The slug must be the exact board slug for that platform. Platform must be one of: greenhouse, lever, ashby, smartrecruiters. No explanation, just JSON.
+Example: [{"name":"Cloudflare","slug":"cloudflare","platform":"greenhouse"},{"name":"Visa","slug":"Visa","platform":"smartrecruiters"}]`,
       }],
     })
 
@@ -43,8 +48,26 @@ Example: [{"name":"Cloudflare","greenhouse_slug":"cloudflare"}]`,
     const match = text.match(/\[[\s\S]*\]/)
     if (!match) return Response.json({ companies: [] })
 
-    const companies = JSON.parse(match[0])
-    return Response.json({ companies })
+    const suggestions = JSON.parse(match[0]) as Array<{ name: string; slug: string; platform: string }>
+
+    // Verify each slug actually works
+    const verified = await Promise.all(
+      suggestions.map(async (c) => {
+        try {
+          let url = ''
+          switch (c.platform) {
+            case 'lever': url = `https://api.lever.co/v0/postings/${c.slug}`; break
+            case 'ashby': url = `https://api.ashbyhq.com/posting-api/job-board/${c.slug}`; break
+            case 'smartrecruiters': url = `https://api.smartrecruiters.com/v1/companies/${c.slug}/postings?limit=1`; break
+            default: url = `https://boards-api.greenhouse.io/v1/boards/${c.slug}/jobs`; break
+          }
+          const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) })
+          return res.ok ? c : null
+        } catch { return null }
+      })
+    )
+
+    return Response.json({ companies: verified.filter(Boolean) })
   } catch {
     return Response.json({ companies: [] })
   }

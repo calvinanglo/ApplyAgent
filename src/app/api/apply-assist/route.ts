@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient, MODELS } from '@/lib/anthropic'
 import { buildApplySystemPrompt } from '@/lib/prompts/apply-system'
 import { CREDIT_COSTS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +10,9 @@ export async function POST(request: Request) {
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success: withinLimit } = rateLimit(`apply:${user.id}`, 10, 60_000)
+    if (!withinLimit) return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     let body: { questions: string[]; company: string; role: string; report_id?: string }
     try { body = await request.json() }
