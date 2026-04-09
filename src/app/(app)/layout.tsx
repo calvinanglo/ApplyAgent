@@ -1,7 +1,11 @@
+'use client'
+
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Topbar } from '@/components/layout/topbar'
-import { HelpChat } from '@/components/help-chat'
+
+const HelpChat = dynamic(() => import('@/components/help-chat').then(m => m.HelpChat), { ssr: false })
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

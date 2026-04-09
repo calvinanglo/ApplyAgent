@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [isOAuthOnly, setIsOAuthOnly] = useState(false)
   const router = useRouter()
 
   const [profile, setProfile] = useState({
@@ -119,6 +120,8 @@ export default function SettingsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUserId(user.id)
+    const hasPasswordIdentity = user.identities?.some((i: any) => i.provider === 'email')
+    setIsOAuthOnly(!hasPasswordIdentity)
 
     const [profileRes, cvRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single() as any,
@@ -205,7 +208,27 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Profile</h1>
           <p className="text-muted-foreground">Your profile and CV configuration</p>
         </div>
-        <Button onClick={() => {
+        <Button className="hidden sm:inline-flex" onClick={() => {
+          if (!profile.full_name?.trim()) { alert('Full Name is required'); return }
+          if (!profile.email?.trim()) { alert('Email is required'); return }
+          if (!profile.phone?.trim()) { alert('Phone number is required'); return }
+          if (!cvContent.trim()) { alert('Resume/CV is required — upload or paste your resume below'); return }
+          handleSave()
+        }} disabled={saving}>
+          {saving ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : saved ? (
+            <CheckCircle2 className="size-4" />
+          ) : (
+            <Save className="size-4" />
+          )}
+          {saved ? 'Saved!' : 'Save Changes'}
+        </Button>
+      </div>
+
+      {/* Sticky save button on mobile */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 sm:hidden">
+        <Button className="w-full" size="lg" onClick={() => {
           if (!profile.full_name?.trim()) { alert('Full Name is required'); return }
           if (!profile.email?.trim()) { alert('Email is required'); return }
           if (!profile.phone?.trim()) { alert('Phone number is required'); return }
@@ -505,7 +528,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      {!isOAuthOnly && <Card>
         <CardHeader>
           <CardTitle>Change Password</CardTitle>
           <CardDescription>Update your account password</CardDescription>
@@ -592,7 +615,7 @@ export default function SettingsPage() {
             <p className="text-sm text-destructive">{passwordError}</p>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       <Card>
         <CardHeader>
@@ -649,21 +672,43 @@ export default function SettingsPage() {
               <p className="text-sm font-medium text-destructive">
                 This action is permanent. All your evaluations, reports, credits, and saved data will be deleted and cannot be recovered.
               </p>
+              <p className="text-sm text-muted-foreground">
+                Type <strong>DELETE MY ACCOUNT</strong> below to confirm:
+              </p>
+              <Input
+                placeholder="Type DELETE MY ACCOUNT"
+                id="delete-confirm-input"
+                className="max-w-xs font-mono text-sm"
+              />
               <div className="flex gap-3">
                 <Button
                   variant="destructive"
                   disabled={deleting}
                   onClick={async () => {
+                    const input = (document.getElementById('delete-confirm-input') as HTMLInputElement)?.value
+                    if (input !== 'DELETE MY ACCOUNT') {
+                      toast.error('Please type "DELETE MY ACCOUNT" exactly to confirm.')
+                      return
+                    }
                     setDeleting(true)
+                    const res = await fetch('/api/account/delete', {
+                      method: 'DELETE',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ confirmation: 'DELETE MY ACCOUNT' }),
+                    })
+                    if (!res.ok) {
+                      const data = await res.json()
+                      toast.error(data.error || 'Failed to delete account')
+                      setDeleting(false)
+                      return
+                    }
                     const supabase = createClient()
                     await supabase.auth.signOut()
-                    // Account deletion requires a server-side endpoint with service role
-                    await fetch('/api/account/delete', { method: 'DELETE' })
                     router.push('/login')
                   }}
                 >
                   {deleting ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {deleting ? 'Deleting...' : 'Yes, delete my account'}
+                  {deleting ? 'Deleting...' : 'Permanently delete my account'}
                 </Button>
                 <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
                   Cancel

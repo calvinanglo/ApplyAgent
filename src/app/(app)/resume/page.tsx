@@ -29,7 +29,7 @@ function ResumeContent() {
   const [jdText, setJdText] = useState('')
   const [selectedReportId, setSelectedReportId] = useState<string | null>(reportIdParam)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ url?: string; pdf_base64?: string; filename?: string; keywords?: string[]; keyword_coverage_pct?: number; content?: any } | null>(null)
+  const [result, setResult] = useState<{ url?: string; previewUrl?: string; pdf_base64?: string; filename?: string; keywords?: string[]; keyword_coverage_pct?: number; content?: any } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<Report[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,11 +115,12 @@ function ResumeContent() {
       }
       if (!res.ok) { setError(data.error || 'Failed to generate'); return }
 
-      // If storage upload failed, API returns pdf_base64 instead of url — create a blob URL
-      if (!data.url && data.pdf_base64) {
+      // Always prefer blob URL for iframe preview (Supabase Storage blocks iframe embedding)
+      if (data.pdf_base64) {
         const bytes = Uint8Array.from(atob(data.pdf_base64), c => c.charCodeAt(0))
-        const blob = new Blob([bytes], { type: 'application/pdf' })
-        data.url = URL.createObjectURL(blob)
+        const file = new File([bytes], data.filename || 'resume.pdf', { type: 'application/pdf' })
+        data.previewUrl = URL.createObjectURL(file)
+        if (!data.url) data.url = data.previewUrl
       }
 
       setResult(data)
@@ -131,76 +132,212 @@ function ResumeContent() {
   }
 
   async function buildResumeDocx(c: any, downloadName: string) {
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx')
+    const { Document, Packer, Paragraph, TextRun, BorderStyle, convertInchesToTwip, TabStopType, TabStopPosition } = await import('docx')
     const children: InstanceType<typeof Paragraph>[] = []
 
-    children.push(new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: c.name || '', font: 'Garamond', size: 28, bold: true })] }))
-    const contact = [c.email, c.location].filter(Boolean).join(' | ')
-    if (contact) children.push(new Paragraph({ children: [new TextRun({ text: contact, font: 'Garamond', size: 20, color: '666666' })] }))
-    children.push(new Paragraph({ children: [] }))
+    const F = 'Garamond'
 
+    // Auto-size: measure total text and pick largest font that fits one page
+    // Count all text characters to estimate wrapped lines accurately
+    const allText = [
+      c.summary || '',
+      ...(c.experience || []).flatMap((j: any) => [j.company, j.role, j.period, ...(j.bullets || [])]),
+      ...(c.github_projects || []).map((p: any) => `${p.name} ${p.description}`),
+      ...(c.education || []).map((e: any) => `${e.degree} ${e.institution}`),
+      ...(c.certifications || []).map((cert: any) => `${cert.name} ${cert.issuer} ${cert.dates}`),
+      ...(c.skills || []).map((s: any) => `${s.category}: ${(s.items || []).join(', ')}`),
+    ].join('\n')
+    const totalChars = allText.length
+    const sectionCount = [c.summary, (c.experience || []).length, (c.education || []).length, (c.certifications || []).length, (c.skills || []).length, (c.github_projects || []).length].filter(Boolean).length
+    // Structural overhead: section headers, name, contact, job headers, spacing → ~18 effective lines
+    const structuralLines = 3 + sectionCount * 2 + (c.experience || []).length * 2
+
+    // Chars per line at each font tier (Garamond on 7.2" usable width)
+    // Tier: [chars/line, available content lines on page]
+    const tiers = [
+      { cpl: 85,  avail: 54, name: 26, body: 21, small: 20, contact: 19, space: 120, line: 250 },
+      { cpl: 90,  avail: 58, name: 24, body: 20, small: 19, contact: 18, space: 100, line: 240 },
+      { cpl: 95,  avail: 62, name: 23, body: 19, small: 18, contact: 17, space: 90,  line: 232 },
+      { cpl: 105, avail: 68, name: 22, body: 18, small: 17, contact: 16, space: 80,  line: 224 },
+    ]
+
+    let tier = tiers[tiers.length - 1] // default to smallest
+    for (const t of tiers) {
+      const wrappedLines = Math.ceil(totalChars / t.cpl) + structuralLines
+      if (wrappedLines <= t.avail) { tier = t; break }
+    }
+
+    const SZ_NAME = tier.name, SZ_BODY = tier.body, SZ_SMALL = tier.small, SZ_CONTACT = tier.contact
+    const SPACE_SECTION = tier.space, LINE_SPACING = tier.line
+
+    const sectionBorder = {
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000', space: 1 },
+    }
+
+    // Name
+    children.push(new Paragraph({
+      spacing: { after: 20 },
+      children: [new TextRun({ text: c.name || '', font: F, size: SZ_NAME, bold: true })],
+    }))
+
+    // Contact row
+    const contactParts = [c.email, c.phone, c.linkedin_display, c.github_display, c.location].filter(Boolean)
+    if (contactParts.length) {
+      children.push(new Paragraph({
+        spacing: { after: 40 },
+        children: contactParts.flatMap((part, i) => {
+          const runs: InstanceType<typeof TextRun>[] = []
+          if (i > 0) runs.push(new TextRun({ text: '  |  ', font: F, size: SZ_CONTACT, color: '999999' }))
+          runs.push(new TextRun({ text: part, font: F, size: SZ_CONTACT, color: '333333' }))
+          return runs
+        }),
+      }))
+    }
+
+    // Helper: section header with bottom border
+    function sectionHeader(title: string) {
+      return new Paragraph({
+        spacing: { before: SPACE_SECTION, after: 40 },
+        border: sectionBorder,
+        children: [new TextRun({ text: title.toUpperCase(), font: F, size: SZ_BODY, bold: true, characterSpacing: 20 })],
+      })
+    }
+
+    // Summary
     if (c.summary) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'PROFESSIONAL SUMMARY', font: 'Garamond', size: 22, bold: true })] }))
-      children.push(new Paragraph({ children: [new TextRun({ text: c.summary, font: 'Garamond', size: 22 })] }))
-      children.push(new Paragraph({ children: [] }))
+      children.push(sectionHeader('Professional Summary'))
+      children.push(new Paragraph({
+        spacing: { after: 0, line: LINE_SPACING },
+        children: [new TextRun({ text: c.summary, font: F, size: SZ_BODY })],
+      }))
     }
 
+    // GitHub Projects
     if (c.github_projects?.length) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'GITHUB PROJECTS', font: 'Garamond', size: 22, bold: true })] }))
+      children.push(sectionHeader('GitHub Projects'))
       for (const proj of c.github_projects) {
-        children.push(new Paragraph({ children: [
-          new TextRun({ text: proj.name, font: 'Garamond', size: 22, bold: true }),
-          new TextRun({ text: ` — ${proj.description}`, font: 'Garamond', size: 22 }),
-        ]}))
+        children.push(new Paragraph({
+          spacing: { after: 0, line: LINE_SPACING },
+          children: [
+            new TextRun({ text: proj.name, font: F, size: SZ_SMALL, bold: true }),
+            new TextRun({ text: ` — ${proj.description}`, font: F, size: SZ_SMALL }),
+          ],
+        }))
       }
-      children.push(new Paragraph({ children: [] }))
     }
 
+    // Right-align tab stop at page width
+    const rightTab = { type: TabStopType.RIGHT, position: convertInchesToTwip(7.2) }
+
+    // Experience
     if (c.experience?.length) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'EXPERIENCE', font: 'Garamond', size: 22, bold: true })] }))
+      children.push(sectionHeader('Work Experience'))
       for (const job of c.experience) {
-        children.push(new Paragraph({ children: [
-          new TextRun({ text: `${job.role}`, font: 'Garamond', size: 22, bold: true }),
-          new TextRun({ text: ` — ${job.company}`, font: 'Garamond', size: 22 }),
-        ]}))
-        children.push(new Paragraph({ children: [new TextRun({ text: `${job.period}${job.location ? ' | ' + job.location : ''}`, font: 'Garamond', size: 20, italics: true, color: '666666' })] }))
-        for (const bullet of (job.bullets || [])) {
-          children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: bullet, font: 'Garamond', size: 22 })] }))
+        // Company (bold) .......... Date (right-aligned)
+        children.push(new Paragraph({
+          spacing: { before: 40, after: 0 },
+          tabStops: [rightTab],
+          children: [
+            new TextRun({ text: job.company, font: F, size: SZ_BODY, bold: true }),
+            new TextRun({ text: '\t', font: F, size: SZ_SMALL }),
+            new TextRun({ text: job.period, font: F, size: SZ_SMALL, color: '444444' }),
+          ],
+        }))
+        // Role (italic)
+        children.push(new Paragraph({
+          spacing: { after: 0 },
+          children: [new TextRun({ text: job.role, font: F, size: SZ_BODY, italics: true })],
+        }))
+        // Location on its own line
+        if (job.location) {
+          children.push(new Paragraph({
+            spacing: { after: 10 },
+            children: [new TextRun({ text: job.location, font: F, size: SZ_SMALL, color: '444444' })],
+          }))
         }
-        children.push(new Paragraph({ children: [] }))
+        for (const bullet of (job.bullets || [])) {
+          children.push(new Paragraph({
+            bullet: { level: 0 },
+            spacing: { after: 0, line: LINE_SPACING },
+            children: [new TextRun({ text: bullet, font: F, size: SZ_SMALL })],
+          }))
+        }
       }
     }
 
+    // Education
     if (c.education?.length) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'EDUCATION', font: 'Garamond', size: 22, bold: true })] }))
+      children.push(sectionHeader('Education'))
       for (const edu of c.education) {
-        children.push(new Paragraph({ children: [
-          new TextRun({ text: edu.degree, font: 'Garamond', size: 22, bold: true }),
-          new TextRun({ text: ` — ${edu.institution} (${edu.year})`, font: 'Garamond', size: 22 }),
-        ]}))
+        children.push(new Paragraph({
+          spacing: { after: 0, line: LINE_SPACING },
+          tabStops: [rightTab],
+          children: [
+            new TextRun({ text: edu.degree, font: F, size: SZ_BODY, bold: true }),
+            new TextRun({ text: ` — ${edu.institution}`, font: F, size: SZ_BODY }),
+            ...(edu.year ? [
+              new TextRun({ text: '\t', font: F, size: SZ_SMALL }),
+              new TextRun({ text: edu.year, font: F, size: SZ_SMALL, color: '444444' }),
+            ] : []),
+          ],
+        }))
+        if (edu.notes) {
+          children.push(new Paragraph({
+            spacing: { after: 0, line: LINE_SPACING },
+            children: [new TextRun({ text: edu.notes, font: F, size: SZ_SMALL, color: '444444' })],
+          }))
+        }
       }
-      children.push(new Paragraph({ children: [] }))
     }
 
+    // Certifications
     if (c.certifications?.length) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'CERTIFICATIONS', font: 'Garamond', size: 22, bold: true })] }))
+      children.push(sectionHeader('Certifications'))
       for (const cert of c.certifications) {
-        children.push(new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text: `${cert.name} — ${cert.issuer} (${cert.dates})`, font: 'Garamond', size: 22 })] }))
+        children.push(new Paragraph({
+          spacing: { after: 0, line: LINE_SPACING },
+          tabStops: [rightTab],
+          children: [
+            new TextRun({ text: cert.issuer || '', font: F, size: SZ_SMALL, bold: true }),
+            new TextRun({ text: `${cert.issuer ? ' — ' : ''}${cert.name}`, font: F, size: SZ_SMALL }),
+            ...(cert.dates ? [
+              new TextRun({ text: '\t', font: F, size: SZ_SMALL }),
+              new TextRun({ text: cert.dates, font: F, size: SZ_SMALL, color: '444444' }),
+            ] : []),
+          ],
+        }))
       }
-      children.push(new Paragraph({ children: [] }))
     }
 
+    // Skills
     if (c.skills?.length) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'SKILLS', font: 'Garamond', size: 22, bold: true })] }))
+      children.push(sectionHeader('Skills'))
       for (const cat of c.skills) {
-        children.push(new Paragraph({ children: [
-          new TextRun({ text: `${cat.category}: `, font: 'Garamond', size: 22, bold: true }),
-          new TextRun({ text: (cat.items || []).join(', '), font: 'Garamond', size: 22 }),
-        ]}))
+        children.push(new Paragraph({
+          spacing: { after: 0, line: LINE_SPACING },
+          children: [
+            new TextRun({ text: `${cat.category}: `, font: F, size: SZ_SMALL, bold: true }),
+            new TextRun({ text: (cat.items || []).join(' · '), font: F, size: SZ_SMALL }),
+          ],
+        }))
       }
     }
 
-    const doc = new Document({ sections: [{ children }] })
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            margin: {
+              top: convertInchesToTwip(0.3),
+              bottom: convertInchesToTwip(0.3),
+              left: convertInchesToTwip(0.4),
+              right: convertInchesToTwip(0.4),
+            },
+          },
+        },
+        children,
+      }],
+    })
     const blob = await Packer.toBlob(doc)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -261,7 +398,7 @@ function ResumeContent() {
           <CardDescription>
             {reportIdParam
               ? 'Generate a resume tailored to this evaluated job.'
-              : 'Select an evaluated job or paste a new job description. Leave blank for a general version.'}
+              : 'Select an evaluated job or paste a new job description.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -353,7 +490,7 @@ function ResumeContent() {
                 credits={3}
                 label="Generate"
                 loadingLabel="Generating..."
-                disabled={loading}
+                disabled={loading || (!selectedReportId && !jdText.trim())}
                 onConfirm={handleGenerate}
                 icon={<FileDown className="size-4" />}
               />
@@ -437,11 +574,11 @@ function ResumeContent() {
           </Card>
 
           {/* PDF Preview */}
-          {result.url && (
+          {(result.previewUrl || result.url) && (
             <Card>
               <CardContent className="pt-6">
                 <iframe
-                  src={result.url}
+                  src={`${result.previewUrl || result.url}#navpanes=0&zoom=100`}
                   className="w-full rounded-md border"
                   style={{ height: '80vh' }}
                   title="Resume Preview"
@@ -459,12 +596,32 @@ function ResumeContent() {
             <CardTitle className="text-base text-muted-foreground">Previously Generated Resumes</CardTitle>
             <div className="flex items-center gap-2">
               {selectedHistory.size > 0 && (
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
-                  if (window.confirm(`Remove ${selectedHistory.size} selected item(s) from history?`)) {
-                    const filtered = history.filter(h => h.storage_path && h.storage_path.includes('/'))
-                    setHistory(prev => prev.filter((_, idx) => !selectedHistory.has(idx)))
-                    setSelectedHistory(new Set())
-                  }
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
+                  if (!window.confirm(`Remove ${selectedHistory.size} selected item(s) from history?`)) return
+                  const validHistory = history.filter(h => h.storage_path && h.storage_path.includes('/'))
+                  const toDelete = validHistory.filter((_, idx) => selectedHistory.has(idx))
+                  try {
+                    const { createClient } = await import('@/lib/supabase/client')
+                    const supabase = createClient()
+                    // Delete from storage
+                    const storagePaths = toDelete.map(h => h.storage_path).filter(Boolean)
+                    if (storagePaths.length) {
+                      await supabase.storage.from('generated-files').remove(storagePaths)
+                      // Also remove JSON files
+                      const jsonPaths = storagePaths.map(p => p.replace(/\.pdf$/, '.json'))
+                      await supabase.storage.from('generated-files').remove(jsonPaths)
+                    }
+                    // Delete from generated_files table
+                    for (const h of toDelete) {
+                      await (supabase as any).from('generated_files').delete().eq('storage_path', h.storage_path)
+                    }
+                  } catch {}
+                  setHistory(prev => {
+                    const valid = prev.filter(h => h.storage_path && h.storage_path.includes('/'))
+                    const deleteSet = new Set(toDelete.map(h => h.storage_path))
+                    return prev.filter(h => !deleteSet.has(h.storage_path))
+                  })
+                  setSelectedHistory(new Set())
                 }}>Remove ({selectedHistory.size})</Button>
               )}
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">

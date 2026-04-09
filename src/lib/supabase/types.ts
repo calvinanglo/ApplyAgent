@@ -177,6 +177,7 @@ export interface Database {
           sequence_number: number
           company: string
           role: string
+          location: string | null
           score: number | null
           status: 'Evaluated' | 'Applied' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn' | 'Accepted'
           applied_date: string | null
@@ -194,6 +195,7 @@ export interface Database {
           sequence_number: number
           company: string
           role: string
+          location?: string | null
           score?: number | null
           status?: 'Evaluated' | 'Applied' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn' | 'Accepted'
           applied_date?: string | null
@@ -211,6 +213,7 @@ export interface Database {
           sequence_number?: number
           company?: string
           role?: string
+          location?: string | null
           score?: number | null
           status?: 'Evaluated' | 'Applied' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn' | 'Accepted'
           applied_date?: string | null
@@ -525,6 +528,7 @@ export interface Database {
           company: string | null
           role: string | null
           title: string | null
+          location: string | null
           source: string | null
           status: 'pending' | 'processing' | 'done' | 'evaluated' | 'skipped' | 'error'
           score: number | null
@@ -540,6 +544,7 @@ export interface Database {
           company?: string | null
           role?: string | null
           title?: string | null
+          location?: string | null
           source?: string | null
           status?: 'pending' | 'processing' | 'done' | 'evaluated' | 'skipped' | 'error'
           score?: number | null
@@ -555,6 +560,7 @@ export interface Database {
           company?: string | null
           role?: string | null
           title?: string | null
+          location?: string | null
           source?: string | null
           status?: 'pending' | 'processing' | 'done' | 'evaluated' | 'skipped' | 'error'
           score?: number | null

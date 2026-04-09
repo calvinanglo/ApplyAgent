@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md">
-      <Image src="/logo.svg" alt="ApplyAgent" width={200} height={64} className="mx-auto mb-6" priority />
+      <Link href="/"><Image src="/logo.svg" alt="ApplyAgent" width={200} height={64} className="mx-auto mb-6 cursor-pointer" priority /></Link>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Reset your password</CardTitle>

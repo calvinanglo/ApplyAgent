@@ -47,10 +47,11 @@ export default function PipelinePage() {
 
   const loadItems = useCallback(async () => {
     try {
-      const res = await fetch('/api/pipeline?status=all&limit=2000')
+      const res = await fetch('/api/pipeline?status=all&limit=200')
       if (res.ok) {
         const data = await res.json()
         setItems(data.items || [])
+        if (data.counts) setCounts(data.counts)
       }
     } catch {}
     setLoading(false)
@@ -125,7 +126,7 @@ export default function PipelinePage() {
     await loadItems()
   }
 
-  const PARALLEL = 3 // Process 3 items at a time
+  const PARALLEL = 5 // Process 5 at a time — deduct_credits RPC is atomic so parallel is safe
 
   async function handleProcessAll() {
     const pending = items.filter(i => i.status === 'pending')
@@ -157,28 +158,33 @@ export default function PipelinePage() {
             body: JSON.stringify({ pipeline_item_id: item.id }),
             signal: controller.signal,
           })
+          // Update progress as each item completes
+          completed++
+          setProcessProgress({ current: Math.min(completed, pending.length), total: pending.length })
           return res.status
         })
       )
 
       // Check results for insufficient credits
       for (const r of results) {
-        if (r.status === 'fulfilled') {
-          completed++
-          if (r.value === 402) {
-            stopped = true
-            toast('Insufficient credits — processing stopped.')
+        if (r.status === 'fulfilled' && r.value === 402) {
+          stopped = true
+          toast('Insufficient credits — processing stopped. Remaining items kept in pending.')
+          // Revert unprocessed items back to pending
+          const remaining = pending.slice(i + PARALLEL)
+          if (remaining.length) {
+            await fetch('/api/pipeline', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: remaining.map(r => r.id), status: 'pending' }),
+            })
           }
-        } else {
-          completed++
-          if (r.reason instanceof DOMException && r.reason.name === 'AbortError') {
-            stopped = true
-            toast(`Cancelled — ${completed} processed.`)
-          }
+        } else if (r.status === 'rejected' && r.reason instanceof DOMException && r.reason.name === 'AbortError') {
+          stopped = true
+          toast(`Cancelled — ${completed} processed.`)
         }
       }
 
-      setProcessProgress({ current: Math.min(completed, pending.length), total: pending.length })
       await loadItems()
     }
 
@@ -187,8 +193,18 @@ export default function PipelinePage() {
   }
 
   async function handleProcessSelected() {
-    const selected = items.filter(i => selectedItems.has(i.id) && i.status === 'pending')
-    if (!selected.length) { toast('No pending items selected'); return }
+    // Requeue any selected error items to pending first
+    const errorItems = items.filter(i => selectedItems.has(i.id) && i.status === 'error')
+    if (errorItems.length) {
+      await fetch('/api/pipeline', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: errorItems.map(i => i.id), status: 'pending' }),
+      })
+      await loadItems()
+    }
+    const selected = items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || errorItems.some(e => e.id === i.id)))
+    if (!selected.length) { toast('No items to process'); return }
     cancelRef.current = false
     let completed = 0
     let stopped = false
@@ -215,64 +231,55 @@ export default function PipelinePage() {
             body: JSON.stringify({ pipeline_item_id: item.id }),
             signal: controller.signal,
           })
+          completed++
+          setProcessProgress({ current: Math.min(completed, selected.length), total: selected.length })
           return res.status
         })
       )
       for (const r of results) {
-        if (r.status === 'fulfilled') {
-          completed++
-          if (r.value === 402) { stopped = true; toast('Insufficient credits — processing stopped.') }
-        } else {
-          completed++
-          if (r.reason instanceof DOMException && r.reason.name === 'AbortError') { stopped = true; toast(`Cancelled — ${completed} processed.`) }
+        if (r.status === 'fulfilled' && r.value === 402) {
+          stopped = true
+          toast('Insufficient credits — processing stopped.')
+          const remaining = selected.slice(i + PARALLEL)
+          if (remaining.length) {
+            await fetch('/api/pipeline', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: remaining.map(r => r.id), status: 'pending' }),
+            })
+          }
+        } else if (r.status === 'rejected' && r.reason instanceof DOMException && r.reason.name === 'AbortError') {
+          stopped = true
+          toast(`Cancelled — ${completed} processed.`)
         }
       }
-      setProcessProgress({ current: Math.min(completed, selected.length), total: selected.length })
       await loadItems()
     }
     abortRef.current = null
     setProcessProgress(null)
+    setSelectedItems(new Set())
   }
 
   async function handleClearItems(type: 'pending' | 'done' | 'errors') {
     setClearConfirm(null)
-    const cleared = type === 'pending'
-      ? items.filter(i => i.status === 'pending')
-      : type === 'errors'
-      ? items.filter(i => i.status === 'error')
-      : items.filter(i => i.status === 'done')
-    // Remove from UI immediately
-    setItems(prev => prev.filter(i => !cleared.some(c => c.id === i.id)))
-    let undone = false
-    toast(`${cleared.length} ${type} items removed`, {
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          undone = true
-          setItems(prev => [...prev, ...cleared].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
-        },
-      },
-      duration: 10000,
-      onAutoClose: () => {
-        if (!undone) {
-          fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clear: type }) })
-        }
-      },
-      onDismiss: () => {
-        if (!undone) {
-          fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clear: type }) })
-        }
-      },
+    // Delete on server immediately (clears ALL, not just loaded 200)
+    await fetch('/api/pipeline', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clear: type }),
     })
+    toast(`All ${type} items cleared`)
+    await loadItems()
   }
 
   const [clearConfirm, setClearConfirm] = useState<'pending' | 'done' | 'errors' | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
 
-  const pendingCount = items.filter(i => i.status === 'pending').length
-  const doneCount = items.filter(i => i.status === 'done').length
-  const errorCount = items.filter(i => i.status === 'error').length
-  const processingCount = items.filter(i => i.status === 'processing').length
+  const [counts, setCounts] = useState({ pending: 0, done: 0, error: 0, processing: 0 })
+  const pendingCount = counts.pending
+  const doneCount = counts.done
+  const errorCount = counts.error
+  const processingCount = counts.processing
   const isInsufficientError = (msg: string | null) => msg?.toLowerCase().includes('insufficient') || msg?.toLowerCase().includes('credit')
   const insufficientCount = items.filter(i => i.status === 'error' && isInsufficientError(i.error_message)).length
 
@@ -509,6 +516,9 @@ export default function PipelinePage() {
                     </span>
                     <Badge variant="outline" className="text-xs">{item.source}</Badge>
                   </div>
+                  {(item as any).location && (
+                    <p className="text-xs text-muted-foreground/60 mt-0.5">{(item as any).location}</p>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <a
                       href={item.url}
@@ -552,14 +562,13 @@ export default function PipelinePage() {
                     </Button>
                   )}
                   {item.status === 'error' && !isInsufficientError(item.error_message) && (
-                    <CreditConfirmButton
-                      credits={10}
-                      label=""
-                      loadingLabel=""
-                      disabled={processing[item.id]}
-                      onConfirm={() => handleProcess(item)}
-                      icon={<RotateCcw className="size-4" />}
-                    />
+                    <Button variant="outline" size="sm" disabled={processing[item.id]} onClick={async () => {
+                      await fetch('/api/pipeline', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, status: 'pending' }) })
+                      await loadItems()
+                      toast('Moved back to pending for retry')
+                    }}>
+                      <RotateCcw className="size-4" />
+                    </Button>
                   )}
                   {item.status === 'pending' && (
                     <CreditConfirmButton

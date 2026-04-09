@@ -10,21 +10,36 @@ export const maxDuration = 300 // 5 minutes — evaluation + URL fetch + DB can 
 function isAllowedUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
-    // Block internal/private IPs and non-http protocols
     if (!['http:', 'https:'].includes(parsed.protocol)) return false
-    const hostname = parsed.hostname.toLowerCase()
+    const hostname = parsed.hostname.toLowerCase().replace(/\.$/, '') // strip trailing dot
+    // Block all private/reserved IPs and hostnames
     if (
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
       hostname === '0.0.0.0' ||
+      hostname === '[::1]' ||
       hostname.startsWith('10.') ||
       hostname.startsWith('192.168.') ||
-      hostname.startsWith('172.') ||
+      hostname.startsWith('172.16.') || hostname.startsWith('172.17.') || hostname.startsWith('172.18.') ||
+      hostname.startsWith('172.19.') || hostname.startsWith('172.20.') || hostname.startsWith('172.21.') ||
+      hostname.startsWith('172.22.') || hostname.startsWith('172.23.') || hostname.startsWith('172.24.') ||
+      hostname.startsWith('172.25.') || hostname.startsWith('172.26.') || hostname.startsWith('172.27.') ||
+      hostname.startsWith('172.28.') || hostname.startsWith('172.29.') || hostname.startsWith('172.30.') ||
+      hostname.startsWith('172.31.') ||
+      hostname.startsWith('169.254.') || // Link-local
+      hostname.startsWith('fc') || hostname.startsWith('fd') || // IPv6 ULA
+      hostname.startsWith('fe80') || // IPv6 link-local
       hostname.endsWith('.internal') ||
       hostname.endsWith('.local') ||
-      hostname === '169.254.169.254' || // Cloud metadata
-      hostname === 'metadata.google.internal'
+      hostname.endsWith('.localhost') ||
+      hostname === '169.254.169.254' ||
+      hostname === 'metadata.google.internal' ||
+      hostname === 'metadata.google.com' ||
+      /^0x[0-9a-f]/i.test(hostname) || // Hex IP encoding
+      /^\d+$/.test(hostname) // Decimal IP encoding
     ) return false
+    // Must have a valid TLD
+    if (!hostname.includes('.')) return false
     return true
   } catch {
     return false
@@ -45,9 +60,9 @@ function stripHtml(html: string): string {
 }
 
 // ATS-specific fetchers that use native APIs for clean JD text
+interface JdResult { text: string; location: string | null }
 
-async function fetchGreenhouseJd(url: string): Promise<string | null> {
-  // Pattern: boards.greenhouse.io/{company}/jobs/{id} or job-boards.greenhouse.io/...
+async function fetchGreenhouseJd(url: string): Promise<JdResult | null> {
   const match = url.match(/(?:boards|job-boards)\.greenhouse\.io\/([^/]+)\/jobs\/(\d+)/)
   if (!match) return null
   const [, company, jobId] = match
@@ -62,14 +77,13 @@ async function fetchGreenhouseJd(url: string): Promise<string | null> {
     const title = data.title || ''
     const location = data.location?.name || ''
     const content = stripHtml(data.content)
-    return `${title}\n${location}\n\n${content}`.trim()
+    return { text: `${title}\n${location}\n\n${content}`.trim(), location: location || null }
   } catch {
     return null
   }
 }
 
-async function fetchLeverJd(url: string): Promise<string | null> {
-  // Pattern: jobs.lever.co/{company}/{uuid}
+async function fetchLeverJd(url: string): Promise<JdResult | null> {
   const match = url.match(/jobs\.lever\.co\/([^/]+)\/([a-f0-9-]+)/)
   if (!match) return null
   const [, company, jobId] = match
@@ -85,9 +99,10 @@ async function fetchLeverJd(url: string): Promise<string | null> {
       categories?: { location?: string; commitment?: string; team?: string }
       lists?: Array<{ text: string; content: string }>
     }
+    const location = data.categories?.location || null
     const parts: string[] = []
     if (data.text) parts.push(data.text)
-    if (data.categories?.location) parts.push(`Location: ${data.categories.location}`)
+    if (location) parts.push(`Location: ${location}`)
     if (data.categories?.commitment) parts.push(`Type: ${data.categories.commitment}`)
     if (data.categories?.team) parts.push(`Team: ${data.categories.team}`)
     if (data.descriptionPlain) parts.push(data.descriptionPlain)
@@ -97,14 +112,13 @@ async function fetchLeverJd(url: string): Promise<string | null> {
       }
     }
     const result = parts.join('\n').trim()
-    return result || null
+    return result ? { text: result, location } : null
   } catch {
     return null
   }
 }
 
-async function fetchAshbyJd(url: string): Promise<string | null> {
-  // Pattern: jobs.ashbyhq.com/{company}/{uuid}
+async function fetchAshbyJd(url: string): Promise<JdResult | null> {
   const match = url.match(/jobs\.ashbyhq\.com\/([^/]+)\/([a-f0-9-]+)/)
   if (!match) return null
   const [, company, jobId] = match
@@ -119,20 +133,20 @@ async function fetchAshbyJd(url: string): Promise<string | null> {
     }
     const info = data.info
     if (!info) return null
+    const location = info.location || null
     const parts: string[] = []
     if (info.title) parts.push(info.title)
-    if (info.location) parts.push(`Location: ${info.location}`)
+    if (location) parts.push(`Location: ${location}`)
     if (info.descriptionPlain) parts.push(info.descriptionPlain)
     else if (info.descriptionHtml) parts.push(stripHtml(info.descriptionHtml))
     const result = parts.join('\n').trim()
-    return result || null
+    return result ? { text: result, location } : null
   } catch {
     return null
   }
 }
 
-async function fetchWorkdayJd(url: string): Promise<string | null> {
-  // Pattern: {company}.wd{n}.myworkdayjobs.com/{siteId}/job/{path}
+async function fetchWorkdayJd(url: string): Promise<JdResult | null> {
   const match = url.match(/([^.]+)\.(wd\d+)\.myworkdayjobs\.com\/(?:([^/]+))?(.+)/)
   if (!match) return null
   const [, subdomain, wd, siteId, path] = match
@@ -151,11 +165,12 @@ async function fetchWorkdayJd(url: string): Promise<string | null> {
     }
     const info = data.jobPostingInfo
     if (!info?.jobDescription) return null
+    const location = info.location || null
     const parts: string[] = []
     if (info.title) parts.push(info.title)
-    if (info.location) parts.push(`Location: ${info.location}`)
+    if (location) parts.push(`Location: ${location}`)
     parts.push(stripHtml(info.jobDescription))
-    return parts.join('\n').trim()
+    return { text: parts.join('\n').trim(), location }
   } catch {
     return null
   }
@@ -175,7 +190,7 @@ async function fetchGenericJd(url: string): Promise<string> {
   return stripHtml(html)
 }
 
-async function fetchJdFromUrl(url: string): Promise<string> {
+async function fetchJdFromUrl(url: string): Promise<JdResult> {
   if (!isAllowedUrl(url)) {
     throw new Error('URL not allowed: internal or private addresses are blocked')
   }
@@ -184,13 +199,13 @@ async function fetchJdFromUrl(url: string): Promise<string> {
   const atsFetchers = [fetchGreenhouseJd, fetchLeverJd, fetchAshbyJd, fetchWorkdayJd]
   for (const fetcher of atsFetchers) {
     const result = await fetcher(url)
-    if (result && result.length > 100) return result.slice(0, 12000)
+    if (result && result.text.length > 100) return { text: result.text.slice(0, 12000), location: result.location }
   }
 
   // Fallback to generic HTML fetch
   try {
     const text = await fetchGenericJd(url)
-    return text.slice(0, 12000)
+    return { text: text.slice(0, 12000), location: null }
   } catch (err) {
     throw new Error(`Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`)
   }
@@ -234,21 +249,13 @@ export async function POST(request: Request) {
       return Response.json({ error: 'No CV found' }, { status: 400 })
     }
 
-    // Deduct credits
-    const { data: creditResult } = await db.rpc('deduct_credits', {
-      p_user_id: user.id,
-      p_amount: CREDIT_COSTS.batch_per_offer,
-      p_action: 'evaluation',
-    }) as any
-    if (!creditResult?.success) {
-      await db.from('pipeline_items').update({ status: 'error', error_message: 'Insufficient credits' }).eq('id', item.id)
-      return Response.json({ error: 'Insufficient credits' }, { status: 402 })
-    }
-
-    // Fetch JD
+    // Fetch JD BEFORE deducting credits — no charge if fetch fails
     let jdText = ''
+    let jdLocation: string | null = item.location || null
     try {
-      jdText = await fetchJdFromUrl(item.url)
+      const jdResult = await fetchJdFromUrl(item.url)
+      jdText = jdResult.text
+      if (jdResult.location) jdLocation = jdResult.location
     } catch (fetchErr) {
       await db.from('pipeline_items').update({
         status: 'error',
@@ -257,25 +264,24 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to fetch job description' }, { status: 422 })
     }
 
-    // Validate JD text is substantial enough to evaluate
+    // Validate JD text is substantial enough to evaluate — no charge if too short
     if (!jdText || jdText.trim().length < 150) {
       await db.from('pipeline_items').update({
         status: 'error',
         error_message: 'Job description too short or could not be extracted from page',
       }).eq('id', item.id)
-      // Refund credits since we couldn't evaluate
-      const { data: bal } = await db.from('credit_balances').select('balance').eq('user_id', user.id).single()
-      const newBalance = (bal?.balance || 0) + CREDIT_COSTS.batch_per_offer
-      await db.from('credit_balances').update({ balance: newBalance }).eq('user_id', user.id)
-      await db.from('credit_transactions').insert({
-        user_id: user.id,
-        amount: CREDIT_COSTS.batch_per_offer,
-        balance_after: newBalance,
-        type: 'refund',
-        action: 'evaluation',
-        description: 'Refund: job description not extractable',
-      })
       return Response.json({ error: 'Job description could not be extracted' }, { status: 422 })
+    }
+
+    // Deduct credits only after JD is validated
+    const { data: creditResult } = await db.rpc('deduct_credits', {
+      p_user_id: user.id,
+      p_amount: CREDIT_COSTS.batch_per_offer,
+      p_action: 'evaluation',
+    }) as any
+    if (!creditResult?.success) {
+      await db.from('pipeline_items').update({ status: 'error', error_message: 'Insufficient credits' }).eq('id', item.id)
+      return Response.json({ error: 'Insufficient credits' }, { status: 402 })
     }
 
     const archetype = detectArchetype(jdText)
@@ -334,6 +340,7 @@ export async function POST(request: Request) {
         score: evaluation.score || 0,
         status: 'Evaluated',
         report_id: report.id,
+        location: jdLocation,
       })
     }
 
@@ -342,6 +349,7 @@ export async function POST(request: Request) {
       status: 'done',
       company,
       title: role,
+      location: jdLocation,
       report_id: report?.id || null,
       score: evaluation.score || 0,
       error_message: null,

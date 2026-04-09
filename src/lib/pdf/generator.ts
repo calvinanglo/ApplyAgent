@@ -145,9 +145,9 @@ export function buildResumeHtml(content: PdfContent): string {
   const contactParts: string[] = []
   contactParts.push(`<span>${escHtml(content.email || '')}</span>`)
   if (hasPhone) contactParts.push(`<span>${escHtml(content.phone || '')}</span>`)
-  if (hasLinkedin) contactParts.push(`<a href="${content.linkedin_url || '#'}">${escHtml(content.linkedin_display || 'LinkedIn')}</a>`)
-  if (hasGithub) contactParts.push(`<a href="${content.github_url || '#'}">${escHtml(content.github_display || 'GitHub')}</a>`)
-  if (hasPortfolio) contactParts.push(`<a href="${content.portfolio_url || '#'}">${escHtml(content.portfolio_display || 'Portfolio')}</a>`)
+  if (hasLinkedin) contactParts.push(`<a href="${safeUrl(content.linkedin_url || '#')}">${escHtml(content.linkedin_display || 'LinkedIn')}</a>`)
+  if (hasGithub) contactParts.push(`<a href="${safeUrl(content.github_url || '#')}">${escHtml(content.github_display || 'GitHub')}</a>`)
+  if (hasPortfolio) contactParts.push(`<a href="${safeUrl(content.portfolio_url || '#')}">${escHtml(content.portfolio_display || 'Portfolio')}</a>`)
   contactParts.push(`<span>${escHtml(content.location || '')}</span>`)
   const contactRowHtml = `
       <div class="contact-row">
@@ -162,11 +162,11 @@ export function buildResumeHtml(content: PdfContent): string {
     '{{NAME}}': escHtml(content.name || ''),
     '{{CONTACT_ROW}}': contactRowHtml,
     '{{EMAIL}}': escHtml(content.email || ''),
-    '{{LINKEDIN_URL}}': content.linkedin_url || '#',
+    '{{LINKEDIN_URL}}': safeUrl(content.linkedin_url || '#'),
     '{{LINKEDIN_DISPLAY}}': escHtml(content.linkedin_display || content.linkedin_url || ''),
-    '{{GITHUB_URL}}': content.github_url || '#',
+    '{{GITHUB_URL}}': safeUrl(content.github_url || '#'),
     '{{GITHUB_DISPLAY}}': escHtml(content.github_display || content.github_url || ''),
-    '{{PORTFOLIO_URL}}': content.portfolio_url || '#',
+    '{{PORTFOLIO_URL}}': safeUrl(content.portfolio_url || '#'),
     '{{PORTFOLIO_DISPLAY}}': escHtml(content.portfolio_display || content.portfolio_url || ''),
     '{{LOCATION}}': escHtml(content.location || ''),
     '{{SECTION_SUMMARY}}': 'Professional Summary',
@@ -253,4 +253,12 @@ function escHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function safeUrl(url: string): string {
+  if (!url || url === '#') return '#'
+  // Block javascript:, data:, vbscript: protocols
+  const lower = url.trim().toLowerCase()
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return '#'
+  return escHtml(url)
 }

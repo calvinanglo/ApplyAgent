@@ -32,6 +32,12 @@ export async function POST(request: Request) {
   if (!jd_text && !jd_url) {
     return Response.json({ error: 'Job description text or URL required' }, { status: 400 })
   }
+  if (jd_text && jd_text.length > 50000) {
+    return Response.json({ error: 'Job description too long (max 50,000 characters)' }, { status: 400 })
+  }
+  if (jd_url && (jd_url.length > 2000 || (!jd_url.startsWith('http://') && !jd_url.startsWith('https://')))) {
+    return Response.json({ error: 'Invalid URL' }, { status: 400 })
+  }
 
   // Validate Anthropic client is configured before spending credits
   const anthropic = getAnthropicClient()

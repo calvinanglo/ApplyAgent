@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getStripe, getOrCreateCustomer, STRIPE_SUBSCRIPTION_PRICES } from '@/lib/stripe'
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -9,6 +10,11 @@ export async function POST(request: Request) {
 
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { success: withinLimit } = rateLimit(`checkout:${user.id}`, 5, 60_000)
+  if (!withinLimit) {
+    return Response.json({ error: 'Too many checkout attempts. Please wait.' }, { status: 429 })
   }
 
   const { pack_id, plan_id, billing_period } = await request.json()

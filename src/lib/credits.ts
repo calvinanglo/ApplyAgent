@@ -9,15 +9,16 @@ export const CREDIT_COSTS = {
   training_eval: 2,
   project_eval: 2,
   compare_offers: 5,
+  board_search: 8,
   batch_per_offer: 10,
 } as const
 
 export type CreditAction = keyof typeof CREDIT_COSTS
 
 export const CREDIT_PACKS = [
-  { id: 'starter', name: 'Starter', credits: 100, price: 500, priceDisplay: '$5' },
-  { id: 'professional', name: 'Professional', credits: 350, price: 1500, priceDisplay: '$15' },
-  { id: 'power_user', name: 'Power User', credits: 800, price: 3000, priceDisplay: '$30' },
+  { id: 'starter', name: 'Starter', credits: 100, price: 900, priceDisplay: '$9' },
+  { id: 'professional', name: 'Professional', credits: 300, price: 2500, priceDisplay: '$25' },
+  { id: 'power_user', name: 'Power User', credits: 500, price: 4900, priceDisplay: '$49' },
 ] as const
 
 export const SUBSCRIPTION_PLANS = [
@@ -78,6 +79,7 @@ export function getActionLabel(action: CreditAction): string {
     training_eval: 'Training Evaluation',
     project_eval: 'Project Evaluation',
     compare_offers: 'Compare Offers',
+    board_search: 'Job Board Search',
     batch_per_offer: 'Batch (per offer)',
   }
   return labels[action]

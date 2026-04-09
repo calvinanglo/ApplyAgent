@@ -18,7 +18,9 @@ function LoginContent() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') || '/dashboard'
+  const rawRedirect = searchParams.get('redirect') || '/dashboard'
+  // Prevent open redirect — only allow relative paths
+  const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -54,7 +56,7 @@ function LoginContent() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md">
-      <Image src="/logo.svg" alt="ApplyAgent" width={200} height={64} className="mx-auto mb-6" priority />
+      <Link href="/"><Image src="/logo.svg" alt="ApplyAgent" width={200} height={64} className="mx-auto mb-6 cursor-pointer" priority /></Link>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>

@@ -14,13 +14,14 @@ import {
 } from '@/components/ui/table'
 import Link from 'next/link'
 import { StatusSelect } from '@/components/status-select'
-import { Search, CheckCircle2, XCircle, Minus } from 'lucide-react'
+import { Search, CheckCircle2, XCircle, Minus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface Application {
   id: string
   sequence_number: number
   company: string
   role: string
+  location: string | null
   score: number | null
   status: string
   has_pdf: boolean
@@ -39,16 +40,48 @@ function ScoreBadge({ score }: { score: number | null }) {
   return <span className={`font-mono text-sm font-bold ${color}`}>{score}/5</span>
 }
 
+type SortField = 'score' | 'date' | 'company' | null
+type SortDir = 'asc' | 'desc'
+
+const PAGE_SIZE = 50
+
 export function ApplicationsClient({ apps }: { apps: Application[] }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [sortField, setSortField] = useState<SortField>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [page, setPage] = useState(1)
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    } else {
+      setSortField(field)
+      setSortDir(field === 'company' ? 'asc' : 'desc')
+    }
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ArrowUpDown className="size-3 text-muted-foreground/40" />
+    return sortDir === 'desc' ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />
+  }
 
   const q = search.toLowerCase()
   const filtered = apps.filter((app) => {
     if (statusFilter !== 'All' && app.status !== statusFilter) return false
     if (q && !app.company.toLowerCase().includes(q) && !app.role.toLowerCase().includes(q)) return false
     return true
+  }).sort((a, b) => {
+    if (!sortField) return 0
+    const dir = sortDir === 'desc' ? -1 : 1
+    if (sortField === 'score') return ((a.score || 0) - (b.score || 0)) * dir
+    if (sortField === 'date') return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir
+    if (sortField === 'company') return a.company.localeCompare(b.company) * dir
+    return 0
   })
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const statusCounts = apps.reduce((acc, app) => {
     acc[app.status] = (acc[app.status] || 0) + 1
@@ -94,7 +127,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
               <Input
                 placeholder="Search company or role..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                 className="pl-9 h-9 text-sm"
               />
             </div>
@@ -107,7 +140,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
               return (
                 <button
                   key={s}
-                  onClick={() => setStatusFilter(s)}
+                  onClick={() => { setStatusFilter(s); setPage(1) }}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                     statusFilter === s
                       ? 'bg-primary text-primary-foreground'
@@ -131,7 +164,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
             <>
               {/* Mobile card view */}
               <div className="space-y-2 md:hidden">
-                {filtered.map((app) => {
+                {paginated.map((app) => {
                   const href = `/reports/${app.report_id || app.id}`
                   return (
                     <Link key={app.id} href={href} className="block rounded-lg border p-3 hover:bg-muted/50 transition-colors">
@@ -139,6 +172,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-sm truncate">{app.company}</p>
                           <p className="text-xs text-muted-foreground truncate">{app.role}</p>
+                          {app.location && <p className="text-xs text-muted-foreground/60 truncate">{app.location}</p>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <ScoreBadge score={app.score} />
@@ -148,7 +182,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                         <span>{new Date(app.created_at).toLocaleDateString()}</span>
                         <span className="flex items-center gap-0.5">
-                          PDF {app.has_pdf ? <CheckCircle2 className="size-3 text-green-500" /> : <XCircle className="size-3 text-muted-foreground/40" />}
+                          Resume {app.has_pdf ? <CheckCircle2 className="size-3 text-green-500" /> : <XCircle className="size-3 text-muted-foreground/40" />}
                         </span>
                         <span className="flex items-center gap-0.5">
                           CL {app.has_cover_letter ? <CheckCircle2 className="size-3 text-green-500" /> : <XCircle className="size-3 text-muted-foreground/40" />}
@@ -165,17 +199,23 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
-                      <TableHead>Company</TableHead>
+                      <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('company')}>
+                        <span className="flex items-center gap-1">Company <SortIcon field="company" /></span>
+                      </TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead className="w-20">Score</TableHead>
+                      <TableHead className="w-20 cursor-pointer select-none" onClick={() => toggleSort('score')}>
+                        <span className="flex items-center gap-1">Score <SortIcon field="score" /></span>
+                      </TableHead>
                       <TableHead className="w-28">Status</TableHead>
-                      <TableHead className="w-16 text-center">PDF</TableHead>
+                      <TableHead className="w-16 text-center">Resume</TableHead>
                       <TableHead className="w-16 text-center">CL</TableHead>
-                      <TableHead className="w-28">Date</TableHead>
+                      <TableHead className="w-28 cursor-pointer select-none" onClick={() => toggleSort('date')}>
+                        <span className="flex items-center gap-1">Date <SortIcon field="date" /></span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((app) => {
+                    {paginated.map((app) => {
                       const href = `/reports/${app.report_id || app.id}`
                       return (
                         <TableRow key={app.id} className="cursor-pointer hover:bg-muted/50">
@@ -186,7 +226,10 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                             <Link href={href} className="block px-4 py-2">{app.company}</Link>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground p-0">
-                            <Link href={href} className="block px-4 py-2 max-w-md truncate">{app.role}</Link>
+                            <Link href={href} className="block px-4 py-2 max-w-md">
+                              <span className="block truncate">{app.role}</span>
+                              {app.location && <span className="block text-xs text-muted-foreground/60 truncate">{app.location}</span>}
+                            </Link>
                           </TableCell>
                           <TableCell className="p-0">
                             <Link href={href} className="block px-4 py-2">
@@ -224,6 +267,32 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                 </Table>
               </div>
             </>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t mt-4">
+              <p className="text-xs text-muted-foreground">
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="rounded px-2 py-1 text-xs font-medium border disabled:opacity-30 hover:bg-muted"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-muted-foreground px-2">Page {page} of {totalPages}</span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="rounded px-2 py-1 text-xs font-medium border disabled:opacity-30 hover:bg-muted"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

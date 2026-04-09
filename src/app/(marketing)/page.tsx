@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PricingSection } from '@/components/pricing-section'
+import { MobileNav } from '@/components/mobile-nav'
 import {
   Search,
   FileText,
@@ -166,17 +167,18 @@ export default function LandingPage() {
             <a href="#tools" className="text-muted-foreground hover:text-foreground transition-colors">Tools</a>
             <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <ThemeToggle />
-            <Link href="/login" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>Sign in</Link>
-            <Link href="/signup" className={buttonVariants({ size: 'sm' })}>Get Started Free</Link>
+            <Link href="/login" className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'hidden sm:inline-flex' })}>Sign in</Link>
+            <Link href="/signup" className={buttonVariants({ size: 'sm', className: 'text-xs sm:text-sm' })}>Get Started</Link>
+            <MobileNav />
           </div>
         </div>
       </header>
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
         <div className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center sm:pt-28 sm:pb-24">
           <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm font-medium">
             <Sparkles className="mr-1.5 size-3.5" />
@@ -314,8 +316,8 @@ export default function LandingPage() {
                   </li>
                 </ul>
               </div>
-              <div className="shrink-0">
-                <Link href="/signup" className={buttonVariants({ size: 'lg', className: 'px-8' })}>
+              <div className="shrink-0 text-center md:text-left">
+                <Link href="/signup" className={buttonVariants({ size: 'lg', className: 'px-8 w-full sm:w-auto' })}>
                   Start Beating the ATS
                   <ArrowRight className="ml-2 size-4" />
                 </Link>
@@ -401,7 +403,7 @@ export default function LandingPage() {
       <section className="py-20">
         <div className="mx-auto max-w-5xl px-4">
           <div className="grid items-center gap-12 md:grid-cols-2">
-            <div>
+            <div className="text-center md:text-left">
               <Badge variant="outline" className="mb-4">Automation</Badge>
               <h2 className="text-3xl font-bold tracking-tight">
                 Let jobs come to you
@@ -424,7 +426,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className={buttonVariants({ className: 'mt-8' })}>
+              <Link href="/signup" className={buttonVariants({ className: 'mt-8 w-full sm:w-auto' })}>
                 Try the Scanner
                 <ArrowRight className="ml-2 size-4" />
               </Link>
@@ -545,7 +547,7 @@ export default function LandingPage() {
                 <Button size="sm" variant="outline" className="flex-1 text-xs">Cover Letter</Button>
               </div>
             </div>
-            <div className="order-1 md:order-2">
+            <div className="order-1 md:order-2 text-center md:text-left">
               <Badge variant="outline" className="mb-4">AI Evaluation</Badge>
               <h2 className="text-3xl font-bold tracking-tight">
                 Know exactly where you stand
@@ -658,13 +660,13 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t py-12 text-sm text-muted-foreground">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex flex-col gap-8 md:flex-row md:justify-between">
+          <div className="flex flex-col items-center text-center gap-8 md:flex-row md:items-start md:text-left md:justify-between">
             <div>
-              <Link href="/" className="flex items-center gap-2 font-semibold text-foreground hover:opacity-80 transition-opacity">
+              <Link href="/" className="inline-flex items-center gap-2 font-semibold text-foreground hover:opacity-80 transition-opacity">
                 <Image src="/icon.svg" alt="" width={20} height={20} />
                 <span>ApplyAgent</span>
               </Link>
-              <p className="mt-2 max-w-xs text-xs text-muted-foreground">
+              <p className="mt-2 max-w-xs text-xs text-muted-foreground mx-auto md:mx-0">
                 AI-powered job search command center. Evaluate, generate, scan, and track — all in one place.
               </p>
             </div>

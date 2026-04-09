@@ -144,7 +144,7 @@ export async function POST(request: Request) {
     // Generate tailored CV content via Claude
     const response = await anthropic.messages.create({
       model: MODELS.pdf,
-      max_tokens: 4000,
+      max_tokens: 8000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
     })
@@ -153,9 +153,21 @@ export async function POST(request: Request) {
     let content: PdfContent
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/)
-      content = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
+      if (!jsonMatch) {
+        // Refund credits on parse failure
+        await db.rpc('add_credits', { p_user_id: user.id, p_amount: CREDIT_COSTS.pdf, p_action: 'refund_pdf_fail' }).catch(() => {})
+        return Response.json({ error: 'AI response did not contain valid JSON. Credits refunded — please try again.' }, { status: 500 })
+      }
+      content = JSON.parse(jsonMatch[0])
     } catch {
-      return Response.json({ error: 'Failed to parse CV content from AI response' }, { status: 500 })
+      await db.rpc('add_credits', { p_user_id: user.id, p_amount: CREDIT_COSTS.pdf, p_action: 'refund_pdf_fail' }).catch(() => {})
+      return Response.json({ error: 'Failed to parse resume content. Credits refunded — please try again.' }, { status: 500 })
+    }
+
+    // Validate critical fields — if empty, the AI failed to generate proper content
+    if (!(content.experience || []).length && !(content.summary || '').trim()) {
+      await db.rpc('add_credits', { p_user_id: user.id, p_amount: CREDIT_COSTS.pdf, p_action: 'refund_pdf_empty' }).catch(() => {})
+      return Response.json({ error: 'Resume generation produced empty content. Credits refunded — please try again.' }, { status: 500 })
     }
 
     // Ensure profile URLs are in the content (Claude might miss them)

@@ -1,52 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import { CREDIT_COSTS } from '@/lib/credits'
-
-const NEGATIVE_FILTERS = [
-  'intern', 'student', 'co-op', 'junior', 'entry-level', 'director', 'VP',
-  'chief', 'C-suite', 'principal', 'managing director', 'head of',
-]
-
-// Normalized job shape from any ATS
-interface ScannedJob {
-  title: string
-  url: string
-  company: string
-  location: string | null
-  source: string
-  posted_at: string | null
-  job_type: string | null       // full-time, part-time, contract, etc.
-  work_arrangement: string | null // remote, hybrid, on-site
-}
-
-function titleMatches(title: string, targetRoles: string[]): boolean {
-  const t = title.toLowerCase()
-  const hasNegative = NEGATIVE_FILTERS.some(kw => t.includes(kw.toLowerCase()))
-  if (hasNegative) return false
-  if (targetRoles.length === 0) return true
-  return targetRoles.some(role => {
-    const words = role.toLowerCase().split(/\s+/)
-    return words.some(word => word.length > 2 && t.includes(word))
-  })
-}
-
-function detectWorkArrangement(title: string, location: string | null): string | null {
-  const text = `${title} ${location || ''}`.toLowerCase()
-  if (/\bremote\b|\bwork from home\b|\bwfh\b|\banywhere\b/.test(text)) return 'remote'
-  if (/\bhybrid\b/.test(text)) return 'hybrid'
-  if (/\bon-?site\b|\bin-?office\b/.test(text)) return 'on-site'
-  return null
-}
-
-function detectJobType(title: string): string | null {
-  const t = title.toLowerCase()
-  if (/\bfull[- ]?time\b/.test(t)) return 'full-time'
-  if (/\bpart[- ]?time\b/.test(t)) return 'part-time'
-  if (/\bcontract(or)?\b/.test(t)) return 'contract'
-  if (/\btemporary\b|\btemp\b/.test(t)) return 'temporary'
-  if (/\bpermanent\b/.test(t)) return 'permanent'
-  if (/\bfixed[- ]?term\b/.test(t)) return 'fixed-term'
-  return null
-}
+import {
+  type ScannedJob,
+  titleMatches,
+  detectWorkArrangement,
+  detectJobType,
+  filterByDate,
+  filterByJobType,
+  filterByWorkArrangement,
+  filterByLocation,
+  filterBySalary,
+} from '@/lib/scrapers/types'
 
 // --- ATS Fetchers ---
 
@@ -240,51 +204,6 @@ async function scanWorkday(slug: string, company: string): Promise<ScannedJob[]>
   }
 }
 
-// --- Filters ---
-
-function filterByDate(jobs: ScannedJob[], datePosted: string): ScannedJob[] {
-  if (datePosted === 'any' || !datePosted) return jobs
-  const cutoffs: Record<string, number> = {
-    '24h': 1, '3d': 3, '7d': 7, '14d': 14,
-  }
-  const days = cutoffs[datePosted]
-  if (!days) return jobs
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - days)
-  return jobs.filter(job => {
-    if (!job.posted_at) return true // include unknown dates
-    return new Date(job.posted_at) >= cutoff
-  })
-}
-
-function filterByJobType(jobs: ScannedJob[], jobTypes: string[]): ScannedJob[] {
-  if (!jobTypes.length) return jobs
-  const types = new Set(jobTypes.map(t => t.toLowerCase()))
-  return jobs.filter(job => {
-    if (!job.job_type) return true // include unknowns
-    return types.has(job.job_type)
-  })
-}
-
-function filterByWorkArrangement(jobs: ScannedJob[], arrangements: string[]): ScannedJob[] {
-  if (!arrangements.length) return jobs
-  const arr = new Set(arrangements.map(a => a.toLowerCase()))
-  return jobs.filter(job => {
-    if (!job.work_arrangement) return true // include unknowns
-    return arr.has(job.work_arrangement)
-  })
-}
-
-function filterByLocation(jobs: ScannedJob[], location: string): ScannedJob[] {
-  if (!location) return jobs
-  const terms = location.toLowerCase().split(/[,\s]+/).filter(t => t.length > 1)
-  return jobs.filter(job => {
-    if (!job.location) return false
-    const loc = job.location.toLowerCase()
-    return terms.some(term => loc.includes(term))
-  })
-}
-
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -295,23 +214,28 @@ export async function POST(request: Request) {
     let body: {
       companies?: Array<{ name: string; slug?: string | null; platform?: string; greenhouse_slug?: string | null }>
       custom_urls?: string[]
+      target_roles?: string[]
       filters?: {
         job_types?: string[]
         work_arrangement?: string[]
         date_posted?: string
         location?: string
+        salary_min?: number
       }
     }
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
 
-    // Load user's profile for target roles filtering
-    const { data: profile } = await db
-      .from('profiles')
-      .select('target_roles')
-      .eq('id', user.id)
-      .single()
-    const targetRoles: string[] = profile?.target_roles || []
+    // Use target roles from request body, fall back to profile
+    let targetRoles: string[] = body.target_roles || []
+    if (!targetRoles.length) {
+      const { data: profile } = await db
+        .from('profiles')
+        .select('target_roles')
+        .eq('id', user.id)
+        .single()
+      targetRoles = profile?.target_roles || []
+    }
 
     const { data: creditResult } = await db.rpc('deduct_credits', {
       p_user_id: user.id,
@@ -381,6 +305,7 @@ export async function POST(request: Request) {
 
     // Add custom URLs as pipeline items directly
     const customUrls = (body.custom_urls || []).filter(url => url.trim())
+    let customUrlsAdded = 0
 
     // Apply filters
     let filtered = allJobs
@@ -400,6 +325,9 @@ export async function POST(request: Request) {
 
     // 5. Location filter
     filtered = filterByLocation(filtered, filters.location || '')
+
+    // 6. Salary filter
+    if (filters.salary_min) filtered = filterBySalary(filtered, filters.salary_min)
 
     const skippedFilters = allJobs.length - skippedTitle - filtered.length
 
@@ -426,14 +354,21 @@ export async function POST(request: Request) {
           company: job.company,
           title: job.title,
           source: job.source,
+          location: job.location || null,
           status: 'pending',
         }))
       )
     }
 
-    // Add custom URLs to pipeline
+    // Add custom URLs to pipeline (validate format, limit count)
+    if (customUrls.length > 100) {
+      return Response.json({ error: 'Maximum 100 custom URLs per scan' }, { status: 400 })
+    }
     if (customUrls.length > 0) {
-      const newCustomUrls = customUrls.filter((url: string) => !existingUrls.has(url))
+      const validUrls = customUrls.filter((url: string) => {
+        try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) } catch { return false }
+      })
+      const newCustomUrls = validUrls.filter((url: string) => !existingUrls.has(url))
       if (newCustomUrls.length > 0) {
         await db.from('pipeline_items').insert(
           newCustomUrls.map((url: string) => ({
@@ -445,20 +380,24 @@ export async function POST(request: Request) {
             status: 'pending',
           }))
         )
+        customUrlsAdded = newCustomUrls.length
       }
     }
 
     return Response.json({
       success: true,
       stats: {
-        found: allJobs.length,
+        found: allJobs.length + customUrls.length,
         filtered: filtered.length,
         skipped_title: skippedTitle,
         skipped_filters: skippedFilters,
-        skipped_dup: skippedDup,
-        added: newJobs.length,
+        skipped_dup: skippedDup + (customUrls.length - customUrlsAdded),
+        added: newJobs.length + customUrlsAdded,
       },
-      new_items: newJobs,
+      new_items: [
+        ...newJobs,
+        ...customUrls.slice(0, customUrlsAdded).map(url => ({ title: url, url, company: 'Manual URL', source: 'manual' })),
+      ],
     })
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })

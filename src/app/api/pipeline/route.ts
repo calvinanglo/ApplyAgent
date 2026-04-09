@@ -32,7 +32,23 @@ export async function GET(request: Request) {
     const { data: items, error } = await query
     if (error) return Response.json({ error: error.message }, { status: 500 })
 
-    return Response.json({ items: items || [] })
+    // Get real counts for all statuses
+    const [pendingRes, doneRes, errorRes, processingRes] = await Promise.all([
+      db.from('pipeline_items').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'pending'),
+      db.from('pipeline_items').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['done', 'evaluated']),
+      db.from('pipeline_items').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'error'),
+      db.from('pipeline_items').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'processing'),
+    ])
+
+    return Response.json({
+      items: items || [],
+      counts: {
+        pending: pendingRes.count || 0,
+        done: doneRes.count || 0,
+        error: errorRes.count || 0,
+        processing: processingRes.count || 0,
+      },
+    })
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
   }

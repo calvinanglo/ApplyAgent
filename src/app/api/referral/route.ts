@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 // GET — get user's referral code and stats
 export async function GET() {
@@ -37,8 +38,13 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const { success: withinLimit } = rateLimit(`referral:${user.id}`, 5, 300_000)
+    if (!withinLimit) return Response.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
+
     const { code } = await request.json()
-    if (!code) return Response.json({ error: 'No referral code provided' }, { status: 400 })
+    if (!code || typeof code !== 'string' || code.length > 20 || !/^[a-z0-9]+$/.test(code.toLowerCase())) {
+      return Response.json({ error: 'Invalid referral code format' }, { status: 400 })
+    }
 
     // Check if user already used a referral
     const { data: existingRef } = await db.from('referrals').select('id').eq('referred_id', user.id).single()

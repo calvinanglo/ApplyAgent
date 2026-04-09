@@ -59,22 +59,17 @@ export async function POST(request: Request) {
   const supabase = getServiceClient()
   const db = supabase as any
 
-  // Idempotency check
-  const { data: existing } = await db
+  // Idempotency check — use upsert with onConflict to prevent race conditions
+  const { data: inserted, error: idempotencyError } = await db
     .from('stripe_events')
+    .upsert({ id: event.id, type: event.type }, { onConflict: 'id', ignoreDuplicates: true })
     .select('id')
-    .eq('id', event.id)
     .single()
 
-  if (existing) {
+  // If upsert returned nothing (duplicate), skip processing
+  if (idempotencyError || !inserted) {
     return Response.json({ received: true, duplicate: true })
   }
-
-  // Record event
-  await db.from('stripe_events').insert({
-    id: event.id,
-    type: event.type,
-  })
 
   switch (event.type) {
     // --- One-time payment completed ---
