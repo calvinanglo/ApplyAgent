@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
     if (!body.course_description) return Response.json({ error: 'Course description required' }, { status: 400 })
+    if (body.course_description.length > 50000) return Response.json({ error: 'Course description too long (max 50,000 characters)' }, { status: 400 })
 
     const anthropic = getAnthropicClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
@@ -45,6 +46,6 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, evaluation: result })
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return Response.json({ error: 'Server error' }, { status: 500 })
   }
 }

@@ -63,11 +63,29 @@ function stripHtml(html: string): string {
 interface JdResult { text: string; location: string | null }
 
 async function fetchGreenhouseJd(url: string): Promise<JdResult | null> {
-  const match = url.match(/(?:boards|job-boards)\.greenhouse\.io\/([^/]+)\/jobs\/(\d+)/)
-  if (!match) return null
-  const [, company, jobId] = match
+  // Standard Greenhouse board URLs
+  const boardMatch = url.match(/(?:boards|job-boards)\.greenhouse\.io\/([^/]+)\/jobs\/(\d+)/)
+  // Custom domain with gh_jid query param (e.g. fastly.com/about/jobs/apply?gh_jid=123)
+  const ghJidMatch = !boardMatch ? url.match(/[?&]gh_jid=(\d+)/) : null
+
+  if (!boardMatch && !ghJidMatch) return null
+
   try {
-    const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${company}/jobs/${jobId}`, {
+    let apiUrl: string
+    if (boardMatch) {
+      const [, company, jobId] = boardMatch
+      apiUrl = `https://boards-api.greenhouse.io/v1/boards/${company}/jobs/${jobId}`
+    } else {
+      // For gh_jid URLs, we need to find the company board name.
+      // Try fetching the HTML page to extract the board name, or use the job ID directly
+      const jobId = ghJidMatch![1]
+      // Try to extract company from the hostname (e.g. fastly.com -> fastly)
+      const hostname = new URL(url).hostname.replace('www.', '')
+      const company = hostname.split('.')[0]
+      apiUrl = `https://boards-api.greenhouse.io/v1/boards/${company}/jobs/${jobId}`
+    }
+
+    const res = await fetch(apiUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
       signal: AbortSignal.timeout(10000),
     })

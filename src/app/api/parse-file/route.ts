@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -7,6 +8,9 @@ export async function POST(request: Request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { success: withinLimit } = rateLimit(`parse:${user.id}`, 10, 60_000)
+    if (!withinLimit) return Response.json({ error: 'Too many uploads. Please wait.' }, { status: 429 })
 
     const formData = await request.formData()
     const file = formData.get('file') as unknown as File | null

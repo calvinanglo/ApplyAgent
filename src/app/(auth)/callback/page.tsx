@@ -13,7 +13,8 @@ function CallbackHandler() {
   useEffect(() => {
     const supabase = createClient()
     const code = searchParams.get('code')
-    const next = searchParams.get('next') || searchParams.get('redirect') || '/dashboard'
+    const rawNext = searchParams.get('next') || searchParams.get('redirect') || '/dashboard'
+    const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
 
     async function applyReferral() {
       const ref = localStorage.getItem('applyagent_ref')

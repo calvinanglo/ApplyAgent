@@ -34,12 +34,10 @@ export default async function DashboardPage() {
   const hasName = !!p?.full_name?.trim()
   const hasEmail = !!p?.email?.trim()
   const hasCV = !!cvDoc
-  const hasRoles = (p?.target_roles || []).length > 0
   const hasEvaluated = (totalApps || 0) > 0
   const onboardingSteps = [
     { done: hasName && hasEmail, label: 'Fill in your name and email', href: '/settings', action: 'Go to Profile' },
     { done: hasCV, label: 'Upload your resume (PDF or DOCX)', href: '/settings', action: 'Upload CV' },
-    { done: hasRoles, label: 'Set your target roles', href: '/settings', action: 'Add Roles' },
     { done: hasEvaluated, label: 'Evaluate your first job posting', href: '/evaluate', action: 'Evaluate' },
   ]
   const onboardingComplete = onboardingSteps.every(s => s.done)
@@ -152,10 +150,10 @@ export default async function DashboardPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { href: '/evaluate', icon: Search, label: 'Evaluate Job', desc: 'Full match report', credits: '10 cr' },
-              { href: '/cover-letter', icon: Mail, label: 'Cover Letter', desc: 'Tailored cover letter', credits: '5 cr' },
+              { href: '/resume?tab=cover-letter', icon: Mail, label: 'Cover Letter', desc: 'Tailored cover letter', credits: '3 cr' },
               { href: '/resume', icon: FileDown, label: 'Resume', desc: 'ATS-optimized PDF', credits: '3 cr' },
               { href: '/tools', icon: Wrench, label: 'Tools', desc: 'LinkedIn, research & more', credits: '2-5 cr' },
-              { href: '/scan', icon: Inbox, label: 'Run Scanner', desc: 'Discover new openings', credits: '8 cr' },
+              { href: '/scan', icon: Inbox, label: 'Run Scanner', desc: 'Discover new openings', credits: '3 cr' },
               { href: '/pipeline', icon: BarChart3, label: 'Process Pipeline', desc: `${pendingPipeline || 0} items pending`, credits: '' },
             ].map(({ href, icon: Icon, label, desc, credits }) => (
               <Link key={href} href={href}>

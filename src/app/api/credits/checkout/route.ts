@@ -17,7 +17,15 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Too many checkout attempts. Please wait.' }, { status: 429 })
   }
 
-  const { pack_id, plan_id, billing_period } = await request.json()
+  let pack_id: string | undefined, plan_id: string | undefined, billing_period: string | undefined
+  try {
+    const body = await request.json()
+    pack_id = body.pack_id
+    plan_id = body.plan_id
+    billing_period = body.billing_period
+  } catch {
+    return Response.json({ error: 'Invalid request body' }, { status: 400 })
+  }
   const stripe = getStripe()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 

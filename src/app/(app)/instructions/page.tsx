@@ -17,10 +17,6 @@ import {
   FlaskConical,
   GraduationCap,
   GitCompare,
-  Download,
-  Filter,
-  RotateCcw,
-  Trash2,
   Globe,
 } from 'lucide-react'
 
@@ -31,10 +27,10 @@ const sections = [
     badge: 'Free',
     content: [
       'Go to Profile and fill in your details. Upload your resume (PDF, DOCX, or paste as Markdown). This is the source of truth for all AI-generated content.',
-      'Set your target roles (comma-separated). these are used to filter scanner results and tailor evaluations.',
+      'Optionally set target roles — these filter scanner results to only show relevant jobs. Leave empty to include all jobs.',
       'Set your salary range, currency (CAD, USD, EUR, GBP, AUD, INR), and pay type (annual or hourly).',
-      'Set your work arrangement preference (Remote, Hybrid, On-site) and job type preference (Full-time, Part-time, Contract, Temporary, Permanent, Fixed Term). these become default filters for the scanner.',
-      'Add your LinkedIn, GitHub, and Portfolio URLs. GitHub projects will appear on your generated resume.',
+      'Set work arrangement (Remote, Hybrid, On-site) and job type (Full-time, Part-time, Contract, etc.) preferences. These pre-fill scanner filters.',
+      'Add your LinkedIn, GitHub, and Portfolio URLs. GitHub projects automatically appear on generated resumes.',
       'Change your password anytime (requires current password, min 8 chars with number + special character).',
     ],
   },
@@ -44,7 +40,7 @@ const sections = [
     badge: 'Free',
     content: [
       'Your home screen shows your credit balance, free uses remaining, pipeline stats, and total evaluations.',
-      'Quick action cards give one-click access to every feature: Evaluate, Cover Letter, Resume, Tools, Scanner, and Pipeline.',
+      'Quick action cards give one-click access to every feature: Evaluate, Documents, Tools, Scanner, and Pipeline.',
       'Recent evaluations list shows your last 5 evaluations with scores, company names, and status.',
     ],
   },
@@ -53,12 +49,11 @@ const sections = [
     title: '3. Evaluate a Job Posting',
     badge: '10 credits',
     content: [
-      'This step is optional. You can skip straight to generating resumes or cover letters.',
+      'Evaluating is optional — you can skip straight to generating resumes or cover letters from any job description.',
       'Go to Evaluate, paste a job description (or upload PDF/DOCX), and click Evaluate.',
-      'The AI analyzes the role across multiple dimensions: role summary, CV match, level & strategy, compensation & demand, customization tips, and interview prep.',
-      'You get an overall score out of 5 with detailed feedback streamed in real-time.',
-      'For high-scoring jobs (4.5+), a Full Pipeline button appears that generates both a cover letter and resume PDF in one click.',
-      'You can also generate a tailored resume or cover letter directly from any evaluation report.',
+      'The AI analyzes the role across multiple dimensions: Role Summary, CV Match, Level & Strategy, Compensation & Demand, Customization Tips, Interview Prep, and Draft Answers.',
+      'You get a score out of 5 with detailed feedback streamed in real-time.',
+      'For high-scoring jobs (4.5+), a Full Pipeline button generates both a resume and cover letter in one click (6 additional credits).',
       'Each evaluation costs 10 credits or uses one of your 3 free uses.',
     ],
   },
@@ -68,89 +63,79 @@ const sections = [
     badge: 'Free',
     content: [
       'Every evaluation automatically creates an entry in your Applications tracker.',
-      'The table shows: sequence number, company, role, score, status, PDF generated, cover letter generated, and date.',
-      'Click any row to view the full evaluation report.',
-      'Status options: Evaluated, Applied, Interview, Offer, Rejected, Withdrawn, Accepted.',
+      'The table shows: sequence number, company, role, score, status, resume generated, cover letter generated, and date.',
+      'Click any row to view the full evaluation report. From there, generate a resume or cover letter.',
+      'Update status as you progress: Evaluated, Applied, Interview, Offer, Rejected, Withdrawn, Accepted.',
+      'Sort by score, company, or date. Search by company or role. Filter by status.',
+      'Status tabs auto-hide when all items share the same status to reduce clutter.',
     ],
   },
   {
     icon: FileDown,
-    title: '5. Generate Tailored Resumes',
-    badge: '3 credits',
+    title: '5. Documents — Resume & Cover Letter',
+    badge: '3 credits each',
     content: [
-      'Go to Resume to generate an ATS-optimized, 1-page resume in Garamond font.',
-      'Select from your previously evaluated jobs (searchable by company or role), or paste a new job description.',
-      'When coming from an evaluation report, the job is auto-selected. Just click Generate.',
-      'The AI injects relevant keywords from the JD, reorders bullet points by relevance, and auto-sizes the font to fit exactly one page.',
-      'If your CV includes a GitHub profile, your projects appear on the resume with JD-tailored descriptions.',
-      'Download as PDF (ATS-formatted) or DOCX (editable Word document).',
-      'Results show keyword coverage percentage and the keywords that were injected.',
-    ],
-  },
-  {
-    icon: Mail,
-    title: '6. Generate Cover Letters',
-    badge: '5 credits',
-    content: [
-      'Go to Cover Letter and select an evaluated job or paste a new job description.',
-      'When coming from an evaluation report, the job is auto-selected.',
-      'The AI writes a tailored cover letter in a natural, professional voice. No generic filler or cliches.',
-      'The letter includes a proper header (your name, email, phone, location, date), greeting, body paragraphs, closing, and signature.',
-      'Every letter references the specific company name and addresses 2-3 key JD requirements with real CV evidence.',
-      'Download as DOCX (editable), PDF (via print dialog), or Copy to clipboard.',
+      'Resume and Cover Letter generation are unified under one Documents page with tabs.',
+      'Select from your previously evaluated jobs (searchable), or paste a new job description directly.',
+      'Resume tab: generates an ATS-optimized, 1-page Garamond PDF. The AI injects keywords from the JD, reorders bullet points by relevance, and auto-sizes font to fit one page.',
+      'If your Profile includes a GitHub URL, your most relevant projects appear on the resume with JD-tailored descriptions.',
+      'Cover Letter tab: generates a tailored cover letter with proper header, greeting, 3-4 body paragraphs, closing, and signature. References specific JD requirements with real CV evidence.',
+      'Both tabs: download as PDF or DOCX. Cover letters also have a Copy to clipboard button.',
+      'Results show keyword coverage percentage (resume) or word count (cover letter).',
+      'Generation history is saved — re-download previous resumes and cover letters anytime.',
+      'Duplicate detection warns you if you already generated a document for the same job.',
     ],
   },
   {
     icon: Inbox,
-    title: '7. Scan Job Portals',
-    badge: '8 credits',
+    title: '6. Scanner',
+    badge: '3 credits',
     content: [
-      'The Scanner checks company job boards for new openings matching your target roles.',
-      'Supports three ATS platforms: Greenhouse, Lever, and Ashby. All free, no API keys needed.',
-      'Works internationally. Add companies from any country.',
-      'On your first visit, AI suggests companies based on your resume and location. Only verified companies with working API slugs are shown.',
-      'Add or remove companies anytime. Your list is saved between visits.',
-      'Each company has a platform selector (Greenhouse/Lever/Ashby) and a board slug.',
-      'Filter results by Job Type (Full-time, Part-time, Contract, etc.), Work Arrangement (Remote, Hybrid, On-site), and Date Posted (24h, 3 days, 7 days, 14 days).',
-      'Filters default to your profile preferences but can be adjusted per scan.',
-      'Results show: total found, relevant matches, duplicates skipped, and new items added to your pipeline.',
-      'You can also add individual job posting URLs directly.',
+      'The Scanner searches company career pages and job boards for openings matching your profile.',
+      'Over 110 companies are pre-loaded across tech, finance, healthcare, retail, manufacturing, media, defense, education, hospitality, and more.',
+      'Supports 5 ATS platforms: Greenhouse, Lever, Ashby, SmartRecruiters, and Workday.',
+      'Toggle companies on/off with one click. Use "All" or "None" for bulk selection. Add custom companies by name.',
+      'Unified Filters section includes: Keywords (for board search), Location, Job Type, Work Arrangement, Date Posted, and Minimum Salary.',
+      'Filters pre-fill from your Profile preferences on first use. Once you change them in the scanner, your overrides are saved separately for next time.',
+      'Location filter uses word-boundary matching — "Winnipeg, MB" won\'t accidentally match "Mumbai".',
+      'Results show: total scraped, matched roles, duplicates skipped, and new items added to your pipeline.',
     ],
   },
   {
     icon: List,
-    title: '8. Process Your Pipeline',
+    title: '7. Pipeline',
     badge: '10 credits/item',
     content: [
-      'The Pipeline is your inbox of discovered job URLs from the Scanner or manually added.',
-      'Add items manually with URL, company name, and job title.',
-      'Tabs: Pending (awaiting processing), Done (processed + errors), All.',
-      'Click the play button to process a single item. The AI fetches the job description, evaluates it, and adds it to your Applications tracker.',
-      'Process All runs every pending item in sequence (shows total credit cost).',
-      'Retry button appears on errored items so you can re-process failed evaluations.',
-      'Clear Pending and Clear Done buttons (with confirmation) for bulk cleanup.',
-      'All actions have credit confirmation. You see the cost before spending.',
+      'The Pipeline is your inbox of discovered jobs from the Scanner or manually added URLs.',
+      'Add items manually by pasting a job posting URL.',
+      'Tabs: Pending, Done, Errors, Processing — with counts for each.',
+      'Click the play button to process a single item. The AI fetches the job description, evaluates it, and adds it to Applications.',
+      '"Process All" runs every pending item in sequence with a progress bar and cancel button.',
+      'Each item shows: company, role, score, location, source platform, and relative timestamp.',
+      'Retry button on errored items. "Requeue Failed" moves all errors back to pending.',
+      '"Clear All Pending" and "Clear Done" buttons with confirmation for bulk cleanup.',
+      'Select multiple items with checkboxes for bulk delete.',
     ],
   },
   {
     icon: BookOpen,
-    title: '9. Story Bank',
+    title: '8. Story Bank',
     badge: 'Free',
     content: [
       'The Story Bank collects STAR+R interview stories (Situation, Task, Action, Result + Reflection) from your evaluations.',
-      'Stories are real examples from your experience mapped to common interview questions.',
-      'Each story shows: title, JD requirement answered, and tags for categorization.',
+      'Stories are real examples from your experience, mapped to common JD requirements and interview questions.',
+      'Each story shows: title, JD requirement it addresses, and tags for categorization.',
       'Expand any story to see the full STAR+R breakdown.',
       'Filter by tag to find stories relevant to specific topics (e.g., leadership, security, networking).',
-      'Use these to prepare for behavioral interviews with concrete, structured answers.',
+      'Stories accumulate automatically as you evaluate more jobs — no extra cost.',
     ],
   },
   {
     icon: Wrench,
-    title: '10. Tools',
+    title: '9. Tools',
     badge: '2-5 credits',
     content: [
-      'Five specialized tools for different parts of your job search:',
+      'Five specialized AI tools for different parts of your job search:',
     ],
     subItems: [
       { icon: MessageSquare, name: 'LinkedIn Message Generator', cost: '2 credits', desc: 'Generates a 300-character connection request tailored to the role. Suggests the best person to contact and provides 2-3 alternative targets with personalized messages. Copy any message with one click.' },
@@ -162,18 +147,19 @@ const sections = [
   },
   {
     icon: CreditCard,
-    title: '11. Credits & Billing',
+    title: '10. Credits & Billing',
     badge: 'Free uses included',
     content: [
-      'Every new account gets 3 free uses that work on any feature. Not just evaluations.',
-      'After your free uses, buy credit packs:',
+      'Every new account gets 3 free uses that work on any feature — not just evaluations.',
+      'After your free uses, buy credit packs or subscribe:',
     ],
     table: [
-      { pack: 'Starter', credits: '100', price: '$5', perCredit: '$0.050' },
-      { pack: 'Professional', credits: '350', price: '$15', perCredit: '$0.043' },
-      { pack: 'Power User', credits: '800', price: '$30', perCredit: '$0.038' },
+      { pack: 'Starter', credits: '100', price: '$9', perCredit: '$0.090' },
+      { pack: 'Professional', credits: '300', price: '$25', perCredit: '$0.083' },
+      { pack: 'Power User', credits: '500', price: '$49', perCredit: '$0.098' },
     ],
     extraContent: [
+      'Subscription plans also available: Starter ($15/mo, 120 credits), Growth ($35/mo, 300 credits), Scale ($79/mo, 750 credits). Annual billing saves ~20%.',
       'Your credit balance is always visible in the top bar.',
       'Every action shows a confirmation with the credit cost before spending.',
       'View your full transaction history on the Billing page.',
@@ -182,13 +168,13 @@ const sections = [
   },
   {
     icon: Globe,
-    title: '12. International Support',
+    title: '11. International Support',
     badge: 'Global',
     content: [
       'ApplyAgent works for job seekers in any country.',
-      'The Scanner supports companies worldwide. Greenhouse, Lever, and Ashby are used globally.',
-      'Resumes are generated in Letter format for US/Canada and A4 for the rest of the world.',
-      'Currency support includes CAD, USD, EUR, GBP, AUD, and INR.',
+      'The Scanner includes 110+ companies worldwide across 14 industries. Greenhouse, Lever, Ashby, SmartRecruiters, and Workday are used globally.',
+      'Location combobox includes 170+ cities across Canada, US, UK, Europe, Asia Pacific, Middle East, Africa, and Latin America.',
+      'Currency support includes CAD, USD, EUR, GBP, AUD, INR, and more.',
       'AI suggestions consider your location when recommending companies to scan.',
     ],
   },
@@ -200,7 +186,7 @@ export default function InstructionsPage() {
       <div>
         <h1 className="text-2xl font-bold">How It Works</h1>
         <p className="text-muted-foreground">
-          Everything you can do with ApplyAgent. A complete guide
+          Everything you can do with ApplyAgent — a complete guide
         </p>
       </div>
 
@@ -210,7 +196,7 @@ export default function InstructionsPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {['Profile', 'Evaluate', 'Resume', 'Cover Letter', 'Apply'].map((step, i) => (
+            {['Profile', 'Evaluate', 'Documents', 'Apply'].map((step, i) => (
               <span key={step} className="flex items-center gap-2">
                 {i > 0 && <ArrowRight className="size-3" />}
                 <span className="font-medium text-foreground">{step}</span>
@@ -309,14 +295,14 @@ export default function InstructionsPage() {
             {[
               { action: 'Job Evaluation', cost: 10 },
               { action: 'Resume', cost: 3 },
-              { action: 'Cover Letter', cost: 5 },
-              { action: 'Portal Scan', cost: 8 },
+              { action: 'Cover Letter', cost: 3 },
+              { action: 'Scanner', cost: 3 },
+              { action: 'Pipeline Item', cost: 10 },
               { action: 'LinkedIn Message', cost: 2 },
               { action: 'Deep Research', cost: 3 },
               { action: 'Project Eval', cost: 2 },
               { action: 'Training Eval', cost: 2 },
               { action: 'Compare Offers', cost: 5 },
-              { action: 'Pipeline Item', cost: 10 },
             ].map(({ action, cost }) => (
               <div key={action} className="flex items-center justify-between rounded-md border px-3 py-2">
                 <span className="text-sm">{action}</span>

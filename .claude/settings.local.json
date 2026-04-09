@@ -7,7 +7,10 @@
       "Bash(xargs grep:*)",
       "Bash(grep -r \"openGraph\\\\|og:\\\\|twitter:\\\\|canonical\\\\|Schema\\\\|ld\\\\+json\" /c/Projects/career-ops-app/src --include=*.ts --include=*.tsx)",
       "Bash(find /c/Projects/career-ops-app -name *faq* -o -name *help* -o -name *guide* -o -name *doc*)",
-      "Bash(grep -r \"href=http\\\\|href=https\" /c/Projects/career-ops-app/src --include=*.tsx)"
+      "Bash(grep -r \"href=http\\\\|href=https\" /c/Projects/career-ops-app/src --include=*.tsx)",
+      "Bash(where vercel:*)",
+      "Bash(npm --version)",
+      "Bash(npm list:*)"
     ]
   }
 }

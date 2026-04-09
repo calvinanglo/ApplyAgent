@@ -5,21 +5,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Trash2, Search, ChevronDown, ChevronUp, RotateCcw, List } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronUp, List } from 'lucide-react'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { LocationCombobox } from '@/components/ui/location-combobox'
 
 // Scanner auto-detects which ATS platform a company uses (Greenhouse, Lever, or Ashby)
 
 // Verified companies across Greenhouse, Lever, Ashby, SmartRecruiters
 const ALL_COMPANIES: Company[] = [
-  // Greenhouse
+  // ── Tech ──
   { name: 'Airbnb', slug: 'airbnb', platform: 'greenhouse' },
   { name: 'Airtable', slug: 'airtable', platform: 'greenhouse' },
   { name: 'Amplitude', slug: 'amplitude', platform: 'greenhouse' },
   { name: 'Asana', slug: 'asana', platform: 'greenhouse' },
-  { name: 'Chime', slug: 'chime', platform: 'greenhouse' },
   { name: 'Cloudflare', slug: 'cloudflare', platform: 'greenhouse' },
   { name: 'CockroachDB', slug: 'cockroachlabs', platform: 'greenhouse' },
   { name: 'Coinbase', slug: 'coinbase', platform: 'greenhouse' },
@@ -29,44 +29,110 @@ const ALL_COMPANIES: Company[] = [
   { name: 'Discord', slug: 'discord', platform: 'greenhouse' },
   { name: 'DoorDash', slug: 'doordash', platform: 'greenhouse' },
   { name: 'Dropbox', slug: 'dropbox', platform: 'greenhouse' },
-  { name: 'Duolingo', slug: 'duolingo', platform: 'greenhouse' },
   { name: 'Elastic', slug: 'elastic', platform: 'greenhouse' },
   { name: 'Faire', slug: 'faire', platform: 'greenhouse' },
   { name: 'Fastly', slug: 'fastly', platform: 'greenhouse' },
   { name: 'Figma', slug: 'figma', platform: 'greenhouse' },
   { name: 'GitLab', slug: 'gitlab', platform: 'greenhouse' },
-  { name: 'Gusto', slug: 'gusto', platform: 'greenhouse' },
   { name: 'HubSpot', slug: 'hubspot', platform: 'greenhouse' },
-  { name: 'Instacart', slug: 'instacart', platform: 'greenhouse' },
   { name: 'Intercom', slug: 'intercom', platform: 'greenhouse' },
-  { name: 'Lyft', slug: 'lyft', platform: 'greenhouse' },
   { name: 'Mixpanel', slug: 'mixpanel', platform: 'greenhouse' },
   { name: 'Okta', slug: 'okta', platform: 'greenhouse' },
   { name: 'PagerDuty', slug: 'pagerduty', platform: 'greenhouse' },
-  { name: 'Palantir', slug: 'palantir', platform: 'greenhouse' },
-  { name: 'Plaid', slug: 'plaid', platform: 'greenhouse' },
-  { name: 'Point72', slug: 'point72', platform: 'greenhouse' },
   { name: 'Reddit', slug: 'reddit', platform: 'greenhouse' },
-  { name: 'Robinhood', slug: 'robinhood', platform: 'greenhouse' },
   { name: 'Samsara', slug: 'samsara', platform: 'greenhouse' },
-  { name: 'Stripe', slug: 'stripe', platform: 'greenhouse' },
   { name: 'Tailscale', slug: 'tailscale', platform: 'greenhouse' },
   { name: 'Twilio', slug: 'twilio', platform: 'greenhouse' },
   { name: 'Twitch', slug: 'twitch', platform: 'greenhouse' },
   { name: 'Zscaler', slug: 'zscaler', platform: 'greenhouse' },
-  // Lever
   { name: 'Netflix', slug: 'netflix', platform: 'lever' },
   { name: 'Spotify', slug: 'spotify', platform: 'lever' },
-  // Ashby
   { name: 'Linear', slug: 'linear', platform: 'ashby' },
   { name: 'Notion', slug: 'notion', platform: 'ashby' },
   { name: 'OpenAI', slug: 'openai', platform: 'ashby' },
-  { name: 'Ramp', slug: 'ramp', platform: 'ashby' },
   { name: 'Supabase', slug: 'supabase', platform: 'ashby' },
   { name: 'Vercel', slug: 'vercel', platform: 'ashby' },
-  // SmartRecruiters
+  // ── Finance & Fintech ──
+  { name: 'Stripe', slug: 'stripe', platform: 'greenhouse' },
+  { name: 'Chime', slug: 'chime', platform: 'greenhouse' },
+  { name: 'Gusto', slug: 'gusto', platform: 'greenhouse' },
+  { name: 'Robinhood', slug: 'robinhood', platform: 'greenhouse' },
+  { name: 'Point72', slug: 'point72', platform: 'greenhouse' },
+  { name: 'Brex', slug: 'brex', platform: 'greenhouse' },
+  { name: 'SoFi', slug: 'sofi', platform: 'greenhouse' },
+  { name: 'Affirm', slug: 'affirm', platform: 'greenhouse' },
+  { name: 'Nubank', slug: 'nubank', platform: 'greenhouse' },
+  { name: 'Block', slug: 'block', platform: 'greenhouse' },
+  { name: 'Mercury', slug: 'mercury', platform: 'greenhouse' },
+  { name: 'Toast', slug: 'toast', platform: 'greenhouse' },
+  { name: 'Marqeta', slug: 'marqeta', platform: 'greenhouse' },
+  { name: 'N26', slug: 'n26', platform: 'greenhouse' },
+  { name: 'Plaid', slug: 'plaid', platform: 'lever' },
+  { name: 'Ramp', slug: 'ramp', platform: 'ashby' },
+  { name: 'Wealthsimple', slug: 'wealthsimple', platform: 'ashby' },
+  { name: 'Deel', slug: 'deel', platform: 'ashby' },
   { name: 'Visa', slug: 'Visa', platform: 'smartrecruiters' },
-  // Workday (slug format: subdomain/wd#/siteId)
+  { name: 'Wise', slug: 'wise', platform: 'smartrecruiters' },
+  // ── Healthcare & Pharma ──
+  { name: 'Oscar Health', slug: 'oscar', platform: 'greenhouse' },
+  { name: 'Zocdoc', slug: 'zocdoc', platform: 'greenhouse' },
+  { name: 'Flatiron Health', slug: 'flatironhealth', platform: 'greenhouse' },
+  { name: 'Veracyte', slug: 'veracyte', platform: 'greenhouse' },
+  { name: 'Ro', slug: 'ro', platform: 'lever' },
+  { name: 'AbbVie', slug: 'abbvie', platform: 'smartrecruiters' },
+  { name: 'Guardant Health', slug: 'guardanthealth', platform: 'smartrecruiters' },
+  // ── Retail & E-commerce ──
+  { name: 'Instacart', slug: 'instacart', platform: 'greenhouse' },
+  { name: 'Peloton', slug: 'peloton', platform: 'greenhouse' },
+  { name: 'Gap Inc', slug: 'gapinc', platform: 'smartrecruiters' },
+  { name: 'Wayfair', slug: 'wayfair', platform: 'smartrecruiters' },
+  // ── Consulting ──
+  { name: 'Accenture Federal', slug: 'AccentureFederalServices', platform: 'greenhouse' },
+  { name: 'Oliver Wyman', slug: 'oliverwyman', platform: 'lever' },
+  // ── Manufacturing & Automotive ──
+  { name: 'Lucid Motors', slug: 'lucidmotors', platform: 'greenhouse' },
+  { name: 'Bosch', slug: 'BoschGroup', platform: 'smartrecruiters' },
+  { name: 'Continental', slug: 'Continental', platform: 'smartrecruiters' },
+  { name: 'Parker Hannifin', slug: 'parker', platform: 'ashby' },
+  // ── Media & Entertainment ──
+  { name: 'New York Times', slug: 'thenewyorktimes', platform: 'greenhouse' },
+  { name: 'Take-Two', slug: 'taketwo', platform: 'greenhouse' },
+  { name: 'Fox', slug: 'fox', platform: 'greenhouse' },
+  { name: 'Live Nation', slug: 'livenationentertainment', platform: 'smartrecruiters' },
+  // ── Insurance ──
+  { name: 'Coalition', slug: 'coalition', platform: 'greenhouse' },
+  { name: 'MetLife', slug: 'metlife', platform: 'lever' },
+  { name: 'Lemonade', slug: 'lemonade', platform: 'ashby' },
+  // ── Transport & Logistics ──
+  { name: 'Lyft', slug: 'lyft', platform: 'greenhouse' },
+  { name: 'Flexport', slug: 'flexport', platform: 'greenhouse' },
+  { name: 'Uber', slug: 'uber', platform: 'smartrecruiters' },
+  // ── Food & Beverage ──
+  { name: 'Anheuser-Busch InBev', slug: 'abinbev', platform: 'greenhouse' },
+  { name: 'Sodexo', slug: 'sodexo', platform: 'smartrecruiters' },
+  { name: "McDonald's", slug: 'McDonaldsCorporation', platform: 'smartrecruiters' },
+  // ── Energy ──
+  { name: 'ChargePoint', slug: 'chargepoint', platform: 'greenhouse' },
+  { name: 'Vattenfall', slug: 'Vattenfall', platform: 'smartrecruiters' },
+  // ── Real Estate ──
+  { name: 'Opendoor', slug: 'opendoor', platform: 'greenhouse' },
+  { name: 'Colliers', slug: 'colliers', platform: 'smartrecruiters' },
+  // ── Education ──
+  { name: 'Duolingo', slug: 'duolingo', platform: 'greenhouse' },
+  { name: 'Khan Academy', slug: 'khanacademy', platform: 'greenhouse' },
+  { name: 'Udemy', slug: 'udemy', platform: 'greenhouse' },
+  { name: 'Coursera', slug: 'coursera', platform: 'greenhouse' },
+  { name: 'Handshake', slug: 'handshake', platform: 'ashby' },
+  // ── Defense & Government ──
+  { name: 'Anduril', slug: 'andurilindustries', platform: 'greenhouse' },
+  { name: 'Palantir', slug: 'palantir', platform: 'lever' },
+  { name: 'Shield AI', slug: 'shieldai', platform: 'lever' },
+  { name: 'CACI', slug: 'caci', platform: 'smartrecruiters' },
+  // ── Hospitality ──
+  { name: 'Four Seasons', slug: 'fourseasons', platform: 'greenhouse' },
+  { name: 'Equinox', slug: 'equinox', platform: 'smartrecruiters' },
+  { name: 'Accor', slug: 'accor', platform: 'smartrecruiters' },
+  // ── Workday ──
   { name: 'NVIDIA', slug: 'nvidia/wd5/NVIDIAExternalCareerSite', platform: 'workday' },
   { name: 'Intel', slug: 'intel/wd1/External', platform: 'workday' },
   { name: 'PayPal', slug: 'paypal/wd1/Jobs', platform: 'workday' },
@@ -115,6 +181,7 @@ const DATE_OPTIONS = [
 ] as const
 
 const STORAGE_KEY = 'applyagent_scan_companies'
+const FILTERS_KEY = 'applyagent_scan_filters'
 
 function loadSavedCompanies(): Company[] {
   if (typeof window === 'undefined') return []
@@ -137,8 +204,6 @@ export default function ScanPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [newCompanyName, setNewCompanyName] = useState('')
   const [newCompanySlug, setNewCompanySlug] = useState('')
-  const [newCustomUrl, setNewCustomUrl] = useState('')
-  const [customUrls, setCustomUrls] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -154,7 +219,6 @@ export default function ScanPage() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [companiesOpen, setCompaniesOpen] = useState(true)
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set())
-  const [selectedUrls, setSelectedUrls] = useState<Set<number>>(new Set())
 
   // Target roles state
   const [targetRoles, setTargetRoles] = useState<string[]>([])
@@ -165,20 +229,31 @@ export default function ScanPage() {
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([])
   const [selectedArrangements, setSelectedArrangements] = useState<string[]>([])
   const [datePosted, setDatePosted] = useState('any')
-  const [locationFilter, setLocationFilter] = useState('')
   const [salaryMin, setSalaryMin] = useState('')
 
   // Load saved companies + profile preferences
   useEffect(() => {
-    // Load profile preferences for filter defaults
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
       ;(supabase as any).from('profiles').select('work_arrangement, job_types, location, target_roles').eq('id', user.id).single()
         .then(({ data }: any) => {
-          if (data?.work_arrangement?.length) setSelectedArrangements(data.work_arrangement)
-          if (data?.job_types?.length) setSelectedJobTypes(data.job_types)
+          // Load saved scanner filters from localStorage — they override profile defaults
+          const savedFilters = localStorage.getItem(FILTERS_KEY)
+          if (savedFilters) {
+            try {
+              const f = JSON.parse(savedFilters)
+              if (f.jobTypes) setSelectedJobTypes(f.jobTypes)
+              if (f.arrangements) setSelectedArrangements(f.arrangements)
+              if (f.datePosted) setDatePosted(f.datePosted)
+              if (f.boardLocation) setBoardLocation(f.boardLocation)
+            } catch {}
+          } else {
+            // No saved scanner filters — fall back to profile defaults
+            if (data?.work_arrangement?.length) setSelectedArrangements(data.work_arrangement)
+            if (data?.job_types?.length) setSelectedJobTypes(data.job_types)
+          }
           if (data?.location && !boardLocation) setBoardLocation(data.location)
           if (data?.target_roles?.length) setTargetRoles(data.target_roles)
         })
@@ -205,6 +280,16 @@ export default function ScanPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(companies))
   }, [companies])
 
+  // Persist scanner filters — overrides profile defaults on next load
+  useEffect(() => {
+    localStorage.setItem(FILTERS_KEY, JSON.stringify({
+      jobTypes: selectedJobTypes,
+      arrangements: selectedArrangements,
+      datePosted,
+      boardLocation,
+    }))
+  }, [selectedJobTypes, selectedArrangements, datePosted, boardLocation])
+
   function addCompany() {
     if (!newCompanyName) return
     // Auto-generate slug from company name (lowercase, no spaces)
@@ -226,16 +311,6 @@ export default function ScanPage() {
     })
   }
 
-  function addCustomUrl() {
-    if (!newCustomUrl.trim()) return
-    setCustomUrls([...customUrls, newCustomUrl.trim()])
-    setNewCustomUrl('')
-  }
-
-  function removeCustomUrl(i: number) {
-    setCustomUrls(customUrls.filter((_, idx) => idx !== i))
-  }
-
   function resetCompanies() {
     localStorage.removeItem(STORAGE_KEY)
     setCompanies([])
@@ -253,18 +328,18 @@ export default function ScanPage() {
     setResult(null)
 
     try {
+      const scanCompanies = companies.length > 0 ? companies : [...ALL_COMPANIES]
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companies,
-          custom_urls: customUrls,
+          companies: scanCompanies,
           target_roles: targetRoles,
           filters: {
             job_types: selectedJobTypes.map(t => t.toLowerCase()),
             work_arrangement: selectedArrangements.map(a => a.toLowerCase()),
             date_posted: datePosted,
-            location: locationFilter.trim() || undefined,
+            location: boardLocation.trim() || undefined,
             salary_min: salaryMin ? parseInt(salaryMin, 10) : undefined,
           },
         }),
@@ -272,7 +347,6 @@ export default function ScanPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Scan failed'); return }
       setResult(data)
-      if (data.stats.added > 0) setCustomUrls([]) // clear URLs after successful add
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Scan failed')
     } finally {
@@ -315,7 +389,7 @@ export default function ScanPage() {
             job_types: selectedJobTypes.map(t => t.toLowerCase()),
             work_arrangement: selectedArrangements.map(a => a.toLowerCase()),
             date_posted: datePosted,
-            location: locationFilter.trim() || undefined,
+            location: boardLocation.trim() || undefined,
             salary_min: salaryMin ? parseInt(salaryMin, 10) : undefined,
           },
         }),
@@ -331,10 +405,9 @@ export default function ScanPage() {
     }
   }
 
-  const scanCareerPages = true
   const hasBoardSearch = boardKeywords.trim() && boardLocation.trim() && boardSources.size > 0
-  const hasCareerPages = scanCareerPages && (companies.length > 0 || customUrls.length > 0)
-  const creditCost = (hasBoardSearch ? 8 : 0) + (hasCareerPages ? 8 : 0)
+  const hasCareerPages = true // always available — scans all companies when none selected
+  const creditCost = (hasBoardSearch ? 3 : 0) + (hasCareerPages ? 3 : 0)
   const canScan = hasBoardSearch || hasCareerPages
 
   return (
@@ -365,31 +438,16 @@ export default function ScanPage() {
             </form>
           </div>
 
-          {/* ── Search: Keywords + Location + Companies ───── */}
+          {/* ── Companies ───── */}
           <div className="border rounded-lg">
-            {boardSources.size > 0 && (
-              <div className="px-4 pt-4 pb-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Keywords</label>
-                  <Input placeholder="e.g. Infrastructure Analyst, Cloud Engineer" value={boardKeywords} onChange={e => setBoardKeywords(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Location</label>
-                  <Input placeholder="e.g. Toronto, ON" value={boardLocation} onChange={e => setBoardLocation(e.target.value)} />
-                </div>
-              </div>
-            )}
-            {scanCareerPages && (
-              <>
-              {boardSources.size > 0 && <div className="mx-4 border-t" />}
               <button onClick={() => setCompaniesOpen(!companiesOpen)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-                <p className="text-sm font-medium">Companies ({companies.length})</p>
+                <p className="text-sm font-medium">Companies ({companies.length > 0 ? companies.length : 'All'})</p>
                 {companiesOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
               </button>
               {companiesOpen && (
                 <div className="px-4 pb-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Click to toggle · {companies.length} selected</p>
+                    <p className="text-xs text-muted-foreground">Click to toggle · {companies.length > 0 ? `${companies.length} selected` : 'none selected (scans all)'}</p>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setCompanies([...ALL_COMPANIES])}>All</Button>
                       <Button variant="ghost" size="sm" className="text-xs h-7" onClick={resetCompanies}>None</Button>
@@ -415,8 +473,6 @@ export default function ScanPage() {
                   </div>
                 </div>
               )}
-              </>
-            )}
           </div>
 
           {/* ── Filters ──────────────────────────────────── */}
@@ -425,8 +481,8 @@ export default function ScanPage() {
               <div>
                 <p className="text-sm font-medium">Filters</p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || locationFilter.trim() || salaryMin
-                    ? `${[...selectedJobTypes, ...selectedArrangements, datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '', locationFilter.trim(), salaryMin ? `$${parseInt(salaryMin).toLocaleString()}+` : ''].filter(Boolean).join(', ')}`
+                  {selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || salaryMin || boardKeywords.trim() || boardLocation.trim()
+                    ? `${[boardKeywords.trim(), boardLocation.trim(), ...selectedJobTypes, ...selectedArrangements, datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '', salaryMin ? `$${parseInt(salaryMin).toLocaleString()}+` : ''].filter(Boolean).join(', ')}`
                     : 'No filters applied'}
                 </p>
               </div>
@@ -434,6 +490,18 @@ export default function ScanPage() {
             </button>
             {filtersOpen && (
               <div className="px-4 pb-4 space-y-4">
+                {boardSources.size > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Keywords</label>
+                      <Input placeholder="e.g. Infrastructure Analyst, Cloud Engineer" value={boardKeywords} onChange={e => setBoardKeywords(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Location</label>
+                      <LocationCombobox value={boardLocation} onChange={setBoardLocation} />
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-2 block">Job Type</label>
                   <div className="flex flex-wrap gap-2">
@@ -461,48 +529,25 @@ export default function ScanPage() {
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-2 block">Location filter</label>
-                    <Input placeholder="e.g. Canada, Ontario, Remote..." value={locationFilter} onChange={e => setLocationFilter(e.target.value)} className="h-9 text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-2 block">Minimum salary ($/year)</label>
-                    <Input type="number" placeholder="e.g. 80000" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} className="h-9 text-sm" />
-                  </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block">Minimum salary ($/year)</label>
+                  <Input type="number" placeholder="e.g. 80000" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} className="h-9 text-sm" />
                 </div>
-                {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || locationFilter.trim() || salaryMin) && (
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedJobTypes([]); setSelectedArrangements([]); setDatePosted('any'); setLocationFilter(''); setSalaryMin('') }} className="text-xs">Clear all filters</Button>
+                {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || salaryMin || boardKeywords.trim() || boardLocation.trim()) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setBoardKeywords(''); setBoardLocation(''); setSelectedJobTypes([]); setSelectedArrangements([]); setDatePosted('any'); setSalaryMin('') }} className="text-xs">Clear all filters</Button>
                 )}
               </div>
             )}
           </div>
 
-          {/* ── Custom URLs ──────────────────────────────── */}
-          {customUrls.length > 0 && (
-            <div className="border rounded-lg px-4 py-3 space-y-2">
-              <p className="text-sm font-medium">Custom URLs ({customUrls.length})</p>
-              {customUrls.map((url, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="flex-1 text-xs font-mono truncate text-muted-foreground">{url}</span>
-                  <button onClick={() => setCustomUrls(prev => prev.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">&times;</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Input placeholder="Add job URL — https://..." value={newCustomUrl} onChange={e => setNewCustomUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomUrl() } }} className="font-mono text-sm" />
-            <Button type="button" variant="outline" onClick={addCustomUrl}><Plus className="size-4" /></Button>
-          </div>
-
           {/* ── Scan Button ──────────────────────────────── */}
           <div className="flex items-center justify-between border-t pt-4">
             <p className="text-xs text-muted-foreground">
-              {creditCost > 0 ? `Costs ${creditCost} credits` : 'Select at least one source'}
-              {hasBoardSearch && hasCareerPages && ' (8 board + 8 career pages)'}
+              {`Costs ${creditCost} credits`}
+              {hasBoardSearch && ' (3 board + 3 career pages)'}
             </p>
             <CreditConfirmButton
-              credits={creditCost || 8}
+              credits={creditCost || 3}
               label="Scan"
               loadingLabel="Scanning..."
               disabled={(loading || boardLoading) || !canScan}

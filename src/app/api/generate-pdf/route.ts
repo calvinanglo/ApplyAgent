@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     let reportKeywords: string[] = []
     let reportData: any = null
     if (body.report_id) {
-      const { data: report } = await db.from('reports').select('jd_text, jd_url, keywords, role, company, block_a, block_b').eq('id', body.report_id).single()
+      const { data: report } = await db.from('reports').select('jd_text, jd_url, keywords, role, company, block_a, block_b').eq('id', body.report_id).eq('user_id', user.id).single()
       reportData = report
       if (report?.jd_text && !jdText) jdText = report.jd_text
       if (report?.keywords) reportKeywords = report.keywords
@@ -229,6 +229,11 @@ export async function POST(request: Request) {
         })
       } catch {}
 
+      // Mark has_pdf on application (best-effort)
+      if (body.report_id) {
+        try { await db.from('applications').update({ has_pdf: true }).eq('report_id', body.report_id).eq('user_id', user.id) } catch {}
+      }
+
       return Response.json({
         success: true,
         filename,
@@ -264,6 +269,11 @@ export async function POST(request: Request) {
       keyword_coverage: content.keyword_coverage_pct || null,
     })
     } catch {}
+
+    // Mark has_pdf on application (best-effort)
+    if (body.report_id) {
+      try { await db.from('applications').update({ has_pdf: true }).eq('report_id', body.report_id).eq('user_id', user.id) } catch {}
+    }
 
     return Response.json({
       success: true,

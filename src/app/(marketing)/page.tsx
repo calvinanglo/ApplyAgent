@@ -51,14 +51,14 @@ const features = [
     icon: Mail,
     title: 'Tailored Cover Letters',
     description: 'AI-powered cover letters that reference specific JD requirements with your real experience. Professional, natural, ready to send.',
-    badge: '5 credits',
+    badge: '3 credits',
     highlight: 'No more generic templates',
   },
   {
     icon: Zap,
     title: 'Portal Scanner',
     description: 'Scan 60+ company job boards automatically across Greenhouse, Lever, Ashby, and Workday. Filter by role, location, and type.',
-    badge: '8 credits',
+    badge: '3 credits',
     highlight: 'Jobs come to you',
   },
   {

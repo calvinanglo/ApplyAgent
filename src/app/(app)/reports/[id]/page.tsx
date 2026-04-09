@@ -90,7 +90,7 @@ export default function ReportPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/cover-letter?report_id=${id}`}>
+          <Link href={`/resume?tab=cover-letter&report_id=${id}`}>
             <Button variant="outline" size="sm"><Mail className="size-4 mr-1" />Cover Letter</Button>
           </Link>
           <Link href={`/resume?report_id=${id}`}>

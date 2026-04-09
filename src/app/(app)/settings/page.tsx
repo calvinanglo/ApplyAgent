@@ -353,7 +353,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Target Roles <span className="text-destructive">*</span></Label>
+            <Label>Target Roles</Label>
             <div className="flex flex-wrap gap-1.5 min-h-[38px] rounded-md border border-input bg-background px-3 py-2">
               {targetRolesText.split(',').map(r => r.trim()).filter(Boolean).map((role, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-sm">
@@ -410,9 +410,7 @@ export default function SettingsPage() {
                 Add
               </Button>
             </div>
-            {!targetRolesText.trim() && (
-              <p className="text-xs text-destructive">Required — evaluations use this to match you to roles</p>
-            )}
+            <p className="text-xs text-muted-foreground">Used by the scanner to filter matching jobs. Leave empty to include all jobs.</p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-4">
@@ -496,7 +494,7 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Used as default filters when scanning for jobs</p>
+            <p className="text-xs text-muted-foreground">Pre-fills scanner filters — scanner overrides are saved separately</p>
           </div>
 
           <div className="space-y-2">
@@ -523,8 +521,9 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Used as default filters when scanning for jobs</p>
+            <p className="text-xs text-muted-foreground">Pre-fills scanner filters — scanner overrides are saved separately</p>
           </div>
+
         </CardContent>
       </Card>
 

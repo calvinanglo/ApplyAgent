@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -7,6 +8,9 @@ export async function GET() {
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success: withinLimit } = rateLimit(`suggest:${user.id}`, 5, 60_000)
+    if (!withinLimit) return Response.json({ companies: [] })
 
     // Load profile and CV
     const [profileRes, cvRes] = await Promise.all([

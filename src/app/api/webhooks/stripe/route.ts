@@ -12,29 +12,17 @@ function getServiceClient() {
 }
 
 async function addCredits(db: any, userId: string, credits: number, description: string, stripeSessionId?: string) {
-  const { data: balance } = await db
-    .from('credit_balances')
-    .select('balance')
-    .eq('user_id', userId)
-    .single()
-
-  const currentBalance = balance?.balance || 0
-  const newBalance = currentBalance + credits
-
-  await db
-    .from('credit_balances')
-    .update({ balance: newBalance })
-    .eq('user_id', userId)
-
-  await db.from('credit_transactions').insert({
-    user_id: userId,
-    amount: credits,
-    balance_after: newBalance,
-    type: 'purchase',
-    action: 'subscription',
-    stripe_session_id: stripeSessionId || null,
-    description,
+  // Atomic credit addition with row-level locking via Postgres function
+  const { data: result } = await db.rpc('add_credits', {
+    p_user_id: userId,
+    p_amount: credits,
+    p_action: 'subscription',
+    p_stripe_session_id: stripeSessionId || null,
+    p_description: description,
   })
+  if (!result?.success) {
+    console.error('Failed to add credits:', result?.error, { userId, credits })
+  }
 }
 
 export async function POST(request: Request) {

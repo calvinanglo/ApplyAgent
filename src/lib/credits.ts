@@ -1,15 +1,15 @@
 export const CREDIT_COSTS = {
   evaluation: 10,
   pdf: 3,
-  cover_letter: 5,
-  portal_scan: 8,
+  cover_letter: 3,
+  portal_scan: 3,
   apply_assist: 5,
   linkedin_message: 2,
   deep_research: 3,
   training_eval: 2,
   project_eval: 2,
   compare_offers: 5,
-  board_search: 8,
+  board_search: 3,
   batch_per_offer: 10,
 } as const
 

@@ -10,6 +10,21 @@ import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
+function timeAgo(date: string): string {
+  const now = Date.now()
+  const d = new Date(date).getTime()
+  const diff = now - d
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  return `${months}mo ago`
+}
+
 interface PipelineItem {
   id: string
   url: string
@@ -35,8 +50,6 @@ export default function PipelinePage() {
   const [items, setItems] = useState<PipelineItem[]>([])
   const [loading, setLoading] = useState(true)
   const [newUrl, setNewUrl] = useState('')
-  const [newCompany, setNewCompany] = useState('')
-  const [newTitle, setNewTitle] = useState('')
   const [processing, setProcessing] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<'pending' | 'done' | 'errors' | 'processing'>('pending')
   const [page, setPage] = useState(1)
@@ -68,12 +81,10 @@ export default function PipelinePage() {
       const res = await fetch('/api/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: newUrl.trim(), company: newCompany || undefined, title: newTitle || undefined }),
+        body: JSON.stringify({ url: newUrl.trim() }),
       })
       if (res.ok) {
         setNewUrl('')
-        setNewCompany('')
-        setNewTitle('')
         await loadItems()
       }
     } catch {}
@@ -324,7 +335,7 @@ export default function PipelinePage() {
             ) : (
               <Button variant="outline" size="sm" onClick={() => setClearConfirm('pending')}>
                 <Trash2 className="size-4" />
-                Clear Pending
+                Clear All Pending
               </Button>
             )
           )}
@@ -414,10 +425,6 @@ export default function PipelinePage() {
               onChange={e => setNewUrl(e.target.value)}
               className="font-mono text-sm"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Company (optional)" value={newCompany} onChange={e => setNewCompany(e.target.value)} />
-              <Input placeholder="Job title (optional)" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
-            </div>
             <div className="flex justify-end">
               <Button type="submit" disabled={!newUrl.trim()} size="sm">
                 <Plus className="size-4" />Add to Pipeline
@@ -515,6 +522,7 @@ export default function PipelinePage() {
                       {item.status}
                     </span>
                     <Badge variant="outline" className="text-xs">{item.source}</Badge>
+                    <span className="text-xs text-muted-foreground/50">{timeAgo(item.created_at)}</span>
                   </div>
                   {(item as any).location && (
                     <p className="text-xs text-muted-foreground/60 mt-0.5">{(item as any).location}</p>

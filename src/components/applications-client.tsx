@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import Link from 'next/link'
 import { StatusSelect } from '@/components/status-select'
-import { Search, CheckCircle2, XCircle, Minus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, CheckCircle2, Minus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface Application {
   id: string
@@ -136,7 +136,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
           <div className="flex flex-wrap gap-1.5 pt-2">
             {statusFilters.map((s) => {
               const count = s === 'All' ? apps.length : (statusCounts[s] || 0)
-              if (s !== 'All' && count === 0) return null
+              if (s !== 'All' && (count === 0 || count === apps.length)) return null
               return (
                 <button
                   key={s}
@@ -182,10 +182,10 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                         <span>{new Date(app.created_at).toLocaleDateString()}</span>
                         <span className="flex items-center gap-0.5">
-                          Resume {app.has_pdf ? <CheckCircle2 className="size-3 text-green-500" /> : <XCircle className="size-3 text-muted-foreground/40" />}
+                          Resume {app.has_pdf ? <CheckCircle2 className="size-3 text-green-500" /> : <Minus className="size-3 text-muted-foreground/40" />}
                         </span>
                         <span className="flex items-center gap-0.5">
-                          CL {app.has_cover_letter ? <CheckCircle2 className="size-3 text-green-500" /> : <XCircle className="size-3 text-muted-foreground/40" />}
+                          CL {app.has_cover_letter ? <CheckCircle2 className="size-3 text-green-500" /> : <Minus className="size-3 text-muted-foreground/40" />}
                         </span>
                       </div>
                     </Link>
@@ -245,14 +245,14 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                             <Link href={href} className="flex justify-center px-4 py-2">
                               {app.has_pdf
                                 ? <CheckCircle2 className="size-4 text-green-500" />
-                                : <XCircle className="size-4 text-muted-foreground/30" />}
+                                : <Minus className="size-4 text-muted-foreground/30" />}
                             </Link>
                           </TableCell>
                           <TableCell className="p-0 text-center">
                             <Link href={href} className="flex justify-center px-4 py-2">
                               {app.has_cover_letter
                                 ? <CheckCircle2 className="size-4 text-green-500" />
-                                : <XCircle className="size-4 text-muted-foreground/30" />}
+                                : <Minus className="size-4 text-muted-foreground/30" />}
                             </Link>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground p-0">

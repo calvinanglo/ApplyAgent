@@ -279,7 +279,7 @@ export default function EvaluatePage() {
                     <Badge className="bg-green-600"><FileDown className="size-3 mr-1" />Resume downloaded</Badge>
                   )}
                   {pipelineDone.coverLetter && reportId && (
-                    <Link href={`/cover-letter?report_id=${reportId}`}>
+                    <Link href={`/resume?tab=cover-letter&report_id=${reportId}`}>
                       <Badge variant="outline" className="cursor-pointer"><Mail className="size-3 mr-1" />Cover letter ready — view</Badge>
                     </Link>
                   )}
@@ -293,7 +293,7 @@ export default function EvaluatePage() {
                 <Link href={`/resume?report_id=${reportId}`}>
                   <Button variant="outline" size="sm"><FileDown className="size-4" />Resume</Button>
                 </Link>
-                <Link href={`/cover-letter?report_id=${reportId}`}>
+                <Link href={`/resume?tab=cover-letter&report_id=${reportId}`}>
                   <Button variant="outline" size="sm"><Mail className="size-4" />Cover Letter</Button>
                 </Link>
               </div>

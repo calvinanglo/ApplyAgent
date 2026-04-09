@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -6,6 +7,9 @@ export async function GET() {
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success: withinLimit } = rateLimit(`export:${user.id}`, 3, 60_000)
+    if (!withinLimit) return Response.json({ error: 'Too many exports. Please wait.' }, { status: 429 })
 
     const [profile, cv, applications, reports, pipelineItems, storyBank, creditBalance, transactions, generatedFiles] = await Promise.all([
       db.from('profiles').select('*').eq('id', user.id).single(),
@@ -41,6 +45,6 @@ export async function GET() {
       },
     })
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return Response.json({ error: 'Server error' }, { status: 500 })
   }
 }

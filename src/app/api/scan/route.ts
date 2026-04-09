@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { CREDIT_COSTS } from '@/lib/credits'
+import { rateLimit } from '@/lib/rate-limit'
 import {
   type ScannedJob,
   titleMatches,
@@ -211,6 +212,9 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const { success: withinLimit } = rateLimit(`scan:${user.id}`, 10, 60_000)
+    if (!withinLimit) return Response.json({ error: 'Too many scans. Please wait a moment.' }, { status: 429 })
+
     let body: {
       companies?: Array<{ name: string; slug?: string | null; platform?: string; greenhouse_slug?: string | null }>
       custom_urls?: string[]
@@ -258,7 +262,7 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
 
     const allJobs: ScannedJob[] = []
-    const companies = body.companies || []
+    const companies = (body.companies || []).slice(0, 50) // Cap at 50 companies
     const filters = body.filters || {}
 
     // Scan all 3 platforms for each company in parallel
@@ -400,6 +404,6 @@ export async function POST(request: Request) {
       ],
     })
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return Response.json({ error: 'Server error' }, { status: 500 })
   }
 }

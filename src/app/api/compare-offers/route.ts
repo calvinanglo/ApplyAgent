@@ -18,6 +18,11 @@ export async function POST(request: Request) {
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
     if (!body.offers || body.offers.length < 2) return Response.json({ error: 'At least 2 offers required' }, { status: 400 })
+    if (body.offers.length > 10) return Response.json({ error: 'Maximum 10 offers per comparison' }, { status: 400 })
+    for (const o of body.offers) {
+      if (o.company?.length > 200 || o.role?.length > 200) return Response.json({ error: 'Company/role names too long' }, { status: 400 })
+      if (o.jd_text && o.jd_text.length > 50000) return Response.json({ error: 'JD text too long' }, { status: 400 })
+    }
 
     const anthropic = getAnthropicClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
@@ -49,6 +54,6 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, comparison: result })
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return Response.json({ error: 'Server error' }, { status: 500 })
   }
 }

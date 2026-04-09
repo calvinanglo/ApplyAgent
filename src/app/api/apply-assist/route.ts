@@ -18,6 +18,10 @@ export async function POST(request: Request) {
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
     if (!body.questions?.length) return Response.json({ error: 'Questions required' }, { status: 400 })
+    if (body.questions.length > 20) return Response.json({ error: 'Maximum 20 questions per request' }, { status: 400 })
+    if (body.questions.some((q: string) => typeof q !== 'string' || q.length > 2000)) return Response.json({ error: 'Each question must be under 2000 characters' }, { status: 400 })
+    if (body.company && body.company.length > 200) return Response.json({ error: 'Company name too long' }, { status: 400 })
+    if (body.role && body.role.length > 200) return Response.json({ error: 'Role too long' }, { status: 400 })
 
     const anthropic = getAnthropicClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
@@ -25,7 +29,7 @@ export async function POST(request: Request) {
 
     let reportContext = ''
     if (body.report_id) {
-      const { data: report } = await db.from('reports').select('block_f, block_g').eq('id', body.report_id).single()
+      const { data: report } = await db.from('reports').select('block_f, block_g').eq('id', body.report_id).eq('user_id', user.id).single()
       if (report?.block_g) reportContext = JSON.stringify(report.block_g)
     }
 
@@ -52,6 +56,6 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, answers: result })
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return Response.json({ error: 'Server error' }, { status: 500 })
   }
 }

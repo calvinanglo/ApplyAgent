@@ -16,16 +16,9 @@ export interface ScannedJob {
 
 // ── Title filtering ──────────────────────────────────────────
 
-export const NEGATIVE_FILTERS = [
-  'intern', 'student', 'co-op', 'junior', 'entry-level', 'director', 'VP',
-  'chief', 'C-suite', 'principal', 'managing director', 'head of',
-]
-
 export function titleMatches(title: string, targetRoles: string[]): boolean {
-  const t = title.toLowerCase()
-  const hasNegative = NEGATIVE_FILTERS.some(kw => t.includes(kw.toLowerCase()))
-  if (hasNegative) return false
   if (targetRoles.length === 0) return true
+  const t = title.toLowerCase()
   return targetRoles.some(role => {
     const words = role.toLowerCase().split(/\s+/)
     return words.some(word => word.length > 2 && t.includes(word))
@@ -101,11 +94,16 @@ export function filterBySalary(jobs: ScannedJob[], minSalary: number): ScannedJo
 
 export function filterByLocation(jobs: ScannedJob[], location: string): ScannedJob[] {
   if (!location) return jobs
-  const terms = location.toLowerCase().split(/[,\s]+/).filter(t => t.length > 1)
+  // Split by comma to preserve multi-word terms, then trim each
+  const terms = location.toLowerCase().split(',').map(t => t.trim()).filter(t => t.length > 1)
   return jobs.filter(job => {
     if (!job.location) return false
     const loc = job.location.toLowerCase()
-    return terms.some(term => loc.includes(term))
+    // Use word boundary matching to prevent partial matches (e.g. "mb" matching "Mumbai")
+    return terms.some(term => {
+      const pattern = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+      return pattern.test(loc)
+    })
   })
 }
 

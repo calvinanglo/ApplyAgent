@@ -43,6 +43,9 @@ export async function POST(request: Request) {
     if (!body.jd_text && !body.report_id) {
       return Response.json({ error: 'Job description or report ID required' }, { status: 400 })
     }
+    if (body.jd_text && body.jd_text.length > 50000) {
+      return Response.json({ error: 'Job description too long (max 50,000 characters)' }, { status: 400 })
+    }
 
     const anthropic = getAnthropicClient()
 
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
         .from('reports')
         .select('jd_text, company, role, score, archetype, keywords, block_a, block_b')
         .eq('id', body.report_id)
+        .eq('user_id', user.id)
         .single()
 
       if (report) {
@@ -168,10 +172,15 @@ Write the cover letter following your instructions. Use today's date in the head
         storage_path: jsonPath,
         report_id: body.report_id || null,
       })
+
+      // Mark has_cover_letter on application (best-effort)
+      if (body.report_id) {
+        await db.from('applications').update({ has_cover_letter: true }).eq('report_id', body.report_id).eq('user_id', user.id)
+      }
     } catch {}
 
     return Response.json({ success: true, cover_letter: result })
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return Response.json({ error: 'Server error' }, { status: 500 })
   }
 }
