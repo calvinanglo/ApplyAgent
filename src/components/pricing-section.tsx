@@ -108,11 +108,11 @@ export function PricingSection() {
       {billing === 'one-time' && (
         <div className="mt-12 grid gap-6 md:grid-cols-3 pt-4">
           {CREDIT_PACKS.map((pack) => {
-            const isPopular = pack.id === 'professional'
+            const hasBadge = !!pack.badge
             return (
-              <Card key={pack.id} className={`relative overflow-visible transition-all hover:shadow-lg ${isPopular ? 'border-primary shadow-md scale-[1.02]' : ''}`}>
-                {isPopular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">Best Value</Badge>
+              <Card key={pack.id} className={`relative overflow-visible transition-all hover:shadow-lg ${hasBadge ? 'border-primary shadow-md scale-[1.02]' : ''}`}>
+                {pack.badge && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">{pack.badge}</Badge>
                 )}
                 <CardHeader>
                   <CardTitle>{pack.name}</CardTitle>
@@ -142,7 +142,7 @@ export function PricingSection() {
                     </li>
                   </ul>
                   <Link href="/signup">
-                    <Button variant={isPopular ? 'default' : 'outline'} className="mt-6 w-full">
+                    <Button variant={hasBadge ? 'default' : 'outline'} className="mt-6 w-full">
                       Buy Credits
                       <ArrowRight className="ml-2 size-4" />
                     </Button>

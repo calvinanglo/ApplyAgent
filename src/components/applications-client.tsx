@@ -14,7 +14,10 @@ import {
 } from '@/components/ui/table'
 import Link from 'next/link'
 import { StatusSelect } from '@/components/status-select'
-import { Search, CheckCircle2, Minus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, CheckCircle2, Minus, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Square, CheckSquare, MinusSquare } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface Application {
   id: string
@@ -46,11 +49,43 @@ type SortDir = 'asc' | 'desc'
 const PAGE_SIZE = 50
 
 export function ApplicationsClient({ apps }: { apps: Application[] }) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [page, setPage] = useState(1)
+  const [deleting, setDeleting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(filtered.map(a => a.id)))
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (!selected.size) return
+    if (!window.confirm(`Delete ${selected.size} application${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setDeleting(true)
+    const supabase = createClient()
+    const ids = Array.from(selected)
+    await (supabase as any).from('applications').delete().in('id', ids)
+    setSelected(new Set())
+    setDeleting(false)
+    router.refresh()
+  }
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -121,7 +156,20 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>Applications ({filtered.length})</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle>Applications ({filtered.length})</CardTitle>
+              {selected.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{selected.size} selected</span>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive text-xs h-7" onClick={handleDeleteSelected} disabled={deleting}>
+                    <Trash2 className="size-3.5 mr-1" />{deleting ? 'Deleting...' : 'Delete'}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelected(new Set())}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -167,19 +215,24 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                 {paginated.map((app) => {
                   const href = `/reports/${app.report_id || app.id}`
                   return (
-                    <Link key={app.id} href={href} className="block rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+                    <div key={app.id} className={`rounded-lg border p-3 hover:bg-muted/50 transition-colors ${selected.has(app.id) ? 'bg-primary/5 border-primary/30' : ''}`}>
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
+                        <button onClick={() => toggleSelect(app.id)} className="mt-0.5 shrink-0">
+                          {selected.has(app.id)
+                            ? <CheckSquare className="size-4 text-primary" />
+                            : <Square className="size-4 text-muted-foreground/30" />}
+                        </button>
+                        <Link href={href} className="min-w-0 flex-1">
                           <p className="font-medium text-sm truncate">{app.company}</p>
                           <p className="text-xs text-muted-foreground truncate">{app.role}</p>
                           {app.location && <p className="text-xs text-muted-foreground/60 truncate">{app.location}</p>}
-                        </div>
+                        </Link>
                         <div className="flex items-center gap-2 shrink-0">
                           <ScoreBadge score={app.score} />
                           <StatusSelect id={app.id} currentStatus={app.status} />
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground pl-6">
                         <span>{new Date(app.created_at).toLocaleDateString()}</span>
                         <span className="flex items-center gap-0.5">
                           Resume {app.has_pdf ? <CheckCircle2 className="size-3 text-green-500" /> : <Minus className="size-3 text-muted-foreground/40" />}
@@ -188,7 +241,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                           CL {app.has_cover_letter ? <CheckCircle2 className="size-3 text-green-500" /> : <Minus className="size-3 text-muted-foreground/40" />}
                         </span>
                       </div>
-                    </Link>
+                    </div>
                   )
                 })}
               </div>
@@ -198,6 +251,15 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10 px-2">
+                        <button onClick={toggleSelectAll} className="flex items-center justify-center">
+                          {selected.size === filtered.length && filtered.length > 0
+                            ? <CheckSquare className="size-4 text-primary" />
+                            : selected.size > 0
+                              ? <MinusSquare className="size-4 text-primary" />
+                              : <Square className="size-4 text-muted-foreground/40" />}
+                        </button>
+                      </TableHead>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('company')}>
                         <span className="flex items-center gap-1">Company <SortIcon field="company" /></span>
@@ -218,7 +280,14 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
                     {paginated.map((app) => {
                       const href = `/reports/${app.report_id || app.id}`
                       return (
-                        <TableRow key={app.id} className="cursor-pointer hover:bg-muted/50">
+                        <TableRow key={app.id} className={`cursor-pointer hover:bg-muted/50 ${selected.has(app.id) ? 'bg-primary/5' : ''}`}>
+                          <TableCell className="px-2 py-2">
+                            <button onClick={(e) => { e.stopPropagation(); toggleSelect(app.id) }} className="flex items-center justify-center">
+                              {selected.has(app.id)
+                                ? <CheckSquare className="size-4 text-primary" />
+                                : <Square className="size-4 text-muted-foreground/30 hover:text-muted-foreground" />}
+                            </button>
+                          </TableCell>
                           <TableCell className="font-mono text-xs p-0">
                             <Link href={href} className="block px-4 py-2">{app.sequence_number}</Link>
                           </TableCell>

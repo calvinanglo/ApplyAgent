@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient, MODELS } from '@/lib/anthropic'
 import { buildCoverLetterSystemPrompt } from '@/lib/prompts/cover-letter-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
-import { CREDIT_COSTS } from '@/lib/credits'
+import { CREDIT_COSTS, getModelTier, type ModelTierId } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
-    let body: { jd_text?: string; report_id?: string; force?: boolean }
+    let body: { jd_text?: string; report_id?: string; force?: boolean; model_tier?: string }
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
 
@@ -116,9 +116,12 @@ export async function POST(request: Request) {
       }
     }
 
+    const tier = getModelTier((body.model_tier as ModelTierId) || 'fast')
+    const creditCost = tier.clCredits
+
     const { data: creditResult } = await db.rpc('deduct_credits', {
       p_user_id: user.id,
-      p_amount: CREDIT_COSTS.cover_letter,
+      p_amount: creditCost,
       p_action: 'cover_letter',
     }) as any
     if (!creditResult?.success) {
@@ -131,9 +134,9 @@ export async function POST(request: Request) {
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
     const response = await anthropic.messages.create({
-      model: MODELS.cover_letter,
+      model: tier.model,
       max_tokens: 2000,
-      system: systemPrompt,
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages: [{
         role: 'user',
         content: `Today's date is ${today}.
@@ -151,6 +154,13 @@ Write the cover letter following your instructions. Use today's date in the head
       result = jsonMatch ? JSON.parse(jsonMatch[0]) : { body_paragraphs: [text] }
     } catch {
       result = { body_paragraphs: [text] }
+    }
+
+    // Strip em dashes, en dashes, and hyphen-as-dash that the model sometimes inserts despite instructions
+    if (Array.isArray(result.body_paragraphs)) {
+      result.body_paragraphs = (result.body_paragraphs as string[]).map(p =>
+        p.replace(/\s*[—–]\s*/g, '. ').replace(/\s+-\s+/g, '. ')
+      )
     }
 
     // Save cover letter record + upload JSON to storage for re-download

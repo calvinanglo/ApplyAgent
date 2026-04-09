@@ -23,8 +23,14 @@ async function countPages(page: any, format: 'letter' | 'a4'): Promise<number> {
     margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' },
   })
   const str = Buffer.from(buf).toString('latin1')
-  const matches = str.match(/\/Type\s*\/Page[^s]/g)
-  return matches ? matches.length : 1
+  // Most reliable: find /Pages object with /Count N
+  const countMatch = str.match(/\/Type\s*\/Pages\b[^>]*\/Count\s+(\d+)/)
+  if (countMatch) return parseInt(countMatch[1], 10)
+  // Fallback: count individual /Type /Page entries (exclude /Pages, /PageLabel)
+  const pageMatches = str.match(/\/Type\s*\/Page\b(?!s|L)/g)
+  if (pageMatches) return pageMatches.length
+  // Last resort: assume more than 1 page to force shrinking
+  return 2
 }
 
 async function setFontSize(page: any, sizePx: number): Promise<void> {
@@ -112,8 +118,8 @@ export async function getPdfBuffer(html: string, format: 'letter' | 'a4' = 'lett
     await setFontSize(page, currentSize)
     let pages = await countPages(page, format)
 
-    // Step down by 0.5px until 1 page (floor at 9px for readability)
-    while (pages > 1 && currentSize > 9) {
+    // Step down by 0.5px until 1 page (floor at 8px for readability)
+    while (pages > 1 && currentSize > 8) {
       currentSize -= 0.5
       await setFontSize(page, currentSize)
       pages = await countPages(page, format)

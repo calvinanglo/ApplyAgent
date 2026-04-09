@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -180,6 +180,42 @@ const DATE_OPTIONS = [
   { value: '14d', label: 'Last 14 days' },
 ] as const
 
+const ROLE_SUGGESTIONS = [
+  // Engineering & IT
+  'Software Engineer', 'Software Developer', 'Frontend Developer', 'Backend Developer', 'Full Stack Developer',
+  'DevOps Engineer', 'Site Reliability Engineer', 'Cloud Engineer', 'Platform Engineer',
+  'Data Engineer', 'Machine Learning Engineer', 'AI Engineer', 'Data Scientist', 'Data Analyst',
+  'Infrastructure Analyst', 'Infrastructure Engineer', 'Systems Administrator', 'Network Engineer',
+  'Security Analyst', 'Security Engineer', 'Cybersecurity Analyst', 'SOC Analyst',
+  'QA Engineer', 'Test Engineer', 'Automation Engineer',
+  'Mobile Developer', 'iOS Developer', 'Android Developer',
+  'Embedded Systems Engineer', 'Firmware Engineer', 'Hardware Engineer',
+  'Database Administrator', 'Database Engineer',
+  'IT Analyst', 'IT Support Specialist', 'IT Administrator', 'IT Consultant',
+  'Solutions Architect', 'Cloud Architect', 'Enterprise Architect',
+  'Technical Support Engineer', 'Help Desk Analyst',
+  // Product & Design
+  'Product Manager', 'Product Owner', 'Product Analyst', 'Technical Product Manager',
+  'UX Designer', 'UI Designer', 'UX Researcher', 'Product Designer', 'Graphic Designer',
+  // Business & Operations
+  'Business Analyst', 'Business Intelligence Analyst', 'Operations Analyst',
+  'Project Manager', 'Program Manager', 'Scrum Master', 'Agile Coach',
+  'Management Consultant', 'Strategy Consultant', 'Technology Consultant',
+  // Finance & Accounting
+  'Financial Analyst', 'Investment Analyst', 'Risk Analyst', 'Compliance Analyst',
+  'Accountant', 'Auditor', 'Controller', 'Tax Analyst',
+  // Marketing & Sales
+  'Marketing Analyst', 'Digital Marketing Specialist', 'Content Strategist', 'SEO Specialist',
+  'Sales Representative', 'Account Executive', 'Account Manager', 'Customer Success Manager',
+  // HR & Recruiting
+  'HR Analyst', 'Recruiter', 'Talent Acquisition Specialist', 'People Operations',
+  // Supply Chain & Logistics
+  'Supply Chain Analyst', 'Logistics Coordinator', 'Procurement Analyst',
+  // Co-op & Intern
+  'Software Engineering Intern', 'Data Science Intern', 'IT Co-op', 'Engineering Co-op',
+  'Business Analyst Intern', 'Product Management Intern', 'Marketing Intern',
+]
+
 const STORAGE_KEY = 'applyagent_scan_companies'
 const FILTERS_KEY = 'applyagent_scan_filters'
 
@@ -209,20 +245,22 @@ export default function ScanPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Board search state
-  const [boardKeywords, setBoardKeywords] = useState('')
   const [boardLocation, setBoardLocation] = useState('')
   const [boardLoading, setBoardLoading] = useState(false)
   const [boardResult, setBoardResult] = useState<any>(null)
   const [boardError, setBoardError] = useState<string | null>(null)
-  const [boardSources, setBoardSources] = useState<Set<string>>(new Set(['indeed', 'linkedin']))
+  const [boardSources, setBoardSources] = useState<Set<string>>(new Set(['linkedin', 'talent', 'careerjet', 'jooble']))
   const [suggesting] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [companiesOpen, setCompaniesOpen] = useState(true)
-  const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set())
+  const [filtersOpen, setFiltersOpen] = useState(true)
+  const [companiesExpanded, setCompaniesExpanded] = useState(false)
 
   // Target roles state
   const [targetRoles, setTargetRoles] = useState<string[]>([])
   const [newRole, setNewRole] = useState('')
+  const [showRoleSuggestions, setShowRoleSuggestions] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const roleInputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
   const [userId, setUserId] = useState('')
 
   // Filter state
@@ -230,6 +268,7 @@ export default function ScanPage() {
   const [selectedArrangements, setSelectedArrangements] = useState<string[]>([])
   const [datePosted, setDatePosted] = useState('any')
   const [salaryMin, setSalaryMin] = useState('')
+  const [salaryCurrency, setSalaryCurrency] = useState('CAD')
 
   // Load saved companies + profile preferences
   useEffect(() => {
@@ -244,10 +283,14 @@ export default function ScanPage() {
           if (savedFilters) {
             try {
               const f = JSON.parse(savedFilters)
-              if (f.jobTypes) setSelectedJobTypes(f.jobTypes)
-              if (f.arrangements) setSelectedArrangements(f.arrangements)
+              if (f.jobTypes?.length) setSelectedJobTypes(f.jobTypes)
+              if (f.arrangements?.length) setSelectedArrangements(f.arrangements)
               if (f.datePosted) setDatePosted(f.datePosted)
-              if (f.boardLocation) setBoardLocation(f.boardLocation)
+              if (f.boardLocation !== undefined) setBoardLocation(f.boardLocation)
+              if (f.salaryMin !== undefined) setSalaryMin(f.salaryMin)
+              if (f.salaryCurrency) setSalaryCurrency(f.salaryCurrency)
+              if (f.targetRoles?.length) setTargetRoles(f.targetRoles)
+              if (f.boardSources?.length) setBoardSources(new Set(f.boardSources))
             } catch {}
           } else {
             // No saved scanner filters — fall back to profile defaults
@@ -255,7 +298,8 @@ export default function ScanPage() {
             if (data?.job_types?.length) setSelectedJobTypes(data.job_types)
           }
           if (data?.location && !boardLocation) setBoardLocation(data.location)
-          if (data?.target_roles?.length) setTargetRoles(data.target_roles)
+          // Only use profile target_roles if no saved scanner overrides
+          if (!savedFilters && data?.target_roles?.length) setTargetRoles(data.target_roles)
         })
     })
 
@@ -287,8 +331,12 @@ export default function ScanPage() {
       arrangements: selectedArrangements,
       datePosted,
       boardLocation,
+      salaryMin,
+      salaryCurrency,
+      targetRoles,
+      boardSources: Array.from(boardSources),
     }))
-  }, [selectedJobTypes, selectedArrangements, datePosted, boardLocation])
+  }, [selectedJobTypes, selectedArrangements, datePosted, boardLocation, salaryMin, salaryCurrency, targetRoles, boardSources])
 
   function addCompany() {
     if (!newCompanyName) return
@@ -314,7 +362,6 @@ export default function ScanPage() {
   function resetCompanies() {
     localStorage.removeItem(STORAGE_KEY)
     setCompanies([])
-    setSelectedCompanies(new Set())
     toast('Companies cleared')
   }
 
@@ -341,6 +388,7 @@ export default function ScanPage() {
             date_posted: datePosted,
             location: boardLocation.trim() || undefined,
             salary_min: salaryMin ? parseInt(salaryMin, 10) : undefined,
+            salary_currency: salaryCurrency,
           },
         }),
       })
@@ -361,12 +409,47 @@ export default function ScanPage() {
     ;(supabase as any).from('profiles').update({ target_roles: roles }).eq('id', userId).then(() => {})
   }
 
-  function addRole() {
-    const role = newRole.trim()
+  function addRole(roleOverride?: string) {
+    const role = (roleOverride ?? newRole).trim()
     if (!role || targetRoles.includes(role)) return
     saveTargetRoles([...targetRoles, role])
     setNewRole('')
+    setShowRoleSuggestions(false)
+    setHighlightedIndex(-1)
   }
+
+  const roleSuggestions = newRole.trim().length > 0
+    ? ROLE_SUGGESTIONS.filter(r =>
+        !targetRoles.includes(r) &&
+        r.toLowerCase().includes(newRole.trim().toLowerCase())
+      ).slice(0, 8)
+    : []
+
+  function handleRoleKeyDown(e: React.KeyboardEvent) {
+    if (!showRoleSuggestions || roleSuggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedIndex(i => Math.min(i + 1, roleSuggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedIndex(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+      e.preventDefault()
+      addRole(roleSuggestions[highlightedIndex])
+    }
+  }
+
+  // Close suggestions on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          roleInputRef.current && !roleInputRef.current.contains(e.target as Node)) {
+        setShowRoleSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   function removeRole(role: string) {
     saveTargetRoles(targetRoles.filter(r => r !== role))
@@ -381,7 +464,7 @@ export default function ScanPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keywords: boardKeywords,
+          keywords: targetRoles.join(', '),
           location: boardLocation,
           sources: Array.from(boardSources),
           target_roles: targetRoles,
@@ -391,6 +474,7 @@ export default function ScanPage() {
             date_posted: datePosted,
             location: boardLocation.trim() || undefined,
             salary_min: salaryMin ? parseInt(salaryMin, 10) : undefined,
+            salary_currency: salaryCurrency,
           },
         }),
       })
@@ -405,7 +489,7 @@ export default function ScanPage() {
     }
   }
 
-  const hasBoardSearch = boardKeywords.trim() && boardLocation.trim() && boardSources.size > 0
+  const hasBoardSearch = targetRoles.length > 0 && boardLocation.trim() && boardSources.size > 0
   const hasCareerPages = true // always available — scans all companies when none selected
   const creditCost = (hasBoardSearch ? 3 : 0) + (hasCareerPages ? 3 : 0)
   const canScan = hasBoardSearch || hasCareerPages
@@ -420,69 +504,14 @@ export default function ScanPage() {
       <Card>
         <CardContent className="pt-6 space-y-6">
 
-          {/* ── Target Roles ─────────────────────────────── */}
-          <div className="border rounded-lg px-4 py-3 space-y-2">
-            <p className="text-sm font-medium">Target Roles</p>
-            <div className="flex flex-wrap gap-2">
-              {targetRoles.map(role => (
-                <span key={role} className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-sm">
-                  {role}
-                  <button onClick={() => removeRole(role)} className="ml-0.5 text-muted-foreground hover:text-destructive">&times;</button>
-                </span>
-              ))}
-              {targetRoles.length === 0 && <p className="text-xs text-muted-foreground italic">No target roles — all jobs included</p>}
-            </div>
-            <form onSubmit={e => { e.preventDefault(); addRole() }} className="flex gap-2">
-              <Input placeholder="Add a role (e.g. Infrastructure Analyst)" value={newRole} onChange={e => setNewRole(e.target.value)} className="h-8 text-sm" />
-              <Button type="submit" size="sm" variant="outline" disabled={!newRole.trim()}><Plus className="size-3.5 mr-1" />Add</Button>
-            </form>
-          </div>
-
-          {/* ── Companies ───── */}
-          <div className="border rounded-lg">
-              <button onClick={() => setCompaniesOpen(!companiesOpen)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-                <p className="text-sm font-medium">Companies ({companies.length > 0 ? companies.length : 'All'})</p>
-                {companiesOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-              </button>
-              {companiesOpen && (
-                <div className="px-4 pb-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Click to toggle · {companies.length > 0 ? `${companies.length} selected` : 'none selected (scans all)'}</p>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setCompanies([...ALL_COMPANIES])}>All</Button>
-                      <Button variant="ghost" size="sm" className="text-xs h-7" onClick={resetCompanies}>None</Button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-                    {ALL_COMPANIES.map(c => {
-                      const active = companies.some(co => co.slug === c.slug)
-                      return (
-                        <button key={c.slug} onClick={() => {
-                          if (active) setCompanies(prev => prev.filter(co => co.slug !== c.slug))
-                          else setCompanies(prev => [...prev, c])
-                        }}
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-input text-muted-foreground'}`}>
-                          {c.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input placeholder="Add custom company" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCompany() } }} className="flex-1 h-8 text-sm" />
-                    <Button type="button" size="sm" variant="outline" onClick={addCompany}><Plus className="size-4" /></Button>
-                  </div>
-                </div>
-              )}
-          </div>
-
-          {/* ── Filters ──────────────────────────────────── */}
+          {/* ── Filters (unified) ──────────────────────────────────── */}
           <div className="border rounded-lg">
             <button onClick={() => setFiltersOpen(!filtersOpen)} className="w-full flex items-center justify-between px-4 py-3 text-left">
               <div>
                 <p className="text-sm font-medium">Filters</p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || salaryMin || boardKeywords.trim() || boardLocation.trim()
-                    ? `${[boardKeywords.trim(), boardLocation.trim(), ...selectedJobTypes, ...selectedArrangements, datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '', salaryMin ? `$${parseInt(salaryMin).toLocaleString()}+` : ''].filter(Boolean).join(', ')}`
+                  {targetRoles.length || companies.length || selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || salaryMin || boardLocation.trim()
+                    ? `${[targetRoles.join(', '), companies.length > 0 ? `${companies.length} companies` : '', boardLocation.trim(), ...selectedJobTypes, ...selectedArrangements, datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '', salaryMin ? `$${parseInt(salaryMin).toLocaleString()}+` : ''].filter(Boolean).join(', ')}`
                     : 'No filters applied'}
                 </p>
               </div>
@@ -490,18 +519,105 @@ export default function ScanPage() {
             </button>
             {filtersOpen && (
               <div className="px-4 pb-4 space-y-4">
-                {boardSources.size > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Keywords</label>
-                      <Input placeholder="e.g. Infrastructure Analyst, Cloud Engineer" value={boardKeywords} onChange={e => setBoardKeywords(e.target.value)} />
+                {/* Target Roles */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block">Target Roles / Keywords</label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {targetRoles.map(role => (
+                      <span key={role} className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-medium">
+                        {role}
+                        <button onClick={() => removeRole(role)} className="ml-0.5 text-muted-foreground hover:text-destructive">&times;</button>
+                      </span>
+                    ))}
+                    {targetRoles.length === 0 && <span className="text-xs text-muted-foreground italic">No target roles — all jobs included</span>}
+                  </div>
+                  <form onSubmit={e => { e.preventDefault(); addRole() }} className="flex gap-2 relative">
+                    <div className="relative flex-1">
+                      <Input
+                        ref={roleInputRef}
+                        placeholder="Add a role (e.g. Infrastructure Analyst)"
+                        value={newRole}
+                        onChange={e => { setNewRole(e.target.value); setShowRoleSuggestions(true); setHighlightedIndex(-1) }}
+                        onFocus={() => setShowRoleSuggestions(true)}
+                        onKeyDown={handleRoleKeyDown}
+                        className="h-8 text-sm"
+                        autoComplete="off"
+                      />
+                      {showRoleSuggestions && roleSuggestions.length > 0 && (
+                        <div ref={suggestionsRef} className="absolute z-50 top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
+                          {roleSuggestions.map((role, i) => (
+                            <button
+                              key={role}
+                              type="button"
+                              className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors ${i === highlightedIndex ? 'bg-muted' : ''}`}
+                              onMouseDown={(e) => { e.preventDefault(); addRole(role) }}
+                            >
+                              {role}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Location</label>
-                      <LocationCombobox value={boardLocation} onChange={setBoardLocation} />
+                    <Button type="submit" size="sm" variant="outline" disabled={!newRole.trim()}><Plus className="size-3.5 mr-1" />Add</Button>
+                  </form>
+                </div>
+
+                {/* Companies */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-muted-foreground">Companies ({companies.length > 0 ? companies.length : 'All'})</label>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setCompanies([...ALL_COMPANIES])}>All</Button>
+                      <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={resetCompanies}>None</Button>
+                      <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setCompaniesExpanded(!companiesExpanded)}>
+                        {companiesExpanded ? 'Collapse' : 'Expand'}
+                      </Button>
                     </div>
                   </div>
-                )}
+                  {companies.length > 0 && !companiesExpanded && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {companies.map(c => (
+                        <span key={c.slug} className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-medium">
+                          {c.name}
+                          <button onClick={() => setCompanies(prev => prev.filter(co => co.slug !== c.slug))} className="ml-0.5 text-muted-foreground hover:text-destructive">&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {companies.length === 0 && !companiesExpanded && (
+                    <p className="text-xs text-muted-foreground italic mb-2">No companies selected — scans all {ALL_COMPANIES.length}</p>
+                  )}
+                  {companiesExpanded && (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                        {ALL_COMPANIES.map(c => {
+                          const active = companies.some(co => co.slug === c.slug)
+                          return (
+                            <button key={c.slug} onClick={() => {
+                              if (active) setCompanies(prev => prev.filter(co => co.slug !== c.slug))
+                              else setCompanies(prev => [...prev, c])
+                            }}
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-input text-muted-foreground'}`}>
+                              {c.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input placeholder="Add custom company" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCompany() } }} className="flex-1 h-8 text-sm" />
+                        <Button type="button" size="sm" variant="outline" onClick={addCompany}><Plus className="size-4" /></Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block">Location</label>
+                  <LocationCombobox value={boardLocation} onChange={setBoardLocation} />
+                </div>
+
+                {/* Job Type */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-2 block">Job Type</label>
                   <div className="flex flex-wrap gap-2">
@@ -511,6 +627,8 @@ export default function ScanPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Work Arrangement */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-2 block">Work Arrangement</label>
                   <div className="flex flex-wrap gap-2">
@@ -520,6 +638,8 @@ export default function ScanPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Date Posted */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-2 block">Date Posted</label>
                   <div className="flex flex-wrap gap-2">
@@ -529,12 +649,38 @@ export default function ScanPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Salary */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-2 block">Minimum salary ($/year)</label>
-                  <Input type="number" placeholder="e.g. 80000" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} className="h-9 text-sm" />
+                  <div className="flex items-center gap-3 mb-2">
+                    <label className="text-xs font-medium text-muted-foreground">Minimum Salary (annual)</label>
+                    <select value={salaryCurrency} onChange={e => setSalaryCurrency(e.target.value)}
+                      className="h-7 rounded-md border bg-background px-2 text-xs">
+                      <option value="CAD">CAD $</option>
+                      <option value="USD">USD $</option>
+                      <option value="EUR">EUR €</option>
+                      <option value="GBP">GBP £</option>
+                      <option value="AUD">AUD $</option>
+                      <option value="CHF">CHF</option>
+                      <option value="INR">INR ₹</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {['40000', '50000', '60000', '70000', '80000', '100000', '120000', '150000'].map(val => {
+                      const sym = salaryCurrency === 'EUR' ? '€' : salaryCurrency === 'GBP' ? '£' : salaryCurrency === 'INR' ? '₹' : '$'
+                      return (
+                        <button key={val} onClick={() => setSalaryMin(salaryMin === val ? '' : val)}
+                          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${salaryMin === val ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-border'}`}>
+                          {sym}{parseInt(val).toLocaleString()}+
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <Input type="number" placeholder="Or enter custom amount" value={!['40000', '50000', '60000', '70000', '80000', '100000', '120000', '150000'].includes(salaryMin) ? salaryMin : ''} onChange={e => setSalaryMin(e.target.value)} className="h-8 text-sm" />
                 </div>
-                {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || salaryMin || boardKeywords.trim() || boardLocation.trim()) && (
-                  <Button variant="ghost" size="sm" onClick={() => { setBoardKeywords(''); setBoardLocation(''); setSelectedJobTypes([]); setSelectedArrangements([]); setDatePosted('any'); setSalaryMin('') }} className="text-xs">Clear all filters</Button>
+
+                {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || salaryMin || boardLocation.trim() || companies.length > 0) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setBoardLocation(''); setSelectedJobTypes([]); setSelectedArrangements([]); setDatePosted('any'); setSalaryMin(''); resetCompanies() }} className="text-xs">Clear all filters</Button>
                 )}
               </div>
             )}
@@ -602,8 +748,10 @@ export default function ScanPage() {
               </div>
               {sourceStats && (
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  {sourceStats.indeed && <span>Indeed: {sourceStats.indeed.found}{sourceStats.indeed.error ? ' (error)' : ''}</span>}
                   {sourceStats.linkedin && <span>LinkedIn: {sourceStats.linkedin.found}{sourceStats.linkedin.error ? ' (error)' : ''}</span>}
+                  {sourceStats.talent && <span>Talent.com: {sourceStats.talent.found}{sourceStats.talent.error ? ' (error)' : ''}</span>}
+                  {sourceStats.careerjet && <span>CareerJet: {sourceStats.careerjet.found}{sourceStats.careerjet.error ? ' (error)' : ''}</span>}
+                  {sourceStats.jooble && <span>Jooble: {sourceStats.jooble.found}{sourceStats.jooble.error ? ' (error)' : ''}</span>}
                 </div>
               )}
               {stats.skipped_title > 0 && <p className="text-xs text-muted-foreground">{stats.skipped_title} didn't match your target roles</p>}

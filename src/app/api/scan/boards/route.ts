@@ -1,13 +1,15 @@
 /**
- * Job Board Search API — searches Indeed and LinkedIn for jobs by keyword.
+ * Job Board Search API — searches LinkedIn, Talent.com, CareerJet, Google, and Jooble.
  * Separate from the ATS portal scanner (/api/scan) which scans company career pages.
  */
 
 import { createClient } from '@/lib/supabase/server'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
-import { scrapeIndeed } from '@/lib/scrapers/indeed'
 import { scrapeLinkedIn } from '@/lib/scrapers/linkedin'
+import { scrapeTalent } from '@/lib/scrapers/talent'
+import { scrapeCareerJet } from '@/lib/scrapers/careerjet'
+import { scrapeJooble } from '@/lib/scrapers/jooble'
 import {
   type ScannedJob,
   titleMatches,
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
     let body: {
       keywords: string
       location: string
-      sources?: ('indeed' | 'linkedin')[]
+      sources?: ('linkedin' | 'talent' | 'careerjet' | 'jooble')[]
       target_roles?: string[]
       filters?: {
         job_types?: string[]
@@ -41,6 +43,7 @@ export async function POST(request: Request) {
         date_posted?: string
         location?: string
         salary_min?: number
+        salary_currency?: string
       }
     }
     try { body = await request.json() }
@@ -79,25 +82,24 @@ export async function POST(request: Request) {
     const existingApps = existingAppsRes.data || []
 
     // Run scrapers in parallel
-    const sources = body.sources || ['indeed', 'linkedin']
-    const sourceStats: Record<string, { found: number; error: boolean }> = {
-      indeed: { found: 0, error: false },
-      linkedin: { found: 0, error: false },
+    const sources = body.sources || ['linkedin', 'talent', 'careerjet', 'jooble']
+    const sourceStats: Record<string, { found: number; error: boolean }> = {}
+
+    const scraperMap: Record<string, (p: { keywords: string; location: string }) => Promise<ScannedJob[]>> = {
+      linkedin: scrapeLinkedIn,
+      talent: scrapeTalent,
+      careerjet: scrapeCareerJet,
+      jooble: scrapeJooble,
     }
 
     const promises: Promise<{ source: string; jobs: ScannedJob[] }>[] = []
-    if (sources.includes('indeed')) {
+    for (const src of sources) {
+      const scraper = scraperMap[src]
+      if (!scraper) continue
       promises.push(
-        scrapeIndeed({ keywords: body.keywords, location: body.location })
-          .then(jobs => { sourceStats.indeed = { found: jobs.length, error: false }; return { source: 'indeed', jobs } })
-          .catch(() => { sourceStats.indeed = { found: 0, error: true }; return { source: 'indeed', jobs: [] } })
-      )
-    }
-    if (sources.includes('linkedin')) {
-      promises.push(
-        scrapeLinkedIn({ keywords: body.keywords, location: body.location })
-          .then(jobs => { sourceStats.linkedin = { found: jobs.length, error: false }; return { source: 'linkedin', jobs } })
-          .catch(() => { sourceStats.linkedin = { found: 0, error: true }; return { source: 'linkedin', jobs: [] } })
+        scraper({ keywords: body.keywords, location: body.location })
+          .then(jobs => { sourceStats[src] = { found: jobs.length, error: false }; return { source: src, jobs } })
+          .catch(() => { sourceStats[src] = { found: 0, error: true }; return { source: src, jobs: [] } })
       )
     }
 
@@ -155,7 +157,7 @@ export async function POST(request: Request) {
     }
     if (body.filters?.salary_min) {
       const before = filtered.length
-      filtered = filterBySalary(filtered, body.filters.salary_min)
+      filtered = filterBySalary(filtered, body.filters.salary_min, body.filters.salary_currency || 'CAD')
       skippedFilters += before - filtered.length
     }
 

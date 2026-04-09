@@ -7,7 +7,7 @@
  */
 
 import * as cheerio from 'cheerio'
-import { ScannedJob, getRandomUserAgent, delay, cleanText, detectJobType, detectWorkArrangement } from './types'
+import { ScannedJob, getRandomUserAgent, delay, cleanText, detectJobType, detectWorkArrangement, parseSalary } from './types'
 
 const API_URL = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
 const MAX_PAGES = 2
@@ -113,7 +113,8 @@ function parseLinkedInCard($: cheerio.CheerioAPI, card: cheerio.Cheerio<any>): S
 
   // ── Salary ─────────────────────────────────────────
   const salaryEl = card.find('span.job-search-card__salary-info').first()
-  const salary = cleanText(salaryEl.text())
+  const salaryText = cleanText(salaryEl.text()) || null
+  const parsed = parseSalary(salaryText || '')
 
   // ── Remote badge ───────────────────────────────────
   const benefitsEl = card.find('span.result-benefits__text').first()
@@ -131,5 +132,9 @@ function parseLinkedInCard($: cheerio.CheerioAPI, card: cheerio.Cheerio<any>): S
     posted_at,
     job_type: detectJobType(title),
     work_arrangement: remoteFromBadge || detectWorkArrangement(title, location),
+    salary: salaryText,
+    salary_min: parsed.salary_min,
+    salary_max: parsed.salary_max,
+    salary_currency: parsed.salary_currency,
   }
 }

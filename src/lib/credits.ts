@@ -15,10 +15,22 @@ export const CREDIT_COSTS = {
 
 export type CreditAction = keyof typeof CREDIT_COSTS
 
+export const MODEL_TIERS = [
+  { id: 'fast', label: 'Fast', sublabel: 'Haiku 4.5', model: 'claude-haiku-4-5-20251001', pdfCredits: 3, clCredits: 3 },
+  { id: 'balanced', label: 'Balanced', sublabel: 'Sonnet 4', model: 'claude-sonnet-4-20250514', pdfCredits: 8, clCredits: 8 },
+  { id: 'premium', label: 'Premium', sublabel: 'Opus 4', model: 'claude-opus-4-20250514', pdfCredits: 35, clCredits: 35 },
+] as const
+
+export type ModelTierId = typeof MODEL_TIERS[number]['id']
+
+export function getModelTier(id: ModelTierId) {
+  return MODEL_TIERS.find(t => t.id === id) || MODEL_TIERS[0]
+}
+
 export const CREDIT_PACKS = [
-  { id: 'starter', name: 'Starter', credits: 100, price: 900, priceDisplay: '$9' },
-  { id: 'professional', name: 'Professional', credits: 300, price: 2500, priceDisplay: '$25' },
-  { id: 'power_user', name: 'Power User', credits: 500, price: 4900, priceDisplay: '$49' },
+  { id: 'starter', name: 'Starter', credits: 100, price: 999, priceDisplay: '$9.99', badge: null },
+  { id: 'professional', name: 'Professional', credits: 300, price: 2499, priceDisplay: '$24.99', badge: 'Popular' },
+  { id: 'power_user', name: 'Power User', credits: 600, price: 4500, priceDisplay: '$45', badge: 'Best Value' },
 ] as const
 
 export const SUBSCRIPTION_PLANS = [

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { getAnthropicClient, MODELS } from '@/lib/anthropic'
 import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
         const response = await anthropic.messages.create({
           model: MODELS.evaluation,
           max_tokens: 8000,
-          system: systemPrompt,
+          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [
             {
               role: 'user',
@@ -182,7 +183,9 @@ export async function POST(request: Request) {
               tags: [evaluation.archetype || archetype.name, company].filter(Boolean) as string[],
               source_report_id: report.id,
             }))
-            await db.from('story_bank').insert(storyRows)
+            const adminDb = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+            const { error: storyError } = await adminDb.from('story_bank').insert(storyRows)
+            if (storyError) console.error('Story bank insert failed:', storyError.message)
           }
         }
 

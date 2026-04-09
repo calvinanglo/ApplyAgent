@@ -4,7 +4,7 @@ import { buildPdfSystemPrompt } from '@/lib/prompts/pdf-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { buildResumeHtml, type PdfContent } from '@/lib/pdf/generator'
 import { getPdfBuffer } from '@/lib/pdf/chromium'
-import { CREDIT_COSTS } from '@/lib/credits'
+import { CREDIT_COSTS, getModelTier, type ModelTierId } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 60
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
-    let body: { jd_text?: string; report_id?: string; force?: boolean }
+    let body: { jd_text?: string; report_id?: string; force?: boolean; model_tier?: string }
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
 
@@ -102,9 +102,12 @@ export async function POST(request: Request) {
       if (report?.keywords) reportKeywords = report.keywords
     }
 
+    const tier = getModelTier((body.model_tier as ModelTierId) || 'fast')
+    const creditCost = tier.pdfCredits
+
     const { data: creditResult } = await db.rpc('deduct_credits', {
       p_user_id: user.id,
-      p_amount: CREDIT_COSTS.pdf,
+      p_amount: creditCost,
       p_action: 'pdf',
     }) as any
     if (!creditResult?.success) return Response.json({ error: creditResult?.error || 'Insufficient credits' }, { status: 402 })
@@ -143,9 +146,9 @@ export async function POST(request: Request) {
 
     // Generate tailored CV content via Claude
     const response = await anthropic.messages.create({
-      model: MODELS.pdf,
+      model: tier.model,
       max_tokens: 8000,
-      system: systemPrompt,
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     })
 

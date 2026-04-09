@@ -58,6 +58,9 @@ export default function PipelinePage() {
   const cancelRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
 
+  const processingRef = useRef(false) // tracks whether a batch loop is actively running
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const loadItems = useCallback(async () => {
     try {
       const res = await fetch('/api/pipeline?status=all&limit=200')
@@ -72,6 +75,27 @@ export default function PipelinePage() {
 
   useEffect(() => {
     loadItems()
+  }, [loadItems])
+
+  // Poll for updates while processing is active (keeps progress alive when tab is hidden)
+  useEffect(() => {
+    if (processingRef.current && !pollRef.current) {
+      pollRef.current = setInterval(() => { loadItems() }, 5000)
+    }
+    return () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    }
+  }, [loadItems])
+
+  // Refresh items when tab becomes visible again
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        loadItems()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [loadItems])
 
   async function handleAddUrl(e: React.FormEvent) {
@@ -142,9 +166,15 @@ export default function PipelinePage() {
   async function handleProcessAll() {
     const pending = items.filter(i => i.status === 'pending')
     cancelRef.current = false
+    processingRef.current = true
     let completed = 0
     let stopped = false
     setProcessProgress({ current: 0, total: pending.length })
+
+    // Start polling for server-side progress
+    if (!pollRef.current) {
+      pollRef.current = setInterval(() => { loadItems() }, 5000)
+    }
 
     // Mark all as processing optimistically
     setItems(prev => prev.map(it =>
@@ -168,6 +198,7 @@ export default function PipelinePage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pipeline_item_id: item.id }),
             signal: controller.signal,
+            keepalive: true,
           })
           // Update progress as each item completes
           completed++
@@ -200,6 +231,8 @@ export default function PipelinePage() {
     }
 
     abortRef.current = null
+    processingRef.current = false
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
     setProcessProgress(null)
   }
 
@@ -217,10 +250,16 @@ export default function PipelinePage() {
     const selected = items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || errorItems.some(e => e.id === i.id)))
     if (!selected.length) { toast('No items to process'); return }
     cancelRef.current = false
+    processingRef.current = true
     let completed = 0
     let stopped = false
     setProcessProgress({ current: 0, total: selected.length })
     setSelectedItems(new Set())
+
+    // Start polling for server-side progress
+    if (!pollRef.current) {
+      pollRef.current = setInterval(() => { loadItems() }, 5000)
+    }
 
     setItems(prev => prev.map(it =>
       selected.some(s => s.id === it.id) ? { ...it, status: 'processing' as const } : it
@@ -241,6 +280,7 @@ export default function PipelinePage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pipeline_item_id: item.id }),
             signal: controller.signal,
+            keepalive: true,
           })
           completed++
           setProcessProgress({ current: Math.min(completed, selected.length), total: selected.length })
@@ -267,6 +307,8 @@ export default function PipelinePage() {
       await loadItems()
     }
     abortRef.current = null
+    processingRef.current = false
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
     setProcessProgress(null)
     setSelectedItems(new Set())
   }

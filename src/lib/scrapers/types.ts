@@ -12,6 +12,10 @@ export interface ScannedJob {
   posted_at: string | null
   job_type: string | null
   work_arrangement: string | null
+  salary: string | null // raw salary text (e.g. "$80,000 - $120,000/yr", "€50K–€70K")
+  salary_min: number | null // parsed minimum annual salary in original currency
+  salary_max: number | null // parsed maximum annual salary in original currency
+  salary_currency: string | null // ISO currency code (CAD, USD, EUR, GBP, etc.)
 }
 
 // ── Title filtering ──────────────────────────────────────────
@@ -78,15 +82,33 @@ export function filterByWorkArrangement(jobs: ScannedJob[], arrangements: string
   })
 }
 
-export function filterBySalary(jobs: ScannedJob[], minSalary: number): ScannedJob[] {
+// Approximate exchange rates to USD for salary comparison
+const TO_USD: Record<string, number> = {
+  USD: 1, CAD: 0.73, EUR: 1.09, GBP: 1.27, AUD: 0.65, INR: 0.012, CHF: 1.13, JPY: 0.0067,
+}
+
+export function filterBySalary(jobs: ScannedJob[], minSalary: number, currency: string = 'CAD'): ScannedJob[] {
   if (!minSalary) return jobs
+  const filterRate = TO_USD[currency] || 1
+  const filterUsd = minSalary * filterRate
+
   return jobs.filter(job => {
-    // No salary info → include (don't exclude unknowns)
-    const title = `${job.title} ${job.location || ''}`.toLowerCase()
-    // Extract salary numbers from title/location if present
-    const nums = title.match(/\$\s*([\d,]+)/g)
+    // Use parsed salary data if available
+    if (job.salary_max != null) {
+      const jobRate = TO_USD[job.salary_currency || 'CAD'] || 1
+      const jobUsd = job.salary_max * jobRate
+      return jobUsd >= filterUsd
+    }
+    if (job.salary_min != null) {
+      const jobRate = TO_USD[job.salary_currency || 'CAD'] || 1
+      const jobUsd = job.salary_min * jobRate
+      return jobUsd >= filterUsd
+    }
+    // Fallback: try to parse from salary text or title
+    const text = `${job.salary || ''} ${job.title} ${job.location || ''}`
+    const nums = text.match(/[\$€£]\s*([\d,]+)/g)
     if (!nums) return true // no salary info, include
-    const amounts = nums.map(n => parseInt(n.replace(/[$,\s]/g, ''), 10)).filter(a => a > 1000) // filter out hourly
+    const amounts = nums.map(n => parseInt(n.replace(/[^0-9]/g, ''), 10)).filter(a => a > 1000)
     if (!amounts.length) return true
     return Math.max(...amounts) >= minSalary
   })
@@ -105,6 +127,63 @@ export function filterByLocation(jobs: ScannedJob[], location: string): ScannedJ
       return pattern.test(loc)
     })
   })
+}
+
+// ── Salary parsing ──────────────────────────────────────────
+
+const CURRENCY_MAP: Record<string, string> = {
+  '$': 'CAD', 'CA$': 'CAD', 'C$': 'CAD', 'CAD': 'CAD',
+  'US$': 'USD', 'USD': 'USD',
+  '€': 'EUR', 'EUR': 'EUR',
+  '£': 'GBP', 'GBP': 'GBP',
+  'A$': 'AUD', 'AU$': 'AUD', 'AUD': 'AUD',
+  '₹': 'INR', 'INR': 'INR',
+  'CHF': 'CHF', 'Fr': 'CHF',
+}
+
+/**
+ * Parse salary text into structured data.
+ * Handles: "$80,000 - $120,000/yr", "CA$60K-80K", "€50,000", "80000", "$25/hr" etc.
+ * Defaults to CAD for Canadian job boards.
+ */
+export function parseSalary(text: string, defaultCurrency: string = 'CAD'): {
+  salary_min: number | null
+  salary_max: number | null
+  salary_currency: string
+} {
+  if (!text) return { salary_min: null, salary_max: null, salary_currency: defaultCurrency }
+
+  // Detect currency
+  let currency = defaultCurrency
+  for (const [symbol, code] of Object.entries(CURRENCY_MAP)) {
+    if (text.includes(symbol)) { currency = code; break }
+  }
+
+  // Extract numbers
+  const cleaned = text.replace(/[,$€£₹]/g, '').replace(/\s+/g, ' ')
+  const numbers: number[] = []
+  const numMatches = cleaned.matchAll(/([\d.]+)\s*[kK]?/g)
+  for (const m of numMatches) {
+    let val = parseFloat(m[1])
+    if (m[0].toLowerCase().includes('k')) val *= 1000
+    if (val > 0) numbers.push(val)
+  }
+
+  if (!numbers.length) return { salary_min: null, salary_max: null, salary_currency: currency }
+
+  // Detect hourly and annualize (assuming 40h/week, 52 weeks)
+  const isHourly = /\b(hr|hour|hourly|\/h)\b/i.test(text)
+  const factor = isHourly ? 2080 : 1
+
+  // Filter out unreasonably small/large numbers
+  const annualized = numbers.map(n => n * factor).filter(n => n >= 10000 && n <= 1000000)
+  if (!annualized.length) return { salary_min: null, salary_max: null, salary_currency: currency }
+
+  return {
+    salary_min: Math.min(...annualized),
+    salary_max: Math.max(...annualized),
+    salary_currency: currency,
+  }
 }
 
 // ── HTTP utilities ───────────────────────────────────────────

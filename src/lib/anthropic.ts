@@ -11,6 +11,6 @@ export function getAnthropicClient(): Anthropic {
 export const MODELS = {
   evaluation: 'claude-sonnet-4-20250514',
   pdf: 'claude-sonnet-4-20250514',
-  cover_letter: 'claude-sonnet-4-20250514',
+  cover_letter: 'claude-haiku-4-5-20251001',
   quick: 'claude-haiku-4-5-20251001',
 } as const

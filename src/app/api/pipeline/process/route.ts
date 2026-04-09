@@ -308,7 +308,7 @@ export async function POST(request: Request) {
     const response = await anthropic.messages.create({
       model: MODELS.evaluation,
       max_tokens: 8000,
-      system: systemPrompt,
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages: [{
         role: 'user',
         content: `Evaluate this job description:\n\n${jdText}`,

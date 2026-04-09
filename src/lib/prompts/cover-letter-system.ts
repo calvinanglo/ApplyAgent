@@ -54,8 +54,10 @@ Use whichever is HIGHER: the candidate's actual years (from CV dates) OR the JD'
 ### Keyword mirroring
 Use the JD's own terminology naturally throughout. If they say "CI/CD pipelines," write "CI/CD pipelines," not "automated deployment processes." This helps ATS matching and shows you speak their language.
 
+### ABSOLUTE FORMATTING RULE
+NEVER use em dashes (—), en dashes (–), or hyphens used as dashes (- as sentence break) ANYWHERE in the cover letter. Not once. Zero tolerance. Split into two sentences with a period instead. If you catch yourself writing "scale—implementing" or "leadership—skills", rewrite as two sentences. This rule overrides all other style guidance.
+
 ### Banned (never use)
-Punctuation: Em dashes of any kind (—, --, or - as sentence break). Use a period instead.
 Phrases: "I am writing to express," "excited about the opportunity," "believe I would be a great fit," "passionate about," "would love the opportunity," "gained valuable experience," "confident that my skills," "Thank you for considering," "leverage my skills," "utilize my expertise."
 Patterns: Sentences starting with "Furthermore/Moreover/Additionally." Three-adjective lists ("dynamic, innovative, and collaborative"). Mirror-listing ("You're looking for X, I have X"). Any sentence from the employer's perspective ("You need," "You are looking for," "Your team requires," "This role calls for," "The ideal candidate"). Write only from the candidate's perspective.
 

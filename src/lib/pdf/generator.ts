@@ -103,8 +103,8 @@ export function buildResumeHtml(content: PdfContent): string {
     </ul>
   </div>`).join('\n')
 
-  // Build projects HTML — only render section if projects exist
-  const hasProjects = (content.projects || []).length > 0
+  // Skip Projects section entirely if GitHub Projects exists (avoids duplication)
+  const hasProjects = !hasGithubProjects && (content.projects || []).length > 0
   const projectsHtml = hasProjects
     ? (content.projects || []).map(p => `
   <div class="project">

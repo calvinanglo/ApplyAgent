@@ -371,9 +371,9 @@ export default function BillingPage() {
         {billingTab === 'packs' && (
           <div className="grid gap-4 md:grid-cols-3">
             {CREDIT_PACKS.map((pack) => (
-              <Card key={pack.id} className={`relative overflow-visible ${pack.id === 'professional' ? 'border-primary' : ''}`}>
-                {pack.id === 'professional' && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Best Value</Badge>
+              <Card key={pack.id} className={`relative overflow-visible ${pack.badge ? 'border-primary' : ''}`}>
+                {pack.badge && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">{pack.badge}</Badge>
                 )}
                 <CardHeader>
                   <CardTitle>{pack.name}</CardTitle>
@@ -386,7 +386,7 @@ export default function BillingPage() {
                   </p>
                   <Button
                     className="w-full"
-                    variant={pack.id === 'professional' ? 'default' : 'outline'}
+                    variant={pack.badge ? 'default' : 'outline'}
                     onClick={() => handlePurchasePack(pack.id)}
                     disabled={purchasing !== null}
                   >

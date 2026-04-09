@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { FileUpload } from '@/components/ui/file-upload'
 import { LocationSelect } from '@/components/location-select'
 import { useRouter } from 'next/navigation'
+import { useNavigationBlocker } from '@/components/navigation-blocker'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false)
   const [isOAuthOnly, setIsOAuthOnly] = useState(false)
   const router = useRouter()
+  const { setBlocked } = useNavigationBlocker()
 
   const [profile, setProfile] = useState({
     full_name: '',
@@ -49,6 +51,36 @@ export default function SettingsPage() {
 
   const [previousProfile, setPreviousProfile] = useState<typeof profile | null>(null)
   const [previousTargetRoles, setPreviousTargetRoles] = useState('')
+
+  // Dirty tracking — snapshot of last-saved state
+  const savedProfileRef = useRef('')
+  const savedCvRef = useRef('')
+
+  const isDirty = useCallback(() => {
+    const currentSnapshot = JSON.stringify({ profile, cvContent })
+    return savedProfileRef.current !== '' && currentSnapshot !== savedProfileRef.current
+  }, [profile, cvContent])
+
+  // Warn on browser navigation / tab close
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirty()) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
+  // Block in-app navigation when dirty
+  useEffect(() => {
+    setBlocked(isDirty())
+  }, [isDirty, setBlocked])
+
+  // Unblock on unmount
+  useEffect(() => {
+    return () => setBlocked(false)
+  }, [setBlocked])
 
   // Auto-fill profile fields from CV text
   function autofillFromCv(text: string) {
@@ -132,7 +164,11 @@ export default function SettingsPage() {
       setProfile(profileRes.data)
       setTargetRolesText((profileRes.data.target_roles || []).join(', '))
     }
-    if (cvRes.data) setCvContent(cvRes.data.content)
+    const loadedCv = cvRes.data?.content || ''
+    if (loadedCv) setCvContent(loadedCv)
+    // Snapshot initial state for dirty tracking
+    savedProfileRef.current = JSON.stringify({ profile: profileRes.data || profile, cvContent: loadedCv })
+    savedCvRef.current = loadedCv
     setLoading(false)
   }
 
@@ -175,6 +211,8 @@ export default function SettingsPage() {
       }
     }
 
+    // Update dirty-tracking snapshot
+    savedProfileRef.current = JSON.stringify({ profile: { ...profile, target_roles: targetRoles }, cvContent })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -350,178 +388,6 @@ export default function SettingsPage() {
                 maxLength={500}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Target Roles</Label>
-            <div className="flex flex-wrap gap-1.5 min-h-[38px] rounded-md border border-input bg-background px-3 py-2">
-              {targetRolesText.split(',').map(r => r.trim()).filter(Boolean).map((role, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-sm">
-                  {role}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const roles = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
-                      roles.splice(i, 1)
-                      setTargetRolesText(roles.join(', '))
-                    }}
-                    className="ml-0.5 text-muted-foreground hover:text-foreground"
-                  >
-                    &times;
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                id="role-input"
-                placeholder="Type a role title..."
-                className="flex-1"
-                onKeyDown={(e) => {
-                  const val = e.currentTarget.value.trim()
-                  if ((e.key === 'Enter' || e.key === ',') && val) {
-                    e.preventDefault()
-                    const existing = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
-                    if (!existing.includes(val)) {
-                      setTargetRolesText([...existing, val].join(', '))
-                    }
-                    e.currentTarget.value = ''
-                  }
-                  if (e.key === 'Backspace' && !e.currentTarget.value) {
-                    const existing = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
-                    if (existing.length) {
-                      existing.pop()
-                      setTargetRolesText(existing.join(', '))
-                    }
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={() => {
-                const input = document.getElementById('role-input') as HTMLInputElement
-                const val = input?.value?.trim()
-                if (!val) return
-                const existing = targetRolesText.split(',').map(r => r.trim()).filter(Boolean)
-                if (!existing.includes(val)) {
-                  setTargetRolesText([...existing, val].join(', '))
-                }
-                input.value = ''
-                input.focus()
-              }}>
-                Add
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">Used by the scanner to filter matching jobs. Leave empty to include all jobs.</p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Pay Type</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={(profile as any).salary_type || 'annual'}
-                onChange={(e) => setProfile({ ...profile, salary_type: e.target.value } as any)}
-              >
-                <option value="annual">Annual Salary</option>
-                <option value="hourly">Hourly Rate</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Min {(profile as any).salary_type === 'hourly' ? 'Rate' : 'Salary'}</Label>
-              <Input
-                type="number"
-                placeholder={(profile as any).salary_type === 'hourly' ? 'e.g. 35' : 'e.g. 70000'}
-                value={profile.salary_min || ''}
-                onChange={(e) => setProfile({ ...profile, salary_min: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Max {(profile as any).salary_type === 'hourly' ? 'Rate' : 'Salary'}</Label>
-              <Input
-                type="number"
-                placeholder={(profile as any).salary_type === 'hourly' ? 'e.g. 55' : 'e.g. 100000'}
-                value={profile.salary_max || ''}
-                onChange={(e) => setProfile({ ...profile, salary_max: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={profile.salary_currency || 'CAD'}
-                onChange={(e) => setProfile({ ...profile, salary_currency: e.target.value })}
-              >
-                <option value="CAD">CAD — Canadian Dollar</option>
-                <option value="USD">USD — US Dollar</option>
-                <option value="GBP">GBP — British Pound</option>
-                <option value="AUD">AUD — Australian Dollar</option>
-                <option value="NZD">NZD — New Zealand Dollar</option>
-                <option value="EUR">EUR — Euro</option>
-                <option value="INR">INR — Indian Rupee</option>
-                <option value="SGD">SGD — Singapore Dollar</option>
-                <option value="HKD">HKD — Hong Kong Dollar</option>
-                <option value="ZAR">ZAR — South African Rand</option>
-                <option value="AED">AED — UAE Dirham</option>
-                <option value="PHP">PHP — Philippine Peso</option>
-                <option value="NGN">NGN — Nigerian Naira</option>
-                <option value="KES">KES — Kenyan Shilling</option>
-                <option value="JMD">JMD — Jamaican Dollar</option>
-                <option value="TTD">TTD — Trinidad Dollar</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Work Arrangement</Label>
-            <div className="flex flex-wrap gap-2">
-              {['Remote', 'Hybrid', 'On-site'].map(opt => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => {
-                    const arr = profile.work_arrangement || []
-                    setProfile({
-                      ...profile,
-                      work_arrangement: arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt],
-                    })
-                  }}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium border transition-colors ${
-                    (profile.work_arrangement || []).includes(opt)
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background hover:bg-muted border-input'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">Pre-fills scanner filters — scanner overrides are saved separately</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Job Type</Label>
-            <div className="flex flex-wrap gap-2">
-              {['Full-time', 'Part-time', 'Contract', 'Temporary', 'Permanent', 'Fixed Term'].map(opt => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => {
-                    const arr = profile.job_types || []
-                    setProfile({
-                      ...profile,
-                      job_types: arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt],
-                    })
-                  }}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium border transition-colors ${
-                    (profile.job_types || []).includes(opt)
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background hover:bg-muted border-input'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">Pre-fills scanner filters — scanner overrides are saved separately</p>
           </div>
 
         </CardContent>

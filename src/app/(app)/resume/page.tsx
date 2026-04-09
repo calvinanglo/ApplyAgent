@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { FileUpload } from '@/components/ui/file-upload'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
+import { MODEL_TIERS, type ModelTierId } from '@/lib/credits'
 
 interface Report {
   id: string
@@ -31,7 +32,8 @@ function DocumentsContent() {
   const [activeTab, setActiveTab] = useState<'resume' | 'cover-letter'>(tabParam === 'cover-letter' ? 'cover-letter' : 'resume')
   const [jdText, setJdText] = useState('')
   const [selectedReportId, setSelectedReportId] = useState<string | null>(reportIdParam)
-  const [loading, setLoading] = useState(false)
+  const [resumeLoading, setResumeLoading] = useState(false)
+  const [clLoading, setClLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<Report[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -52,6 +54,7 @@ function DocumentsContent() {
   const [selectedClHistory, setSelectedClHistory] = useState<Set<number>>(new Set())
   const [clDuplicateWarning, setClDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [modelTier, setModelTier] = useState<ModelTierId>('fast')
 
   useEffect(() => {
     async function loadData() {
@@ -85,7 +88,7 @@ function DocumentsContent() {
 
   // ── Resume Generation ─────────────────────────────────
   async function handleGenerateResume(force = false) {
-    setLoading(true)
+    setResumeLoading(true)
     setError(null)
     setResumeResult(null)
     setResumeDuplicateWarning(null)
@@ -93,7 +96,7 @@ function DocumentsContent() {
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jd_text: jdText || undefined, report_id: selectedReportId || undefined, force }),
+        body: JSON.stringify({ jd_text: jdText || undefined, report_id: selectedReportId || undefined, force, model_tier: modelTier }),
       })
       const contentType = res.headers.get('content-type') || ''
       if (contentType.includes('application/pdf')) {
@@ -120,18 +123,18 @@ function DocumentsContent() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate')
     } finally {
-      setLoading(false)
+      setResumeLoading(false)
     }
   }
 
   // ── Cover Letter Generation ───────────────────────────
   async function handleGenerateCL(force = false) {
-    setLoading(true)
+    setClLoading(true)
     setError(null)
     setClResult(null)
     setClDuplicateWarning(null)
     try {
-      const body: any = { force }
+      const body: any = { force, model_tier: modelTier }
       if (selectedReportId || reportIdParam) body.report_id = selectedReportId || reportIdParam
       else body.jd_text = jdText
       const res = await fetch('/api/cover-letter', {
@@ -146,7 +149,7 @@ function DocumentsContent() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate')
     } finally {
-      setLoading(false)
+      setClLoading(false)
     }
   }
 
@@ -322,7 +325,11 @@ function DocumentsContent() {
               activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            <tab.icon className="size-4" />
+            {(tab.key === 'resume' ? resumeLoading : clLoading) ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <tab.icon className="size-4" />
+            )}
             {tab.label}
             <span className="text-xs text-muted-foreground">({tab.credits} credits)</span>
           </button>
@@ -382,15 +389,42 @@ function DocumentsContent() {
               </>
             )}
 
+            {/* Model tier selector */}
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+              {MODEL_TIERS.map(t => {
+                const credits = isResume ? t.pdfCredits : t.clCredits
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setModelTier(t.id)}
+                    className={cn(
+                      'relative flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                      modelTier === t.id
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {t.id === 'balanced' && (
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-green-500 px-1.5 py-0 text-[9px] font-bold text-white leading-tight whitespace-nowrap">
+                        BEST VALUE
+                      </span>
+                    )}
+                    {t.label}
+                    <span className="ml-1 text-muted-foreground">({credits} cr)</span>
+                  </button>
+                )
+              })}
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                Costs 3 credits{isResume ? ' — download as PDF or DOCX' : ''}
+                {MODEL_TIERS.find(t => t.id === modelTier)?.sublabel}{isResume ? ' — download as PDF or DOCX' : ''}
               </p>
               <CreditConfirmButton
-                credits={3}
+                credits={isResume ? MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits : MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
                 label="Generate"
                 loadingLabel="Generating..."
-                disabled={loading || (!selectedReportId && !reportIdParam && !jdText.trim())}
+                disabled={(isResume ? resumeLoading : clLoading) || (!selectedReportId && !reportIdParam && !jdText.trim())}
                 onConfirm={isResume ? () => handleGenerateResume() : () => handleGenerateCL()}
                 icon={isResume ? <FileDown className="size-4" /> : <Mail className="size-4" />}
               />

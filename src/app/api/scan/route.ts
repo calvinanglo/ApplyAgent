@@ -34,6 +34,7 @@ async function scanGreenhouse(slug: string, company: string): Promise<ScannedJob
         posted_at: job.updated_at || null,
         job_type: detectJobType(job.title),
         work_arrangement: detectWorkArrangement(job.title, location),
+        salary: null, salary_min: null, salary_max: null, salary_currency: null,
       }
     })
   } catch {
@@ -76,6 +77,7 @@ async function scanLever(slug: string, company: string): Promise<ScannedJob[]> {
         posted_at: job.createdAt ? new Date(job.createdAt).toISOString() : null,
         job_type: jobType || detectJobType(job.text),
         work_arrangement: detectWorkArrangement(job.text, location),
+        salary: null, salary_min: null, salary_max: null, salary_currency: null,
       }
     })
   } catch {
@@ -115,6 +117,7 @@ async function scanAshby(slug: string, company: string): Promise<ScannedJob[]> {
         posted_at: job.publishedAt || null,
         job_type: jobType || detectJobType(job.title),
         work_arrangement: detectWorkArrangement(job.title, job.location),
+        salary: null, salary_min: null, salary_max: null, salary_currency: null,
       }
     })
   } catch {
@@ -161,6 +164,7 @@ async function scanSmartRecruiters(slug: string, company: string): Promise<Scann
         posted_at: job.releasedDate || null,
         job_type: jobType || detectJobType(job.name),
         work_arrangement: arrangement,
+        salary: null, salary_min: null, salary_max: null, salary_currency: null,
       }
     })
   } catch {
@@ -198,6 +202,7 @@ async function scanWorkday(slug: string, company: string): Promise<ScannedJob[]>
         posted_at: null,
         job_type: detectJobType(job.title),
         work_arrangement: detectWorkArrangement(job.title, job.locationsText || null),
+        salary: null, salary_min: null, salary_max: null, salary_currency: null,
       }
     })
   } catch {
@@ -225,6 +230,7 @@ export async function POST(request: Request) {
         date_posted?: string
         location?: string
         salary_min?: number
+        salary_currency?: string
       }
     }
     try { body = await request.json() }
@@ -331,7 +337,7 @@ export async function POST(request: Request) {
     filtered = filterByLocation(filtered, filters.location || '')
 
     // 6. Salary filter
-    if (filters.salary_min) filtered = filterBySalary(filtered, filters.salary_min)
+    if (filters.salary_min) filtered = filterBySalary(filtered, filters.salary_min, filters.salary_currency || 'CAD')
 
     const skippedFilters = allJobs.length - skippedTitle - filtered.length
 
