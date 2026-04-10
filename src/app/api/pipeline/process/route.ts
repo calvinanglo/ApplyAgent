@@ -1,9 +1,11 @@
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAIClient, MODELS } from '@/lib/ai'
 import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
+import { getServiceClient } from '@/lib/background-job'
 
 export const maxDuration = 300 // 5 minutes — evaluation + URL fetch + DB can take time
 
@@ -302,84 +304,103 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Insufficient credits' }, { status: 402 })
     }
 
-    const archetype = detectArchetype(jdText)
-    const systemPrompt = buildEvaluationSystemPrompt(cvDoc.content, archetype.name)
+    // Capture closure-safe values before scheduling background work
+    const userId = user.id
+    const itemId = item.id
+    const itemUrl = item.url
+    const itemCompany = item.company
+    const itemTitle = item.title
+    const cvContent = cvDoc.content
 
-    const response = await ai.messages.create({
-      model: MODELS.evaluation,
-      max_tokens: 8000,
-      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-      messages: [{
-        role: 'user',
-        content: `Evaluate this job description:\n\n${jdText}`,
-      }],
+    // Run the Claude call + DB writes in after() so the HTTP request can return
+    // immediately. This lets the work survive mobile tab suspension — the
+    // client's 5-second pipeline_items poll will pick up the final status.
+    after(async () => {
+      const admin = getServiceClient() as any
+
+      try {
+        const archetype = detectArchetype(jdText)
+        const systemPrompt = buildEvaluationSystemPrompt(cvContent, archetype.name)
+
+        const response = await ai.messages.create({
+          model: MODELS.evaluation,
+          max_tokens: 8000,
+          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+          messages: [{
+            role: 'user',
+            content: `Evaluate this job description:\n\n${jdText}`,
+          }],
+        })
+
+        const text = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
+        let evaluation: Record<string, unknown>
+        try {
+          const jsonMatch = text.match(/\{[\s\S]*\}/)
+          evaluation = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
+        } catch {
+          await admin.from('pipeline_items').update({ status: 'error', error_message: 'Failed to parse evaluation' }).eq('id', itemId)
+          return
+        }
+
+        const company = (evaluation.company as string) || itemCompany || 'Unknown'
+        const role = (evaluation.role as string) || itemTitle || 'Unknown'
+
+        const { data: report } = await admin.from('reports').insert({
+          user_id: userId,
+          company,
+          role,
+          archetype: evaluation.archetype || archetype.name,
+          score: evaluation.score || 0,
+          jd_text: jdText,
+          jd_url: itemUrl,
+          block_a: evaluation.block_a,
+          block_b: evaluation.block_b,
+          block_c: evaluation.block_c,
+          block_d: evaluation.block_d,
+          block_e: evaluation.block_e,
+          block_f: evaluation.block_f,
+          block_g: evaluation.block_g || null,
+          keywords: evaluation.keywords || [],
+        }).select('id').single()
+
+        if (report) {
+          const { count } = await admin.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+          await admin.from('applications').insert({
+            user_id: userId,
+            sequence_number: (count || 0) + 1,
+            company,
+            role,
+            score: evaluation.score || 0,
+            status: 'Evaluated',
+            report_id: report.id,
+            location: jdLocation,
+          })
+        }
+
+        await admin.from('pipeline_items').update({
+          status: 'done',
+          company,
+          title: role,
+          location: jdLocation,
+          report_id: report?.id || null,
+          score: evaluation.score || 0,
+          error_message: null,
+          processed_at: new Date().toISOString(),
+        }).eq('id', itemId)
+      } catch (err) {
+        console.error('Pipeline worker error:', err)
+        await admin.from('pipeline_items').update({
+          status: 'error',
+          error_message: err instanceof Error ? err.message : 'Evaluation failed',
+        }).eq('id', itemId)
+      }
     })
 
-    const text = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
-    let evaluation: Record<string, unknown>
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      evaluation = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
-    } catch {
-      await db.from('pipeline_items').update({ status: 'error', error_message: 'Failed to parse evaluation' }).eq('id', item.id)
-      return Response.json({ error: 'Failed to parse evaluation' }, { status: 500 })
-    }
-
-    const company = (evaluation.company as string) || item.company || 'Unknown'
-    const role = (evaluation.role as string) || item.title || 'Unknown'
-
-    // Save report
-    const { data: report } = await db.from('reports').insert({
-      user_id: user.id,
-      company,
-      role,
-      archetype: evaluation.archetype || archetype.name,
-      score: evaluation.score || 0,
-      jd_text: jdText,
-      jd_url: item.url,
-      block_a: evaluation.block_a,
-      block_b: evaluation.block_b,
-      block_c: evaluation.block_c,
-      block_d: evaluation.block_d,
-      block_e: evaluation.block_e,
-      block_f: evaluation.block_f,
-      block_g: evaluation.block_g || null,
-      keywords: evaluation.keywords || [],
-    }).select('id').single()
-
-    // Create application
-    if (report) {
-      const { count } = await db.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
-      await db.from('applications').insert({
-        user_id: user.id,
-        sequence_number: (count || 0) + 1,
-        company,
-        role,
-        score: evaluation.score || 0,
-        status: 'Evaluated',
-        report_id: report.id,
-        location: jdLocation,
-      })
-    }
-
-    // Mark pipeline item as done — clear any previous error message
-    await db.from('pipeline_items').update({
-      status: 'done',
-      company,
-      title: role,
-      location: jdLocation,
-      report_id: report?.id || null,
-      score: evaluation.score || 0,
-      error_message: null,
-      processed_at: new Date().toISOString(),
-    }).eq('id', item.id)
-
+    // Return immediately — client polls pipeline_items status
     return Response.json({
       success: true,
-      company,
-      role,
-      score: evaluation.score || 0,
-      report_id: report?.id,
+      started: true,
+      pipeline_item_id: itemId,
     })
   } catch (err) {
     // Ensure pipeline item is marked as error so it doesn't stay stuck at 'processing'
