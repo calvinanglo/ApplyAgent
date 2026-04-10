@@ -54,7 +54,7 @@ function DocumentsContent() {
   const [selectedClHistory, setSelectedClHistory] = useState<Set<number>>(new Set())
   const [clDuplicateWarning, setClDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
   const [copied, setCopied] = useState(false)
-  const [modelTier, setModelTier] = useState<ModelTierId>('fast')
+  const [modelTier, setModelTier] = useState<ModelTierId>('balanced')
 
   useEffect(() => {
     async function loadData() {
