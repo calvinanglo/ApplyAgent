@@ -18,8 +18,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             {children}
             <footer className="mt-12 border-t pt-6 pb-4 text-center text-xs text-muted-foreground">
-              <span className="font-medium">ApplyAgent</span>
-              {' · '}
               <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
               {' · '}
               <Link href="/terms" className="hover:underline">Terms of Service</Link>

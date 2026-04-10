@@ -176,8 +176,11 @@ export default function EvaluatePage() {
 
   const isHighScore = score !== null && score >= 4.5
 
+  const hasResults = score !== null || blocks.length > 0
+  const isActive = loading || hasResults
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">Evaluate Job Posting</h1>
         <p className="text-muted-foreground">
@@ -185,7 +188,19 @@ export default function EvaluatePage() {
         </p>
       </div>
 
-      <Card>
+      {loading && !hasResults && (
+        <Card className="order-1">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-sm">
+              <Loader2 className="size-4 animate-spin shrink-0" />
+              <span className="font-medium">Evaluating job description...</span>
+              <span className="text-muted-foreground hidden sm:inline">This can take 20–40 seconds</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className={isActive ? 'order-3' : 'order-2'}>
         <CardContent className="pt-6">
           <div className="space-y-4">
             <FileUpload
@@ -197,8 +212,8 @@ export default function EvaluatePage() {
               placeholder="Or paste the full job description here..."
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
-              rows={10}
-              className="font-mono text-sm"
+              rows={isActive ? 4 : 10}
+              className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none"
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
@@ -218,15 +233,15 @@ export default function EvaluatePage() {
       </Card>
 
       {error && (
-        <Card className="border-destructive">
+        <Card className="border-destructive order-1">
           <CardContent className="pt-6">
             <p className="text-sm text-destructive">{error}</p>
           </CardContent>
         </Card>
       )}
 
-      {(score !== null || blocks.length > 0) && (
-        <Card>
+      {hasResults && (
+        <Card className="order-2">
           <CardHeader>
             <div className="flex items-center justify-between gap-4">
               <div>
