@@ -55,8 +55,7 @@ export default function PipelinePage() {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
   const [processProgress, setProcessProgress] = useState<{ current: number; total: number } | null>(null)
-  const cancelRef = useRef(false)
-  const abortRef = useRef<AbortController | null>(null)
+  const batchIdsRef = useRef<Set<string>>(new Set())
 
   const processingRef = useRef(false) // tracks whether a batch loop is actively running
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -159,79 +158,86 @@ export default function PipelinePage() {
     await loadItems()
   }
 
-  const PARALLEL = 5 // Process 5 at a time — deduct_credits RPC is atomic so parallel is safe
+  // On mount, restore any in-flight batch from localStorage so the progress
+  // bar persists across navigation / page reload / mobile sleep.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pipeline:active-batch')
+      if (raw) {
+        const ids: string[] = JSON.parse(raw)
+        if (Array.isArray(ids) && ids.length) {
+          batchIdsRef.current = new Set(ids)
+          processingRef.current = true
+          setProcessProgress({ current: 0, total: ids.length })
+          if (!pollRef.current) {
+            pollRef.current = setInterval(() => { loadItems() }, 5000)
+          }
+        }
+      }
+    } catch {}
+  }, [loadItems])
 
-  async function handleProcessAll() {
-    const pending = items.filter(i => i.status === 'pending')
-    cancelRef.current = false
+  // Whenever items reload, recompute progress from the server-side statuses of
+  // the items in the current batch. Hides the progress bar when they're all done.
+  useEffect(() => {
+    if (batchIdsRef.current.size === 0) return
+    const batchItems = items.filter(i => batchIdsRef.current.has(i.id))
+    const finished = batchItems.filter(i => i.status === 'done' || i.status === 'error').length
+    const total = batchIdsRef.current.size
+    if (finished >= total) {
+      batchIdsRef.current = new Set()
+      processingRef.current = false
+      setProcessProgress(null)
+      try { localStorage.removeItem('pipeline:active-batch') } catch {}
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    } else {
+      setProcessProgress({ current: finished, total })
+    }
+  }, [items])
+
+  async function startBatchProcessing(itemsToProcess: PipelineItem[]) {
+    if (!itemsToProcess.length) return
     processingRef.current = true
-    let completed = 0
-    let stopped = false
-    setProcessProgress({ current: 0, total: pending.length })
+    const ids = itemsToProcess.map(i => i.id)
+    batchIdsRef.current = new Set(ids)
+    try { localStorage.setItem('pipeline:active-batch', JSON.stringify(ids)) } catch {}
+    setProcessProgress({ current: 0, total: itemsToProcess.length })
 
-    // Start polling for server-side progress
+    // Optimistic UI — mark all as processing
+    setItems(prev => prev.map(it =>
+      itemsToProcess.some(p => p.id === it.id) ? { ...it, status: 'processing' as const } : it
+    ))
+
+    // Start polling so the server-side progress is reflected even if the user
+    // navigates away and comes back.
     if (!pollRef.current) {
       pollRef.current = setInterval(() => { loadItems() }, 5000)
     }
 
-    // Mark all as processing optimistically
-    setItems(prev => prev.map(it =>
-      pending.some(p => p.id === it.id) ? { ...it, status: 'processing' as const } : it
-    ))
-
-    // Process in batches of PARALLEL
-    for (let i = 0; i < pending.length; i += PARALLEL) {
-      if (cancelRef.current || stopped) {
-        toast(`Cancelled — ${completed} of ${pending.length} processed.`)
-        break
+    try {
+      const res = await fetch('/api/pipeline/process-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: itemsToProcess.map(i => i.id) }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast(`Batch start failed: ${data.error || res.status}`)
+        // Revert optimistic state — let next loadItems() correct from server
+      } else {
+        const data = await res.json()
+        toast(`Started ${data.started} item${data.started === 1 ? '' : 's'} — processing continues in background`)
       }
-
-      const batch = pending.slice(i, i + PARALLEL)
-      const results = await Promise.allSettled(
-        batch.map(async (item) => {
-          const controller = new AbortController()
-          abortRef.current = controller
-          const res = await fetch('/api/pipeline/process', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pipeline_item_id: item.id }),
-            signal: controller.signal,
-            keepalive: true,
-          })
-          // Update progress as each item completes
-          completed++
-          setProcessProgress({ current: Math.min(completed, pending.length), total: pending.length })
-          return res.status
-        })
-      )
-
-      // Check results for insufficient credits
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value === 402) {
-          stopped = true
-          toast('Insufficient credits — processing stopped. Remaining items kept in pending.')
-          // Revert unprocessed items back to pending
-          const remaining = pending.slice(i + PARALLEL)
-          if (remaining.length) {
-            await fetch('/api/pipeline', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ids: remaining.map(r => r.id), status: 'pending' }),
-            })
-          }
-        } else if (r.status === 'rejected' && r.reason instanceof DOMException && r.reason.name === 'AbortError') {
-          stopped = true
-          toast(`Cancelled — ${completed} processed.`)
-        }
-      }
-
+    } catch (err) {
+      toast(`Failed to start batch: ${err instanceof Error ? err.message : 'network error'}`)
+    } finally {
       await loadItems()
     }
+  }
 
-    abortRef.current = null
-    processingRef.current = false
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-    setProcessProgress(null)
+  async function handleProcessAll() {
+    const pending = items.filter(i => i.status === 'pending')
+    await startBatchProcessing(pending)
   }
 
   async function handleProcessSelected() {
@@ -247,68 +253,8 @@ export default function PipelinePage() {
     }
     const selected = items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || errorItems.some(e => e.id === i.id)))
     if (!selected.length) { toast('No items to process'); return }
-    cancelRef.current = false
-    processingRef.current = true
-    let completed = 0
-    let stopped = false
-    setProcessProgress({ current: 0, total: selected.length })
     setSelectedItems(new Set())
-
-    // Start polling for server-side progress
-    if (!pollRef.current) {
-      pollRef.current = setInterval(() => { loadItems() }, 5000)
-    }
-
-    setItems(prev => prev.map(it =>
-      selected.some(s => s.id === it.id) ? { ...it, status: 'processing' as const } : it
-    ))
-
-    for (let i = 0; i < selected.length; i += PARALLEL) {
-      if (cancelRef.current || stopped) {
-        toast(`Cancelled — ${completed} of ${selected.length} processed.`)
-        break
-      }
-      const batch = selected.slice(i, i + PARALLEL)
-      const results = await Promise.allSettled(
-        batch.map(async (item) => {
-          const controller = new AbortController()
-          abortRef.current = controller
-          const res = await fetch('/api/pipeline/process', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pipeline_item_id: item.id }),
-            signal: controller.signal,
-            keepalive: true,
-          })
-          completed++
-          setProcessProgress({ current: Math.min(completed, selected.length), total: selected.length })
-          return res.status
-        })
-      )
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value === 402) {
-          stopped = true
-          toast('Insufficient credits — processing stopped.')
-          const remaining = selected.slice(i + PARALLEL)
-          if (remaining.length) {
-            await fetch('/api/pipeline', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ids: remaining.map(r => r.id), status: 'pending' }),
-            })
-          }
-        } else if (r.status === 'rejected' && r.reason instanceof DOMException && r.reason.name === 'AbortError') {
-          stopped = true
-          toast(`Cancelled — ${completed} processed.`)
-        }
-      }
-      await loadItems()
-    }
-    abortRef.current = null
-    processingRef.current = false
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-    setProcessProgress(null)
-    setSelectedItems(new Set())
+    await startBatchProcessing(selected)
   }
 
   async function handleClearItems(type: 'pending' | 'done' | 'errors') {
@@ -430,17 +376,8 @@ export default function PipelinePage() {
         <Card>
           <CardContent className="pt-6 space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Processing {processProgress.current} of {processProgress.total}...</span>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-xs">{Math.round((processProgress.current / processProgress.total) * 100)}%</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => { cancelRef.current = true; abortRef.current?.abort() }}
-                >
-                  Cancel
-                </Button>
-              </div>
+              <span className="text-muted-foreground">Processing {processProgress.current} of {processProgress.total}... (runs in background)</span>
+              <span className="font-mono text-xs">{Math.round((processProgress.current / processProgress.total) * 100)}%</span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
