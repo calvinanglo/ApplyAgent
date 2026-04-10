@@ -211,7 +211,7 @@ export function ApplicationsClient({ apps }: { apps: Application[] }) {
           ) : (
             <>
               {/* Mobile card view */}
-              <div className="space-y-2 md:hidden">
+              <div className="space-y-2 md:hidden max-h-[60vh] overflow-y-auto pr-1">
                 {paginated.map((app) => {
                   const href = `/reports/${app.report_id || app.id}`
                   return (
