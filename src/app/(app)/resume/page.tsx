@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { FileUpload } from '@/components/ui/file-upload'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { MODEL_TIERS, type ModelTierId } from '@/lib/credits'
+import { useBackgroundJob } from '@/lib/use-background-job'
 
 interface Report {
   id: string
@@ -32,8 +33,6 @@ function DocumentsContent() {
   const [activeTab, setActiveTab] = useState<'resume' | 'cover-letter'>(tabParam === 'cover-letter' ? 'cover-letter' : 'resume')
   const [jdText, setJdText] = useState('')
   const [selectedReportId, setSelectedReportId] = useState<string | null>(reportIdParam)
-  const [resumeLoading, setResumeLoading] = useState(false)
-  const [clLoading, setClLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<Report[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -55,6 +54,32 @@ function DocumentsContent() {
   const [clDuplicateWarning, setClDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [modelTier, setModelTier] = useState<ModelTierId>('balanced')
+
+  // Background job runners — survive mobile sleep / reloads
+  const resumeJob = useBackgroundJob<any>({
+    storageKey: 'documents:resume-job',
+    onComplete: (data) => {
+      if (data?.pdf_base64) {
+        const bytes = Uint8Array.from(atob(data.pdf_base64), c => c.charCodeAt(0))
+        const file = new File([bytes], data.filename || 'resume.pdf', { type: 'application/pdf' })
+        data.previewUrl = URL.createObjectURL(file)
+        if (!data.url) data.url = data.previewUrl
+      }
+      setResumeResult(data)
+    },
+    onError: (msg) => setError(msg),
+  })
+
+  const clJob = useBackgroundJob<{ cover_letter: any }>({
+    storageKey: 'documents:cover-letter-job',
+    onComplete: (data) => {
+      setClResult(data.cover_letter)
+    },
+    onError: (msg) => setError(msg),
+  })
+
+  const resumeLoading = resumeJob.loading
+  const clLoading = clJob.loading
 
   useEffect(() => {
     async function loadData() {
@@ -88,68 +113,38 @@ function DocumentsContent() {
 
   // ── Resume Generation ─────────────────────────────────
   async function handleGenerateResume(force = false) {
-    setResumeLoading(true)
     setError(null)
     setResumeResult(null)
     setResumeDuplicateWarning(null)
-    try {
-      const res = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jd_text: jdText || undefined, report_id: selectedReportId || undefined, force, model_tier: modelTier }),
-      })
-      const contentType = res.headers.get('content-type') || ''
-      if (contentType.includes('application/pdf')) {
-        const blob = await res.blob()
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = res.headers.get('content-disposition')?.split('filename="')[1]?.replace('"', '') || 'resume.pdf'
-        a.click()
-        URL.revokeObjectURL(url)
-        setResumeResult({ filename: 'resume.pdf' })
-        return
-      }
-      const data = await res.json()
-      if (data.already_exists) { setResumeDuplicateWarning(data); return }
-      if (!res.ok) { setError(data.error || 'Failed to generate'); return }
-      if (data.pdf_base64) {
-        const bytes = Uint8Array.from(atob(data.pdf_base64), c => c.charCodeAt(0))
-        const file = new File([bytes], data.filename || 'resume.pdf', { type: 'application/pdf' })
-        data.previewUrl = URL.createObjectURL(file)
-        if (!data.url) data.url = data.previewUrl
-      }
-      setResumeResult(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate')
-    } finally {
-      setResumeLoading(false)
+
+    const data = await resumeJob.start('/api/generate-pdf', {
+      jd_text: jdText || undefined,
+      report_id: selectedReportId || undefined,
+      force,
+      model_tier: modelTier,
+    })
+
+    // Direct response (cached already_exists) — no job was started
+    if (data && data.already_exists) {
+      setResumeDuplicateWarning(data)
     }
+    // If data is null, a job was started and polling will fire onComplete
   }
 
   // ── Cover Letter Generation ───────────────────────────
   async function handleGenerateCL(force = false) {
-    setClLoading(true)
     setError(null)
     setClResult(null)
     setClDuplicateWarning(null)
-    try {
-      const body: any = { force, model_tier: modelTier }
-      if (selectedReportId || reportIdParam) body.report_id = selectedReportId || reportIdParam
-      else body.jd_text = jdText
-      const res = await fetch('/api/cover-letter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (data.already_exists) { setClDuplicateWarning(data); return }
-      if (!res.ok) { setError(data.error || 'Failed to generate'); return }
-      setClResult(data.cover_letter)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate')
-    } finally {
-      setClLoading(false)
+
+    const body: any = { force, model_tier: modelTier }
+    if (selectedReportId || reportIdParam) body.report_id = selectedReportId || reportIdParam
+    else body.jd_text = jdText
+
+    const data = await clJob.start('/api/cover-letter', body)
+
+    if (data && data.already_exists) {
+      setClDuplicateWarning(data)
     }
   }
 

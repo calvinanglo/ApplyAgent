@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +18,20 @@ interface EvaluationBlock {
   content: unknown
 }
 
+const BLOCK_MAP: { key: string; title: string }[] = [
+  { key: 'block_a', title: 'A) Role Summary' },
+  { key: 'block_b', title: 'B) CV Match' },
+  { key: 'block_c', title: 'C) Level & Strategy' },
+  { key: 'block_d', title: 'D) Comp & Demand' },
+  { key: 'block_e', title: 'E) Customization Plan' },
+  { key: 'block_f', title: 'F) Interview Plan' },
+  { key: 'block_g', title: 'G) Draft Answers' },
+]
+
+const JOB_STORAGE_KEY = 'evaluate:active-job-id'
+const POLL_INTERVAL_MS = 2000
+const MAX_POLL_ATTEMPTS = 90 // 3 minutes of polling max
+
 export default function EvaluatePage() {
   const [jdText, setJdText] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,10 +40,105 @@ export default function EvaluatePage() {
   const [archetype, setArchetype] = useState<string | null>(null)
   const [reportId, setReportId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [streamText, setStreamText] = useState('')
   const [pipelineLoading, setPipelineLoading] = useState(false)
   const [pipelineDone, setPipelineDone] = useState<{ pdf?: string; coverLetter?: boolean } | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollAttemptsRef = useRef(0)
+
+  function applyResult(result: Record<string, unknown>, statusScore: number | null, statusArchetype: string | null, statusReportId: string | null) {
+    const renderedBlocks: EvaluationBlock[] = []
+    for (const b of BLOCK_MAP) {
+      if (result[b.key]) {
+        renderedBlocks.push({ key: b.key, title: b.title, content: result[b.key] })
+      }
+    }
+    setBlocks(renderedBlocks)
+    setScore(statusScore ?? (typeof result.score === 'number' ? result.score : 0))
+    setArchetype(statusArchetype ?? ((result.archetype as string) || null))
+    setReportId(statusReportId)
+  }
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+    pollAttemptsRef.current = 0
+  }, [])
+
+  const pollJob = useCallback(async (jobId: string) => {
+    try {
+      pollAttemptsRef.current += 1
+      if (pollAttemptsRef.current > MAX_POLL_ATTEMPTS) {
+        setError('Evaluation timed out. Please try again.')
+        setLoading(false)
+        localStorage.removeItem(JOB_STORAGE_KEY)
+        stopPolling()
+        return
+      }
+
+      const res = await fetch(`/api/evaluate/status?id=${encodeURIComponent(jobId)}`, { cache: 'no-store' })
+      if (!res.ok) {
+        // 404 means the job was cleaned up or doesn't belong to this user
+        if (res.status === 404) {
+          localStorage.removeItem(JOB_STORAGE_KEY)
+          setLoading(false)
+          stopPolling()
+          return
+        }
+        // Transient error — keep polling
+        pollTimerRef.current = setTimeout(() => pollJob(jobId), POLL_INTERVAL_MS)
+        return
+      }
+
+      const data = await res.json()
+      if (data.status === 'completed' && data.result) {
+        applyResult(data.result, data.score ?? null, data.archetype ?? null, data.report_id ?? null)
+        setLoading(false)
+        localStorage.removeItem(JOB_STORAGE_KEY)
+        stopPolling()
+        return
+      }
+      if (data.status === 'failed') {
+        setError(data.error || 'Evaluation failed')
+        setLoading(false)
+        localStorage.removeItem(JOB_STORAGE_KEY)
+        stopPolling()
+        return
+      }
+
+      // pending or running — keep polling
+      pollTimerRef.current = setTimeout(() => pollJob(jobId), POLL_INTERVAL_MS)
+    } catch {
+      // Network hiccup — back off and try again
+      pollTimerRef.current = setTimeout(() => pollJob(jobId), POLL_INTERVAL_MS)
+    }
+  }, [stopPolling])
+
+  // On mount, resume any in-flight job (survives page reload / tab suspension / phone sleep)
+  useEffect(() => {
+    const existing = typeof window !== 'undefined' ? localStorage.getItem(JOB_STORAGE_KEY) : null
+    if (existing) {
+      setLoading(true)
+      pollJob(existing)
+    }
+    return () => stopPolling()
+  }, [pollJob, stopPolling])
+
+  // When the tab becomes visible again (user wakes phone, switches back), trigger an immediate poll
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        const existing = localStorage.getItem(JOB_STORAGE_KEY)
+        if (existing && loading) {
+          stopPolling()
+          pollJob(existing)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [loading, pollJob, stopPolling])
 
   async function handleEvaluate() {
     if (!jdText.trim()) return
@@ -40,17 +149,13 @@ export default function EvaluatePage() {
     setScore(null)
     setArchetype(null)
     setReportId(null)
-    setStreamText('')
     setPipelineDone(null)
-
-    abortRef.current = new AbortController()
 
     try {
       const res = await fetch('/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jd_text: jdText }),
-        signal: abortRef.current.signal,
       })
 
       if (!res.ok) {
@@ -64,54 +169,19 @@ export default function EvaluatePage() {
         return
       }
 
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      if (!reader) {
-        setError('No response stream')
+      const data = await res.json()
+      if (!data.job_id) {
+        setError('No job id returned')
         setLoading(false)
         return
       }
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') continue
-
-            try {
-              const event = JSON.parse(data)
-              if (event.type === 'block') {
-                setBlocks(prev => [...prev, event.data])
-              } else if (event.type === 'score') {
-                setScore(event.data.score)
-                setArchetype(event.data.archetype)
-              } else if (event.type === 'saved') {
-                setReportId(event.data.report_id)
-              } else if (event.type === 'error') {
-                setError(event.data.message)
-              } else if (event.type === 'text') {
-                setStreamText(prev => prev + event.data)
-              }
-            } catch {
-              // skip malformed JSON
-            }
-          }
-        }
-      }
+      localStorage.setItem(JOB_STORAGE_KEY, data.job_id)
+      pollAttemptsRef.current = 0
+      pollJob(data.job_id)
     } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        setError(err.message)
-      }
-    } finally {
+      // Even if the POST itself fails, we haven't saved a job id — safe to reset
+      setError(err instanceof Error ? err.message : 'Failed to start evaluation')
       setLoading(false)
     }
   }
@@ -331,8 +401,6 @@ export default function EvaluatePage() {
                   </TabsContent>
                 ))}
               </Tabs>
-            ) : streamText ? (
-              <pre className="whitespace-pre-wrap text-sm">{streamText}</pre>
             ) : (
               <div className="flex items-center gap-2 py-8 text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
