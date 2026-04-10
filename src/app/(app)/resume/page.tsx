@@ -390,7 +390,7 @@ function DocumentsContent() {
                   </div>
                 )}
                 <FileUpload onTextExtracted={(text) => setJdText(text)} label="Upload job description" description="PDF, DOCX, or TXT file" />
-                <Textarea placeholder="Paste the job description here..." value={jdText} onChange={(e) => setJdText(e.target.value)} rows={6} className="font-mono text-sm" />
+                <Textarea placeholder="Paste the job description here..." value={jdText} onChange={(e) => setJdText(e.target.value)} rows={6} className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none" />
               </>
             )}
 
