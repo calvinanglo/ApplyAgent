@@ -361,15 +361,15 @@ function DocumentsContent() {
                     <Input placeholder="Search by company or role..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 text-sm" />
                   </div>
                 )}
-                <div className="grid gap-2 max-h-48 overflow-y-auto">
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
                   {filteredReports.map((r) => (
                     <button key={r.id} onClick={() => { setSelectedReportId(selectedReportId === r.report_id ? null : r.report_id); if (selectedReportId !== r.report_id) setJdText('') }}
-                      className={cn('flex items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors', selectedReportId === r.report_id ? 'border-primary bg-primary/5' : 'hover:bg-muted')}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-medium truncate">{r.company}</span>
-                        <span className="text-muted-foreground truncate">{r.role}</span>
+                      className={cn('flex w-full items-center justify-between gap-2 rounded-lg border p-3 text-left text-sm transition-colors', selectedReportId === r.report_id ? 'border-primary bg-primary/5' : 'hover:bg-muted')}>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{r.company}</p>
+                        <p className="text-xs text-muted-foreground truncate">{r.role}</p>
                       </div>
-                      <Badge variant={r.score >= 4 ? 'default' : 'secondary'} className="text-xs shrink-0 ml-2">{r.score.toFixed(1)}/5</Badge>
+                      <Badge variant={r.score >= 4 ? 'default' : 'secondary'} className="text-xs shrink-0">{r.score.toFixed(1)}/5</Badge>
                     </button>
                   ))}
                 </div>

@@ -211,7 +211,7 @@ export default function StoryBankPage() {
                           {tag}
                         </Badge>
                       ))}
-                      {report && (
+                      {report && !story.tags?.includes(report.company) && (
                         <Badge variant="outline" className="text-xs">
                           {report.company}
                         </Badge>
