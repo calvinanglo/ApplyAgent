@@ -16,9 +16,9 @@ export const CREDIT_COSTS = {
 export type CreditAction = keyof typeof CREDIT_COSTS
 
 export const MODEL_TIERS = [
-  { id: 'fast', label: 'Fast', sublabel: 'Haiku 4.5', model: 'claude-haiku-4-5-20251001', pdfCredits: 3, clCredits: 3 },
-  { id: 'balanced', label: 'Balanced', sublabel: 'Sonnet 4', model: 'claude-sonnet-4-20250514', pdfCredits: 8, clCredits: 8 },
-  { id: 'premium', label: 'Premium', sublabel: 'Opus 4', model: 'claude-opus-4-20250514', pdfCredits: 35, clCredits: 35 },
+  { id: 'fast', label: 'Quick Draft', sublabel: 'Fast turnaround for low-priority roles', model: 'claude-haiku-4-5-20251001', pdfCredits: 3, clCredits: 3 },
+  { id: 'balanced', label: 'Tailored', sublabel: 'Recommended for most applications', model: 'claude-sonnet-4-20250514', pdfCredits: 8, clCredits: 8 },
+  { id: 'premium', label: 'Deep Tailoring', sublabel: 'Highest quality for dream jobs', model: 'claude-opus-4-20250514', pdfCredits: 35, clCredits: 35 },
 ] as const
 
 export type ModelTierId = typeof MODEL_TIERS[number]['id']
