@@ -106,15 +106,15 @@ export default function StoryBankPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 min-w-0 overflow-x-hidden">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Story Bank</h1>
           <p className="text-muted-foreground">
             STAR+R stories accumulated from evaluations. Use these in interviews.
           </p>
         </div>
-        <Badge variant="outline" className="text-sm">
+        <Badge variant="outline" className="text-sm shrink-0">
           {stories.length} {stories.length === 1 ? 'story' : 'stories'}
         </Badge>
       </div>
@@ -188,24 +188,24 @@ export default function StoryBankPage() {
                   className="cursor-pointer py-3"
                   onClick={() => toggleExpand(story.id)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       <input type="checkbox" className="rounded shrink-0" checked={selectedStories.has(story.id)} onClick={(e) => e.stopPropagation()} onChange={(e) => {
                         const next = new Set(selectedStories)
                         if (e.target.checked) next.add(story.id); else next.delete(story.id)
                         setSelectedStories(next)
                       }} />
-                      {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                      <div>
-                        <CardTitle className="text-base">{story.title}</CardTitle>
+                      {isOpen ? <ChevronUp className="size-4 shrink-0" /> : <ChevronDown className="size-4 shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-base break-words">{story.title}</CardTitle>
                         {story.jd_requirement && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5 break-words">
                             Answers: {story.jd_requirement}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 md:shrink-0">
                       {story.tags?.map(tag => (
                         <Badge key={tag} variant="secondary" className="text-xs">
                           {tag}

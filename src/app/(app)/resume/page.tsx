@@ -299,7 +299,7 @@ function DocumentsContent() {
   const duplicateWarning = isResume ? resumeDuplicateWarning : clDuplicateWarning
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 min-w-0 overflow-x-hidden">
       {reportIdParam && (
         <Link href={`/reports/${reportIdParam}`}>
           <Button variant="ghost" size="sm"><ArrowLeft className="size-4 mr-1" />Back to Report</Button>
@@ -416,11 +416,11 @@ function DocumentsContent() {
               })}
             </div>
 
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground truncate">
                 {MODEL_TIERS.find(t => t.id === modelTier)?.sublabel}{isResume ? ' — download as PDF or DOCX' : ''}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <CreditConfirmButton
                   credits={MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits + MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
                   label="Both"
@@ -537,7 +537,7 @@ function DocumentsContent() {
       {/* ── History ──────────────────────────────────── */}
       {isResume && resumeHistory.filter(h => h.storage_path?.includes('/')).length > 0 && (
         <Card className="border-dashed">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Resumes</CardTitle>
             <div className="flex items-center gap-2">
               {selectedResumeHistory.size > 0 && (
@@ -585,7 +585,7 @@ function DocumentsContent() {
 
       {!isResume && clHistory.length > 0 && (
         <Card className="border-dashed">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base text-muted-foreground">Previously Generated Cover Letters</CardTitle>
             <div className="flex items-center gap-2">
               {selectedClHistory.size > 0 && (
