@@ -6,6 +6,8 @@ import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
 
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   try {
   const supabase = await createClient()
@@ -80,6 +82,11 @@ export async function POST(request: Request) {
       function send(event: { type: string; data: unknown }) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
       }
+
+      // Heartbeat every 10s to keep mobile/proxy connections alive
+      const heartbeat = setInterval(() => {
+        try { controller.enqueue(encoder.encode(': ping\n\n')) } catch {}
+      }, 10000)
 
       try {
         send({ type: 'status', data: 'Starting evaluation...' })
@@ -215,6 +222,7 @@ export async function POST(request: Request) {
       } catch (err) {
         send({ type: 'error', data: { message: err instanceof Error ? err.message : 'Evaluation failed' } })
       } finally {
+        clearInterval(heartbeat)
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
         controller.close()
       }
@@ -224,8 +232,9 @@ export async function POST(request: Request) {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
   } catch (err) {
