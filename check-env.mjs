@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 
-const raw = readFileSync('C:/Projects/career-ops-app/.env.local')
+const raw = readFileSync(new URL('.env.local', import.meta.url))
 const text = raw.toString('utf8')
 const lines = text.split('\n')
 
