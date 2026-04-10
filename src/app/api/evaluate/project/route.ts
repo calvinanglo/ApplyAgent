@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildProjectSystemPrompt } from '@/lib/prompts/project-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if (!body.project_description) return Response.json({ error: 'Project description required' }, { status: 400 })
     if (body.project_description.length > 50000) return Response.json({ error: 'Project description too long (max 50,000 characters)' }, { status: 400 })
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
     if (!cvDoc) return Response.json({ error: 'No CV found.' }, { status: 400 })
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const archetype = detectArchetype(body.target_role || body.project_description)
     const systemPrompt = buildProjectSystemPrompt(cvDoc.content, archetype.name)
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: MODELS.quick,
       max_tokens: 2000,
       system: systemPrompt,

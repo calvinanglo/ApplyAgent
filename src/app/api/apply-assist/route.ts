@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildApplySystemPrompt } from '@/lib/prompts/apply-system'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     if (body.company && body.company.length > 200) return Response.json({ error: 'Company name too long' }, { status: 400 })
     if (body.role && body.role.length > 200) return Response.json({ error: 'Role too long' }, { status: 400 })
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
     if (!cvDoc) return Response.json({ error: 'No CV found.' }, { status: 400 })
 
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
     const systemPrompt = buildApplySystemPrompt(cvDoc.content, reportContext)
     const questionsText = body.questions.map((q, i) => `${i+1}. ${q}`).join('\n')
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: MODELS.quick,
       max_tokens: 2000,
       system: systemPrompt,

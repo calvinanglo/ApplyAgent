@@ -1,5 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# AI config
+CLAUDE.md
+AGENTS.md
+.claude/
+src/lib/anthropic.ts
+
 # dependencies
 /node_modules
 /.pnp

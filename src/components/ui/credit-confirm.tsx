@@ -13,6 +13,7 @@ interface CreditConfirmButtonProps {
   onConfirm: () => Promise<void>
   className?: string
   icon?: React.ReactNode
+  variant?: 'default' | 'outline' | 'ghost' | 'destructive' | 'secondary'
 }
 
 export function CreditConfirmButton({
@@ -23,6 +24,7 @@ export function CreditConfirmButton({
   onConfirm,
   className,
   icon,
+  variant = 'default',
 }: CreditConfirmButtonProps) {
   const [confirming, setConfirming] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -76,7 +78,7 @@ export function CreditConfirmButton({
   }
 
   return (
-    <Button onClick={handleClick} disabled={disabled} className={className}>
+    <Button onClick={handleClick} disabled={disabled} className={className} variant={variant}>
       {icon}
       {label}
     </Button>

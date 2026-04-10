@@ -150,7 +150,7 @@ function DeepResearchTool() {
         </div>
         <Textarea placeholder="Job description (optional)" value={jdText} onChange={e => setJdText(e.target.value)} rows={4} className="font-mono text-sm" />
         <div className="flex justify-between items-center">
-          <p className="text-xs text-muted-foreground">Costs 3 credits — generates a research prompt you run in Perplexity/Claude</p>
+          <p className="text-xs text-muted-foreground">Costs 3 credits — generates a research prompt you run in Perplexity/ChatGPT</p>
           <Button type="submit" disabled={loading || !company || !role}>
             {loading ? <><Loader2 className="size-4 animate-spin" />Generating...</> : <><Search className="size-4" />Generate Research Prompt</>}
           </Button>
@@ -178,7 +178,7 @@ function DeepResearchTool() {
           {result.research_prompt && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Research Prompt (copy to Perplexity/Claude)</p>
+                <p className="text-sm font-semibold">Research Prompt (copy to Perplexity/ChatGPT)</p>
                 <Button variant="outline" size="sm" onClick={handleCopy}>
                   {copied ? <><Check className="size-4" />Copied</> : <><Copy className="size-4" />Copy</>}
                 </Button>
@@ -524,7 +524,7 @@ export default function ToolsPage() {
         </TabsList>
         <div className="mt-4">
           <TabsContent value="linkedin"><Card><CardHeader><CardTitle>LinkedIn Message</CardTitle><CardDescription>Generate a 300-char connection request that gets responses</CardDescription></CardHeader><CardContent><LinkedInTool /></CardContent></Card></TabsContent>
-          <TabsContent value="deep"><Card><CardHeader><CardTitle>Deep Research</CardTitle><CardDescription>Generate a structured research prompt for Perplexity or Claude</CardDescription></CardHeader><CardContent><DeepResearchTool /></CardContent></Card></TabsContent>
+          <TabsContent value="deep"><Card><CardHeader><CardTitle>Deep Research</CardTitle><CardDescription>Generate a structured research prompt for Perplexity or ChatGPT</CardDescription></CardHeader><CardContent><DeepResearchTool /></CardContent></Card></TabsContent>
           <TabsContent value="project"><Card><CardHeader><CardTitle>Project Evaluator</CardTitle><CardDescription>Should you build or showcase this portfolio project?</CardDescription></CardHeader><CardContent><ProjectEvalTool /></CardContent></Card></TabsContent>
           <TabsContent value="training"><Card><CardHeader><CardTitle>Training Evaluator</CardTitle><CardDescription>Is this course or certification worth your time?</CardDescription></CardHeader><CardContent><TrainingEvalTool /></CardContent></Card></TabsContent>
           <TabsContent value="compare"><Card><CardHeader><CardTitle>Compare Offers</CardTitle><CardDescription>10-dimension weighted scoring matrix across multiple offers</CardDescription></CardHeader><CardContent><CompareOffersTool /></CardContent></Card></TabsContent>

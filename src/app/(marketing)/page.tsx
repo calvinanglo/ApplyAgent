@@ -51,7 +51,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl px-4 pb-12 pt-20 text-center sm:pt-28 sm:pb-16">
           <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm font-medium">
             <Sparkles className="mr-1.5 size-3.5" />
-            Powered by Claude AI
+            Powered by AI
           </Badge>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
             Stop guessing.

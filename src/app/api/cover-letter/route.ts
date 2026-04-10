@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildCoverLetterSystemPrompt } from '@/lib/prompts/cover-letter-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS, getModelTier, type ModelTierId } from '@/lib/credits'
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Job description too long (max 50,000 characters)' }, { status: 400 })
     }
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
 
     const [cvRes, profileRes] = await Promise.all([
       db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single(),
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
 
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: tier.model,
       max_tokens: 2000,
       system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid URL' }, { status: 400 })
   }
 
-  // Validate Anthropic client is configured before spending credits
-  const anthropic = getAnthropicClient()
+  // Validate AI client is configured before spending credits
+  const ai = getAIClient()
 
   // Get user's CV before spending credits too
   const { data: cvDoc } = await db
@@ -84,9 +84,10 @@ export async function POST(request: Request) {
       try {
         send({ type: 'status', data: 'Starting evaluation...' })
 
-        const response = await anthropic.messages.create({
+        const stream = await ai.messages.create({
           model: MODELS.evaluation,
           max_tokens: 8000,
+          stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [
             {
@@ -96,10 +97,13 @@ export async function POST(request: Request) {
           ],
         })
 
-        const text = response.content
-          .filter((block) => block.type === 'text')
-          .map((block) => (block as { type: 'text'; text: string }).text)
-          .join('')
+        let text = ''
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            text += event.delta.text
+            send({ type: 'text', data: event.delta.text })
+          }
+        }
 
         // Try to parse JSON from response
         let evaluation: Record<string, unknown>

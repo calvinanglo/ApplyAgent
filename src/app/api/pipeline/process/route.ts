@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
     // Mark as processing
     await db.from('pipeline_items').update({ status: 'processing' }).eq('id', item.id)
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
     const { data: cvDoc } = await db
       .from('cv_documents')
       .select('content')
@@ -305,7 +305,7 @@ export async function POST(request: Request) {
     const archetype = detectArchetype(jdText)
     const systemPrompt = buildEvaluationSystemPrompt(cvDoc.content, archetype.name)
 
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: MODELS.evaluation,
       max_tokens: 8000,
       system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildTrainingSystemPrompt } from '@/lib/prompts/training-system'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     if (!body.course_description) return Response.json({ error: 'Course description required' }, { status: 400 })
     if (body.course_description.length > 50000) return Response.json({ error: 'Course description too long (max 50,000 characters)' }, { status: 400 })
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
     if (!cvDoc) return Response.json({ error: 'No CV found.' }, { status: 400 })
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (!creditResult?.success) return Response.json({ error: creditResult?.error || 'Insufficient credits' }, { status: 402 })
 
     const systemPrompt = buildTrainingSystemPrompt(cvDoc.content)
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: MODELS.quick,
       max_tokens: 2000,
       system: systemPrompt,

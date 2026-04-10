@@ -84,7 +84,15 @@ export function filterByWorkArrangement(jobs: ScannedJob[], arrangements: string
 
 // Approximate exchange rates to USD for salary comparison
 const TO_USD: Record<string, number> = {
-  USD: 1, CAD: 0.73, EUR: 1.09, GBP: 1.27, AUD: 0.65, INR: 0.012, CHF: 1.13, JPY: 0.0067,
+  // Americas
+  USD: 1, CAD: 0.73, MXN: 0.058, BRL: 0.19, ARS: 0.0011, COP: 0.00024, CLP: 0.0011, PEN: 0.27,
+  // Europe
+  EUR: 1.09, GBP: 1.27, CHF: 1.13, SEK: 0.096, NOK: 0.093, DKK: 0.146, PLN: 0.25, CZK: 0.044, RON: 0.22,
+  // Asia Pacific
+  AUD: 0.65, NZD: 0.60, JPY: 0.0067, KRW: 0.00074, TWD: 0.031, SGD: 0.75, HKD: 0.13, CNY: 0.14,
+  INR: 0.012, THB: 0.029, IDR: 0.000063, MYR: 0.22, PHP: 0.018, VND: 0.00004,
+  // Middle East & Africa
+  AED: 0.27, ILS: 0.28, SAR: 0.27, QAR: 0.27, ZAR: 0.055, NGN: 0.00063, KES: 0.0077, EGP: 0.020,
 }
 
 export function filterBySalary(jobs: ScannedJob[], minSalary: number, currency: string = 'CAD'): ScannedJob[] {
@@ -132,13 +140,43 @@ export function filterByLocation(jobs: ScannedJob[], location: string): ScannedJ
 // ── Salary parsing ──────────────────────────────────────────
 
 const CURRENCY_MAP: Record<string, string> = {
+  // Americas
   '$': 'CAD', 'CA$': 'CAD', 'C$': 'CAD', 'CAD': 'CAD',
   'US$': 'USD', 'USD': 'USD',
+  'MX$': 'MXN', 'MXN': 'MXN',
+  'R$': 'BRL', 'BRL': 'BRL',
+  'ARS': 'ARS', 'COP': 'COP', 'CLP': 'CLP',
+  'S/': 'PEN', 'PEN': 'PEN',
+  // Europe
   '€': 'EUR', 'EUR': 'EUR',
   '£': 'GBP', 'GBP': 'GBP',
-  'A$': 'AUD', 'AU$': 'AUD', 'AUD': 'AUD',
-  '₹': 'INR', 'INR': 'INR',
   'CHF': 'CHF', 'Fr': 'CHF',
+  'kr': 'SEK', 'SEK': 'SEK', 'NOK': 'NOK', 'DKK': 'DKK',
+  'zł': 'PLN', 'PLN': 'PLN',
+  'Kč': 'CZK', 'CZK': 'CZK',
+  'lei': 'RON', 'RON': 'RON',
+  // Asia Pacific
+  'A$': 'AUD', 'AU$': 'AUD', 'AUD': 'AUD',
+  'NZ$': 'NZD', 'NZD': 'NZD',
+  '¥': 'JPY', 'JPY': 'JPY', 'CNY': 'CNY',
+  '₩': 'KRW', 'KRW': 'KRW',
+  'NT$': 'TWD', 'TWD': 'TWD',
+  'S$': 'SGD', 'SGD': 'SGD',
+  'HK$': 'HKD', 'HKD': 'HKD',
+  '₹': 'INR', 'INR': 'INR',
+  '฿': 'THB', 'THB': 'THB',
+  'Rp': 'IDR', 'IDR': 'IDR',
+  'RM': 'MYR', 'MYR': 'MYR',
+  '₱': 'PHP', 'PHP': 'PHP',
+  '₫': 'VND', 'VND': 'VND',
+  // Middle East & Africa
+  'AED': 'AED', 'د.إ': 'AED',
+  '₪': 'ILS', 'ILS': 'ILS',
+  '﷼': 'SAR', 'SAR': 'SAR', 'QAR': 'QAR',
+  'R': 'ZAR', 'ZAR': 'ZAR',
+  '₦': 'NGN', 'NGN': 'NGN',
+  'KSh': 'KES', 'KES': 'KES',
+  'EGP': 'EGP',
 }
 
 /**

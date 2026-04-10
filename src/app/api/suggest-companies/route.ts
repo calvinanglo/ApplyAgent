@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
@@ -26,7 +26,7 @@ export async function GET() {
       return Response.json({ companies: [] })
     }
 
-    const client = getAnthropicClient()
+    const client = getAIClient()
     const response = await client.messages.create({
       model: MODELS.quick,
       max_tokens: 600,

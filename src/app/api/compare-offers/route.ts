@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildCompareOffersSystemPrompt } from '@/lib/prompts/compare-offers-system'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       if (o.jd_text && o.jd_text.length > 50000) return Response.json({ error: 'JD text too long' }, { status: 400 })
     }
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
     if (!cvDoc) return Response.json({ error: 'No CV found.' }, { status: 400 })
 
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       `Offer ${i+1}:\nCompany: ${o.company}\nRole: ${o.role}${o.jd_text ? `\n${o.jd_text.slice(0, 2000)}` : ''}`
     ).join('\n\n---\n\n')
 
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: MODELS.evaluation,
       max_tokens: 4000,
       system: systemPrompt,

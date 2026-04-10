@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildPdfSystemPrompt } from '@/lib/prompts/pdf-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { buildResumeHtml, type PdfContent } from '@/lib/pdf/generator'
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
 
     const [cvRes, profileRes] = await Promise.all([
       db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single(),
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const userProfile = profileRes.data
     if (!cvDoc) return Response.json({ error: 'No CV found. Upload your CV in Settings.' }, { status: 400 })
 
-    // Append profile URLs to CV content so Claude can find them
+    // Append profile URLs to CV content
     let cvContent = cvDoc.content
     if (userProfile?.github_url && !cvContent.includes('github.com')) {
       cvContent += `\n\nGitHub: ${userProfile.github_url}`
@@ -144,8 +144,8 @@ export async function POST(request: Request) {
       userMessage = 'Generate a well-formatted resume from my CV. No specific JD — use a general IT/Security/Network focus.'
     }
 
-    // Generate tailored CV content via Claude
-    const response = await anthropic.messages.create({
+    // Generate tailored CV content
+    const response = await ai.messages.create({
       model: tier.model,
       max_tokens: 8000,
       system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Resume generation produced empty content. Credits refunded — please try again.' }, { status: 500 })
     }
 
-    // Ensure profile URLs are in the content (Claude might miss them)
+    // Ensure profile URLs are in the content
     if (userProfile?.github_url && !content.github_url) {
       content.github_url = userProfile.github_url
       const ghMatch = userProfile.github_url.match(/github\.com\/([^/\s?#]+)/)

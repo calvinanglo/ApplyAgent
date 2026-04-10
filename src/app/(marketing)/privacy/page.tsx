@@ -35,14 +35,14 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-3 text-lg font-semibold text-foreground">3. AI Processing</h2>
-          <p>Your job descriptions, resume content, and related data are processed using third-party AI services (Anthropic Claude) to generate evaluations, resumes, and cover letters. This data is transmitted securely and is not used to train AI models. We recommend not including sensitive personal identifiers beyond what is necessary for resume and job evaluation purposes.</p>
+          <p>Your job descriptions, resume content, and related data are processed using third-party AI services to generate evaluations, resumes, and cover letters. This data is transmitted securely and is not used to train AI models. We recommend not including sensitive personal identifiers beyond what is necessary for resume and job evaluation purposes.</p>
         </section>
 
         <section>
           <h2 className="mb-3 text-lg font-semibold text-foreground">4. Data Sharing</h2>
           <p>We do not sell your personal information. We share data only with:</p>
           <ul className="mt-2 list-disc space-y-1 pl-6">
-            <li><strong>Anthropic:</strong> For AI-powered evaluations and content generation</li>
+            <li><strong>AI Provider:</strong> For AI-powered evaluations and content generation</li>
             <li><strong>Stripe:</strong> For secure payment processing</li>
             <li><strong>Supabase:</strong> For secure data storage and authentication</li>
           </ul>

@@ -84,7 +84,7 @@ const KNOWLEDGE: Array<{ keywords: string[]; answer: string; links?: Array<{ lab
     links: [{ label: 'Go to Applications', href: '/applications' }] },
   // Tools
   { keywords: ['tool', 'tools page', 'what tools'],
-    answer: 'The Tools page has 5 specialized AI tools:\n\n1. LinkedIn Message (2 cr) — personalized connection requests with target suggestions\n2. Deep Research (3 cr) — structured research prompts for Perplexity/Claude\n3. Project Evaluator (2 cr) — BUILD/SKIP/MAYBE verdict for portfolio projects\n4. Training Evaluator (2 cr) — DO IT/SKIP verdict for courses/certifications\n5. Compare Offers (5 cr) — 10-dimension scoring matrix for multiple offers',
+    answer: 'The Tools page has 5 specialized AI tools:\n\n1. LinkedIn Message (2 cr) — personalized connection requests with target suggestions\n2. Deep Research (3 cr) — structured research prompts for Perplexity/ChatGPT\n3. Project Evaluator (2 cr) — BUILD/SKIP/MAYBE verdict for portfolio projects\n4. Training Evaluator (2 cr) — DO IT/SKIP verdict for courses/certifications\n5. Compare Offers (5 cr) — 10-dimension scoring matrix for multiple offers',
     links: [{ label: 'Go to Tools', href: '/tools' }] },
   { keywords: ['linkedin', 'message', 'connection request', 'outreach'],
     answer: 'LinkedIn Message Generator (2 credits):\n\n1. Enter company name and role\n2. Optionally paste the JD for better targeting\n3. Get a 300-character message for the best person to contact\n4. Also shows 2-3 alternative targets with messages\n5. Click Copy on any message to use it',
@@ -93,7 +93,7 @@ const KNOWLEDGE: Array<{ keywords: string[]; answer: string; links?: Array<{ lab
     answer: 'Compare Offers (5 credits):\n\n1. Add 2+ offers with company name, role, and optional JD\n2. Get a scored comparison across 10 dimensions:\n   North Star, CV Match, Level, Compensation, Growth, Remote, Reputation, Tech Stack, Speed to Impact, Culture\n3. Color-coded table with a recommendation',
     links: [{ label: 'Go to Tools', href: '/tools' }] },
   { keywords: ['research', 'deep research', 'perplexity'],
-    answer: 'Deep Research Prompt (3 credits):\n\n1. Enter company and role\n2. Get quick questions to answer, your positioning angle, and a full research prompt\n3. Copy the prompt and paste it into Perplexity, Claude, or ChatGPT\n4. The prompt is structured to give you insider knowledge about the company',
+    answer: 'Deep Research Prompt (3 credits):\n\n1. Enter company and role\n2. Get quick questions to answer, your positioning angle, and a full research prompt\n3. Copy the prompt and paste it into Perplexity, ChatGPT, or any AI tool\n4. The prompt is structured to give you insider knowledge about the company',
     links: [{ label: 'Go to Tools', href: '/tools' }] },
   // Story Bank
   { keywords: ['story', 'star', 'interview prep', 'behavioral', 'story bank'],
@@ -145,7 +145,7 @@ const KNOWLEDGE: Array<{ keywords: string[]; answer: string; links?: Array<{ lab
     links: [{ label: 'Contact Page', href: '/contact' }] },
   // Privacy & Security
   { keywords: ['privacy', 'data', 'secure', 'safe', 'who sees'],
-    answer: 'Your data is secure:\n\n- Stored in Supabase (encrypted at rest)\n- Your CV and documents are only accessible to you\n- AI processing uses Anthropic\'s Claude API (data not stored by them)\n- Payments processed securely via Stripe\n- You can delete all your data anytime from Profile\n\nSee our Privacy Policy for full details.',
+    answer: 'Your data is secure:\n\n- Stored in Supabase (encrypted at rest)\n- Your CV and documents are only accessible to you\n- AI processing is handled securely (data not stored by AI providers)\n- Payments processed securely via Stripe\n- You can delete all your data anytime from Profile\n\nSee our Privacy Policy for full details.',
     links: [{ label: 'Privacy Policy', href: '/privacy' }] },
   // Referral
   { keywords: ['referral', 'refer', 'invite', 'friend'],

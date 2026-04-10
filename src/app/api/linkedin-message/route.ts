@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAnthropicClient, MODELS } from '@/lib/anthropic'
+import { getAIClient, MODELS } from '@/lib/ai'
 import { buildLinkedInSystemPrompt } from '@/lib/prompts/linkedin-system'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (body.role.length > 200) return Response.json({ error: 'Role too long' }, { status: 400 })
     if (body.jd_text && body.jd_text.length > 50000) return Response.json({ error: 'JD text too long' }, { status: 400 })
 
-    const anthropic = getAnthropicClient()
+    const ai = getAIClient()
     const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
     if (!cvDoc) return Response.json({ error: 'No CV found. Upload your CV in Settings.' }, { status: 400 })
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!creditResult?.success) return Response.json({ error: creditResult?.error || 'Insufficient credits' }, { status: 402 })
 
     const systemPrompt = buildLinkedInSystemPrompt(cvDoc.content)
-    const response = await anthropic.messages.create({
+    const response = await ai.messages.create({
       model: MODELS.quick,
       max_tokens: 1000,
       system: systemPrompt,

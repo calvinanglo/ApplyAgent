@@ -120,25 +120,23 @@ export default function PipelinePage() {
     // Remove from UI immediately
     setItems(prev => prev.filter(i => i.id !== id))
     let undone = false
+    const timer = setTimeout(() => {
+      if (!undone) {
+        fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      }
+    }, 10500)
+    toast.dismiss('pipeline-delete')
     toast('Item removed', {
+      id: 'pipeline-delete',
       action: {
         label: 'Undo',
         onClick: () => {
           undone = true
-          setItems(prev => [...prev, deleted].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+          clearTimeout(timer)
+          loadItems()
         },
       },
       duration: 10000,
-      onAutoClose: () => {
-        if (!undone) {
-          fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-        }
-      },
-      onDismiss: () => {
-        if (!undone) {
-          fetch('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-        }
-      },
     })
   }
 
@@ -506,13 +504,15 @@ export default function PipelinePage() {
           </label>
           {selectedItems.size > 0 && (
             <div className="flex items-center gap-2">
-              <CreditConfirmButton
-                credits={10 * items.filter(i => selectedItems.has(i.id) && i.status === 'pending').length}
-                label={`Process Selected (${items.filter(i => selectedItems.has(i.id) && i.status === 'pending').length})`}
-                loadingLabel="Processing..."
-                onConfirm={handleProcessSelected}
-                icon={<Play className="size-4" />}
-              />
+              {(activeTab === 'pending' || activeTab === 'errors') && (
+                <CreditConfirmButton
+                  credits={10 * items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || i.status === 'error')).length}
+                  label={`Process Selected (${items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || i.status === 'error')).length})`}
+                  loadingLabel="Processing..."
+                  onConfirm={handleProcessSelected}
+                  icon={<Play className="size-4" />}
+                />
+              )}
               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
                 if (window.confirm(`Remove ${selectedItems.size} selected item(s)?`)) {
                   const ids = Array.from(selectedItems)
@@ -542,7 +542,7 @@ export default function PipelinePage() {
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[60vh] overflow-y-auto md:max-h-none md:overflow-visible">
           {filteredItems.map((item) => (
             <div key={item.id} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">

@@ -1,5 +1,5 @@
 export function buildDeepResearchSystemPrompt(cvContent: string): string {
-  return `You generate a structured deep research prompt that the user can run in Perplexity, ChatGPT, or Claude to research a company before an interview.
+  return `You generate a structured deep research prompt that the user can run in Perplexity, ChatGPT, or other AI tools to research a company before an interview.
 
 ## Candidate CV
 ${cvContent}

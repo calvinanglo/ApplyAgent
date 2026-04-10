@@ -656,18 +656,61 @@ export default function ScanPage() {
                     <label className="text-xs font-medium text-muted-foreground">Minimum Salary (annual)</label>
                     <select value={salaryCurrency} onChange={e => setSalaryCurrency(e.target.value)}
                       className="h-7 rounded-md border bg-background px-2 text-xs">
-                      <option value="CAD">CAD $</option>
-                      <option value="USD">USD $</option>
-                      <option value="EUR">EUR €</option>
-                      <option value="GBP">GBP £</option>
-                      <option value="AUD">AUD $</option>
-                      <option value="CHF">CHF</option>
-                      <option value="INR">INR ₹</option>
+                      {/* Americas */}
+                      <option value="CAD">CAD $ — Canada</option>
+                      <option value="USD">USD $ — United States</option>
+                      <option value="MXN">MXN $ — Mexico</option>
+                      <option value="BRL">BRL R$ — Brazil</option>
+                      <option value="ARS">ARS $ — Argentina</option>
+                      <option value="COP">COP $ — Colombia</option>
+                      <option value="CLP">CLP $ — Chile</option>
+                      <option value="PEN">PEN S/ — Peru</option>
+                      {/* Europe */}
+                      <option value="EUR">EUR € — Europe</option>
+                      <option value="GBP">GBP £ — United Kingdom</option>
+                      <option value="CHF">CHF — Switzerland</option>
+                      <option value="SEK">SEK kr — Sweden</option>
+                      <option value="NOK">NOK kr — Norway</option>
+                      <option value="DKK">DKK kr — Denmark</option>
+                      <option value="PLN">PLN zł — Poland</option>
+                      <option value="CZK">CZK Kč — Czech Republic</option>
+                      <option value="RON">RON lei — Romania</option>
+                      {/* Asia Pacific */}
+                      <option value="AUD">AUD $ — Australia</option>
+                      <option value="NZD">NZD $ — New Zealand</option>
+                      <option value="JPY">JPY ¥ — Japan</option>
+                      <option value="KRW">KRW ₩ — South Korea</option>
+                      <option value="TWD">TWD NT$ — Taiwan</option>
+                      <option value="SGD">SGD $ — Singapore</option>
+                      <option value="HKD">HKD $ — Hong Kong</option>
+                      <option value="CNY">CNY ¥ — China</option>
+                      <option value="INR">INR ₹ — India</option>
+                      <option value="THB">THB ฿ — Thailand</option>
+                      <option value="IDR">IDR Rp — Indonesia</option>
+                      <option value="MYR">MYR RM — Malaysia</option>
+                      <option value="PHP">PHP ₱ — Philippines</option>
+                      <option value="VND">VND ₫ — Vietnam</option>
+                      {/* Middle East & Africa */}
+                      <option value="AED">AED د.إ — UAE</option>
+                      <option value="ILS">ILS ₪ — Israel</option>
+                      <option value="SAR">SAR ﷼ — Saudi Arabia</option>
+                      <option value="QAR">QAR ﷼ — Qatar</option>
+                      <option value="ZAR">ZAR R — South Africa</option>
+                      <option value="NGN">NGN ₦ — Nigeria</option>
+                      <option value="KES">KES KSh — Kenya</option>
+                      <option value="EGP">EGP £ — Egypt</option>
                     </select>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-2">
                     {['40000', '50000', '60000', '70000', '80000', '100000', '120000', '150000'].map(val => {
-                      const sym = salaryCurrency === 'EUR' ? '€' : salaryCurrency === 'GBP' ? '£' : salaryCurrency === 'INR' ? '₹' : '$'
+                      const CURRENCY_SYMBOLS: Record<string, string> = {
+                        EUR: '€', GBP: '£', EGP: '£', INR: '₹', JPY: '¥', CNY: '¥',
+                        KRW: '₩', PHP: '₱', VND: '₫', THB: '฿', ILS: '₪', NGN: '₦',
+                        PLN: 'zł', CZK: 'Kč', BRL: 'R$', PEN: 'S/', ZAR: 'R', MYR: 'RM',
+                        IDR: 'Rp', TWD: 'NT$', RON: 'lei', KES: 'KSh',
+                        SEK: 'kr', NOK: 'kr', DKK: 'kr', AED: 'د.إ', SAR: '﷼', QAR: '﷼',
+                      }
+                      const sym = CURRENCY_SYMBOLS[salaryCurrency] || '$'
                       return (
                         <button key={val} onClick={() => setSalaryMin(salaryMin === val ? '' : val)}
                           className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${salaryMin === val ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-border'}`}>

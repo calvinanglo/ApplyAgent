@@ -51,7 +51,7 @@ export function PricingSection() {
 
       {/* Subscription plans */}
       {billing !== 'one-time' && (
-        <div className="mt-12 grid gap-6 md:grid-cols-3 pt-4">
+        <div className="mt-12 grid gap-6 md:grid-cols-3 pt-4 max-w-sm md:max-w-none mx-auto">
           {SUBSCRIPTION_PLANS.map((plan) => {
             const price = billing === 'monthly' ? plan.priceMonthlyDisplay : plan.priceAnnuallyDisplay
             const isPopular = plan.badge === 'Most Popular'
@@ -106,7 +106,7 @@ export function PricingSection() {
 
       {/* One-time credit packs */}
       {billing === 'one-time' && (
-        <div className="mt-12 grid gap-6 md:grid-cols-3 pt-4">
+        <div className="mt-12 grid gap-6 md:grid-cols-3 pt-4 max-w-sm md:max-w-none mx-auto">
           {CREDIT_PACKS.map((pack) => {
             const hasBadge = !!pack.badge
             return (

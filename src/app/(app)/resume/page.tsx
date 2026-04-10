@@ -153,6 +153,11 @@ function DocumentsContent() {
     }
   }
 
+  // ── Generate Both ─────────────────────────────────────
+  async function handleGenerateBoth() {
+    await Promise.all([handleGenerateResume(), handleGenerateCL()])
+  }
+
   // ── DOCX Builders ─────────────────────────────────────
   async function buildResumeDocx(c: any, downloadName: string) {
     const { Document, Packer, Paragraph, TextRun, BorderStyle, convertInchesToTwip, TabStopType, TabStopPosition } = await import('docx')
@@ -420,14 +425,25 @@ function DocumentsContent() {
               <p className="text-xs text-muted-foreground">
                 {MODEL_TIERS.find(t => t.id === modelTier)?.sublabel}{isResume ? ' — download as PDF or DOCX' : ''}
               </p>
-              <CreditConfirmButton
-                credits={isResume ? MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits : MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
-                label="Generate"
-                loadingLabel="Generating..."
-                disabled={(isResume ? resumeLoading : clLoading) || (!selectedReportId && !reportIdParam && !jdText.trim())}
-                onConfirm={isResume ? () => handleGenerateResume() : () => handleGenerateCL()}
-                icon={isResume ? <FileDown className="size-4" /> : <Mail className="size-4" />}
-              />
+              <div className="flex items-center gap-2">
+                <CreditConfirmButton
+                  credits={MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits + MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
+                  label="Both"
+                  loadingLabel="Generating..."
+                  disabled={resumeLoading || clLoading || (!selectedReportId && !reportIdParam && !jdText.trim())}
+                  onConfirm={handleGenerateBoth}
+                  icon={<FileDown className="size-4" />}
+                  variant="outline"
+                />
+                <CreditConfirmButton
+                  credits={isResume ? MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits : MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
+                  label={isResume ? 'Resume' : 'Cover Letter'}
+                  loadingLabel="Generating..."
+                  disabled={(isResume ? resumeLoading : clLoading) || (!selectedReportId && !reportIdParam && !jdText.trim())}
+                  onConfirm={isResume ? () => handleGenerateResume() : () => handleGenerateCL()}
+                  icon={isResume ? <FileDown className="size-4" /> : <Mail className="size-4" />}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
