@@ -801,6 +801,7 @@ export default function ScanPage() {
               {items.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm font-semibold">Added to pipeline:</p>
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto md:max-h-none pr-1">
                   {items.map((item: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-2">
                       <div className="flex-1 min-w-0">
@@ -810,6 +811,7 @@ export default function ScanPage() {
                       <Badge variant="outline" className="text-xs shrink-0">{item.source}</Badge>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </CardContent>

@@ -502,7 +502,7 @@ export default function SettingsPage() {
             value={cvContent}
             onChange={(e) => setCvContent(e.target.value)}
             rows={20}
-            className="font-mono text-sm"
+            className="font-mono text-sm max-h-[50vh] overflow-y-auto md:max-h-none"
           />
         </CardContent>
       </Card>
