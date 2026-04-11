@@ -131,7 +131,7 @@ export default function LandingPage() {
                   {[
                     ['Evaluate first', 'know your match score before wasting time on long-shot applications'],
                     ['Beat the ATS', 'keyword-optimized resumes that score high in automated screening'],
-                    ['Impress the human', 'tailored cover letters connecting your experience to their requirements'],
+                    ['Impress the recruiter', 'tailored cover letters connecting your experience to their requirements'],
                   ].map(([bold, text]) => (
                     <li key={bold} className="flex items-start gap-2">
                       <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
