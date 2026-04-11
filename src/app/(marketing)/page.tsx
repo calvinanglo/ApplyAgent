@@ -5,11 +5,10 @@ import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Badge } from '@/components/ui/badge'
 import { PricingSection } from '@/components/pricing-section'
 import { MobileNav } from '@/components/mobile-nav'
-import { AnimatedStats } from '@/components/landing/animated-stats'
 import { FeatureShowcase } from '@/components/landing/feature-showcase'
 import {
   Sparkles, ArrowRight, Play, CheckCircle2, ChevronRight,
-  Clock, Star, Users, Check,
+  Clock, Users,
 } from 'lucide-react'
 
 const companies = [
@@ -61,7 +60,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Evaluate jobs against your CV, generate tailored documents, scan 109 company portals and 4 job boards,
+            Evaluate jobs against your CV, generate tailored documents, scan company career portals and major job boards,
             and track your entire search — all in one command center.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -75,17 +74,12 @@ export default function LandingPage() {
             </a>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">Set up in 2 minutes. Start applying today.</p>
-
-          {/* Stats */}
-          <div className="mt-12">
-            <AnimatedStats />
-          </div>
         </div>
 
         {/* Company marquee */}
         <div className="border-y bg-muted/30 py-5 overflow-hidden">
           <p className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Scans career pages from leading companies
+            Example career pages the scanner can search
           </p>
           <div className="relative">
             <div className="flex gap-8 hover:[animation-play-state:paused]" style={{ animation: 'marquee 40s linear infinite', width: 'max-content' }}>
@@ -103,11 +97,11 @@ export default function LandingPage() {
           <div className="text-center scroll-reveal">
             <Badge variant="outline" className="mb-4">The Problem</Badge>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              75% of resumes are rejected before a human reads them
+              Most resumes never reach a human
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
               Companies use Applicant Tracking Systems to automatically filter candidates.
-              If your resume doesn&apos;t match, you&apos;re invisible.
+              If your resume doesn&apos;t match the job description, you&apos;re invisible.
             </p>
           </div>
 
@@ -191,27 +185,27 @@ export default function LandingPage() {
       {/* ── Feature Showcase (interactive tabs) ────── */}
       <FeatureShowcase />
 
-      {/* ── Testimonials ────────────────────────────── */}
+      {/* ── Who it's for ────────────────────────────── */}
       <section className="border-y bg-muted/30 py-16">
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h2 className="scroll-reveal text-2xl font-bold tracking-tight sm:text-3xl">
             Built for serious job seekers
           </h2>
           <p className="scroll-reveal mx-auto mt-3 max-w-xl text-muted-foreground">
-            Whether you&apos;re applying to 5 jobs or 500, ApplyAgent gives you an unfair advantage at every step.
+            Whether you&apos;re applying to 5 jobs or 500, ApplyAgent gives you a real edge at every step.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-3">
             {[
-              { quote: 'I evaluated 40 jobs in one afternoon and knew exactly which ones to apply to. The tailored resumes got me 3 interviews in the first week.', role: 'Software Engineer, Toronto' },
-              { quote: 'The portal scanner found roles I never would have discovered. Batch processing saved me hours of manual work.', role: 'DevOps Engineer, London' },
-              { quote: 'The STAR stories from evaluations were a game-changer for interviews. I walked in with prepared answers for every question.', role: 'Cloud Architect, New York' },
+              { title: 'Evaluate first', desc: 'Know your match score before spending hours on long-shot applications.' },
+              { title: 'Tailor instantly', desc: 'Generate ATS-optimized resumes and cover letters in seconds.' },
+              { title: 'Track everything', desc: 'Every scan, evaluation, and application organized in one dashboard.' },
             ].map((t, i) => (
-              <div key={t.role} className={`scroll-reveal scroll-reveal-delay-${i} rounded-xl border bg-card p-6 text-left`}>
-                <div className="mb-3 flex gap-0.5">
-                  {[1,2,3,4,5].map(s => <Star key={s} className="size-3.5 fill-primary text-primary" />)}
+              <div key={t.title} className={`scroll-reveal scroll-reveal-delay-${i} rounded-xl border bg-card p-6 text-left`}>
+                <div className="mb-3 flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                  <CheckCircle2 className="size-4 text-primary" />
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
-                <p className="mt-3 text-xs font-semibold">{t.role}</p>
+                <h3 className="text-base font-semibold mb-1.5">{t.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t.desc}</p>
               </div>
             ))}
           </div>

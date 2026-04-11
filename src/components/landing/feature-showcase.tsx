@@ -201,11 +201,11 @@ function ScannerTab() {
     <TabLayout
       title="Job Scanner"
       badge="3 credits"
-      description="Scan 109 company career pages and 4 job boards simultaneously. Unified filters with role autocomplete and multi-currency salary matching."
+      description="Scan company career pages and major job boards simultaneously. Unified filters with role autocomplete and multi-currency salary matching."
       bullets={[
-        '5 ATS platforms: Greenhouse, Lever, Ashby, SmartRecruiters, Workday',
-        '4 job boards: LinkedIn, Talent.com, CareerJet, Jooble',
-        'Smart role autocomplete with 70+ suggestions',
+        'Direct ATS integration: Greenhouse, Lever, Ashby, SmartRecruiters, Workday',
+        'Major job boards: LinkedIn, Talent.com, CareerJet, Jooble',
+        'Smart role autocomplete',
         'Salary filters with currency selector (CAD, USD, EUR, and more)',
         'Unified filters — companies, salary, work type, all in one panel',
       ]}
