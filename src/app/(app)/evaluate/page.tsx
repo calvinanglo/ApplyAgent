@@ -11,11 +11,19 @@ import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { BlockRenderer } from '@/components/evaluation/BlockRenderer'
 import { FileUpload } from '@/components/ui/file-upload'
 import Link from 'next/link'
+import { useBackgroundJob } from '@/lib/use-background-job'
 
 interface EvaluationBlock {
   key: string
   title: string
   content: unknown
+}
+
+interface EvaluationJobResult {
+  result: Record<string, unknown>
+  score: number | null
+  archetype: string | null
+  report_id: string | null
 }
 
 const BLOCK_MAP: { key: string; title: string }[] = [
@@ -30,12 +38,10 @@ const BLOCK_MAP: { key: string; title: string }[] = [
 
 export default function EvaluatePage() {
   const [jdText, setJdText] = useState('')
-  const [loading, setLoading] = useState(false)
   const [blocks, setBlocks] = useState<EvaluationBlock[]>([])
   const [score, setScore] = useState<number | null>(null)
   const [archetype, setArchetype] = useState<string | null>(null)
   const [reportId, setReportId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [pipelineLoading, setPipelineLoading] = useState(false)
   const [pipelineDone, setPipelineDone] = useState<{ pdf?: string; coverLetter?: boolean } | null>(null)
 
@@ -52,48 +58,23 @@ export default function EvaluatePage() {
     setReportId(statusReportId)
   }
 
+  const { start: startEvaluation, loading, error } = useBackgroundJob<EvaluationJobResult>({
+    storageKey: 'evaluate:active-job',
+    onComplete: (data) => {
+      applyResult(data.result, data.score ?? null, data.archetype ?? null, data.report_id ?? null)
+    },
+  })
+
   async function handleEvaluate() {
     if (!jdText.trim()) return
 
-    setLoading(true)
-    setError(null)
     setBlocks([])
     setScore(null)
     setArchetype(null)
     setReportId(null)
     setPipelineDone(null)
 
-    try {
-      const res = await fetch('/api/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jd_text: jdText }),
-      })
-
-      if (!res.ok) {
-        try {
-          const data = await res.json()
-          setError(data.error || `Evaluation failed (${res.status})`)
-        } catch {
-          setError(`Evaluation failed (${res.status})`)
-        }
-        setLoading(false)
-        return
-      }
-
-      const data = await res.json()
-      if (!data.result) {
-        setError('No result returned')
-        setLoading(false)
-        return
-      }
-
-      applyResult(data.result, data.score ?? null, data.archetype ?? null, data.report_id ?? null)
-      setLoading(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run evaluation')
-      setLoading(false)
-    }
+    await startEvaluation('/api/evaluate', { jd_text: jdText })
   }
 
   async function handleFullPipeline() {

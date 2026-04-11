@@ -7,7 +7,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
  * `after()`, and the worker updates status via the service role client.
  */
 
-export type JobKind = 'cover_letter' | 'resume_pdf' | 'scan' | 'pipeline_process'
+export type JobKind = 'cover_letter' | 'resume_pdf' | 'scan' | 'pipeline_process' | 'evaluation'
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
 
 export function getServiceClient() {
