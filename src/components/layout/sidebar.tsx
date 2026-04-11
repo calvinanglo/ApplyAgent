@@ -27,13 +27,13 @@ import { useNavigationBlocker } from '@/components/navigation-blocker'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/evaluate', label: 'Evaluate', icon: Search },
-  { href: '/applications', label: 'Applications', icon: Briefcase },
-  { href: '/tools', label: 'Tools', icon: Wrench },
-  { href: '/resume', label: 'Documents', icon: FileDown },
-  { href: '/story-bank', label: 'Story Bank', icon: BookOpen },
   { href: '/scan', label: 'Scanner', icon: Inbox },
   { href: '/pipeline', label: 'Pipeline', icon: List },
+  { href: '/applications', label: 'Applications', icon: Briefcase },
+  { href: '/resume', label: 'Documents', icon: FileDown },
+  { href: '/evaluate', label: 'Evaluate', icon: Search },
+  { href: '/story-bank', label: 'Story Bank', icon: BookOpen },
+  { href: '/tools', label: 'Tools', icon: Wrench },
   { href: '/billing', label: 'Billing', icon: CreditCard },
   { href: '/settings', label: 'Profile', icon: Settings },
   { href: '/instructions', label: 'How It Works', icon: HelpCircle },
