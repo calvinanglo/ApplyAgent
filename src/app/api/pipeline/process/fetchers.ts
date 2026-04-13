@@ -52,6 +52,21 @@ function stripHtml(html: string): string {
 
 interface JdResult { text: string; location: string | null }
 
+const UNSUPPORTED_ATS: Array<{ pattern: RegExp; name: string }> = [
+  { pattern: /taleo\.net/i, name: 'Taleo' },
+  { pattern: /icims\.com/i, name: 'iCIMS' },
+  { pattern: /\/psp\/|\/psc\/|peoplesoft/i, name: 'PeopleSoft' },
+  { pattern: /smartrecruiters\.com/i, name: 'SmartRecruiters' },
+  { pattern: /successfactors\./i, name: 'SAP SuccessFactors' },
+]
+
+function checkUnsupportedAts(url: string): string | null {
+  for (const { pattern, name } of UNSUPPORTED_ATS) {
+    if (pattern.test(url)) return name
+  }
+  return null
+}
+
 async function fetchGreenhouseJd(url: string): Promise<JdResult | null> {
   const boardMatch = url.match(/(?:boards|job-boards)\.greenhouse\.io\/([^/]+)\/jobs\/(\d+)/)
   const ghJidMatch = !boardMatch ? url.match(/[?&]gh_jid=(\d+)/) : null
@@ -195,6 +210,14 @@ async function fetchGenericJd(url: string): Promise<string> {
 export async function fetchJdFromUrl(url: string): Promise<JdResult> {
   if (!isAllowedUrl(url)) {
     throw new Error('URL not allowed: internal or private addresses are blocked')
+  }
+
+  const unsupported = checkUnsupportedAts(url)
+  if (unsupported) {
+    throw new Error(
+      `${unsupported} career pages can't be scanned automatically. ` +
+      `Copy the job description text and paste it in the Evaluate tab instead.`
+    )
   }
 
   const atsFetchers = [fetchGreenhouseJd, fetchLeverJd, fetchAshbyJd, fetchWorkdayJd]

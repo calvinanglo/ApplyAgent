@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'edge'
+
 /**
  * GET /api/evaluate/status?id=<job_id>
  *
