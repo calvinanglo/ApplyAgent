@@ -107,6 +107,7 @@ export async function POST(request: Request) {
 
       try {
         await startJob(jobId)
+        const t0 = Date.now()
         const ai = getAIClient()
 
         let cvContent = cvDoc.content
@@ -183,12 +184,16 @@ export async function POST(request: Request) {
           userMessage = 'Generate a well-formatted resume from my CV. No specific JD — use a general IT/Security/Network focus.'
         }
 
+        const t1 = Date.now()
+        console.log(`[PDF] Setup: ${t1 - t0}ms | model: ${tier.model}`)
         const response = await ai.messages.create({
           model: tier.model,
           max_tokens: 8000,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: userMessage }],
         })
+        const t2 = Date.now()
+        console.log(`[PDF] Claude AI call: ${t2 - t1}ms`)
 
         const text = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
         let content: PdfContent
@@ -236,15 +241,21 @@ export async function POST(request: Request) {
 
         // Try React-PDF first (no Chromium, faster cold starts, smaller bundle).
         // Fall back to Chromium if React-PDF fails so no regression in output.
+        const t3 = Date.now()
         let pdfBuffer: Buffer
+        let pdfEngine = 'react-pdf'
         try {
           pdfBuffer = await getReactPdfBuffer(content)
         } catch (reactPdfErr) {
+          pdfEngine = 'chromium-fallback'
           console.warn('React-PDF failed, falling back to Chromium:', reactPdfErr)
           const html = buildResumeHtml(content)
           const format = content.paper_format === 'a4' ? 'a4' : 'letter'
           pdfBuffer = await getPdfBuffer(html, format)
         }
+
+        const t4 = Date.now()
+        console.log(`[PDF] ${pdfEngine}: ${t4 - t3}ms | total: ${t4 - t0}ms`)
 
         const initials = userProfile?.full_name
           ? userProfile.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase()
