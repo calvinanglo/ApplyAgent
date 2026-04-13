@@ -74,10 +74,17 @@ Rules:
 - Reframe wording to use JD keywords naturally. If the JD says "incident response" and the CV says "troubleshooting issues," write "incident response and resolution."
 - Cut or condense bullets that have zero relevance to the JD. Make room for what matters.
 
-Bullet distribution (STRICT):
-- Most recent job: 5-6 bullets
-- Second job: 3-4 bullets
-- Third and older: 2-3 bullets each
+### CRITICAL: Do NOT keyword-stuff older jobs
+Recruiters spot fake resumes instantly. Older or junior roles (help desk, IT support, co-ops) must sound like what they actually were — NOT like the target role copy-pasted into every bullet. Rules:
+- Do NOT force the JD's primary keyword (e.g. "security") into every bullet of every job. A help desk co-op should read like a help desk co-op, not a SOC analyst.
+- For older/junior roles: describe the ACTUAL work honestly. Use JD keywords ONLY where they naturally apply (e.g. if the person genuinely configured MFA, say so — but don't rebrand "reset passwords" as "identity security operations").
+- Maximum 1-2 bullets per older job may use JD-targeted language. The rest should highlight transferable skills (troubleshooting, automation, documentation, client support) in their own natural terms.
+- The current/most recent job is where heavy JD tailoring belongs. Older jobs show career progression and breadth — they don't need to echo the same keywords.
+
+Bullet distribution (STRICT — violating these limits wastes space and pushes the resume past 1 page):
+- Most recent job: 5-6 bullets (heavy JD keyword alignment)
+- Second job: 4 bullets max (moderate JD alignment)
+- Third and older: 3 bullets max, light JD alignment only where genuine
 
 ### Skills section
 - Group into 3-5 categories. Use category names that mirror JD themes (e.g., if the JD emphasizes "Cloud Infrastructure," use that as a category name, not "Platforms").
