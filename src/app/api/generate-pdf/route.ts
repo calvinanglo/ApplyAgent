@@ -4,10 +4,11 @@ import { getAIClient } from '@/lib/ai'
 import { buildPdfSystemPrompt } from '@/lib/prompts/pdf-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { buildResumeHtml, type PdfContent } from '@/lib/pdf/generator'
+import { getReactPdfBuffer } from '@/lib/pdf/react-pdf'
 import { getPdfBuffer } from '@/lib/pdf/chromium'
 import { getModelTier, type ModelTierId } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
-import { createJob, startJob, completeJob, failJob, getServiceClient } from '@/lib/background-job'
+import { createJob, startJob, completeJob, failJob, getServiceClient, checkUserConcurrency, checkGlobalConcurrency } from '@/lib/background-job'
 
 export const maxDuration = 60
 
@@ -28,9 +29,16 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = user.id
 
-    const { success: withinLimit } = rateLimit(`pdf:${userId}`, 10, 60_000)
+    const { success: withinLimit } = await rateLimit(`pdf:${userId}`, 10, 60_000)
     if (!withinLimit) {
       return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
+
+    if (!(await checkUserConcurrency(db, userId))) {
+      return Response.json({ error: 'You have too many active jobs. Please wait for them to finish.' }, { status: 429 })
+    }
+    if (!(await checkGlobalConcurrency())) {
+      return Response.json({ error: 'Service is busy. Please try again in a moment.' }, { status: 503 })
     }
 
     let body: { jd_text?: string; report_id?: string; force?: boolean; model_tier?: string }
@@ -226,9 +234,17 @@ export async function POST(request: Request) {
           content.phone = userProfile.phone
         }
 
-        const html = buildResumeHtml(content)
-        const format = content.paper_format === 'a4' ? 'a4' : 'letter'
-        const pdfBuffer = await getPdfBuffer(html, format)
+        // Try React-PDF first (no Chromium, faster cold starts, smaller bundle).
+        // Fall back to Chromium if React-PDF fails so no regression in output.
+        let pdfBuffer: Buffer
+        try {
+          pdfBuffer = await getReactPdfBuffer(content)
+        } catch (reactPdfErr) {
+          console.warn('React-PDF failed, falling back to Chromium:', reactPdfErr)
+          const html = buildResumeHtml(content)
+          const format = content.paper_format === 'a4' ? 'a4' : 'letter'
+          pdfBuffer = await getPdfBuffer(html, format)
+        }
 
         const initials = userProfile?.full_name
           ? userProfile.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase()

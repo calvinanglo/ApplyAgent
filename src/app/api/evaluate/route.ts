@@ -1,11 +1,11 @@
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAIClient, MODELS } from '@/lib/ai'
-import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
+import { buildEvaluationSystemBlocks } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
-import { createJob, startJob, completeJob, failJob, getServiceClient } from '@/lib/background-job'
+import { createJob, startJob, completeJob, failJob, getServiceClient, checkUserConcurrency, checkGlobalConcurrency } from '@/lib/background-job'
 
 export const maxDuration = 60
 
@@ -26,9 +26,19 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = user.id
 
-    const { success: withinLimit } = rateLimit(`eval:${userId}`, 10, 60_000)
+    const { success: withinLimit } = await rateLimit(`eval:${userId}`, 10, 60_000)
     if (!withinLimit) {
       return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
+
+    // Per-user concurrency cap: max 3 active jobs at once
+    if (!(await checkUserConcurrency(db, userId))) {
+      return Response.json({ error: 'You have too many active jobs. Please wait for them to finish.' }, { status: 429 })
+    }
+
+    // Global Anthropic concurrency cap: max 15 org-wide
+    if (!(await checkGlobalConcurrency())) {
+      return Response.json({ error: 'Service is busy. Please try again in a moment.' }, { status: 503 })
     }
 
     let body: { jd_text?: string; jd_url?: string }
@@ -108,16 +118,19 @@ export async function POST(request: Request) {
 
         const jd = jd_text || ''
         const archetype = detectArchetype(jd)
-        const systemPrompt = buildEvaluationSystemPrompt(cvDoc.content, archetype.name)
+        // Two-block system for optimal prompt caching:
+        //   Block 1: static instructions (shared prefix, cached org-wide)
+        //   Block 2: CV content (ephemeral, cached per-user within 5 min)
+        const systemBlocks = buildEvaluationSystemBlocks(cvDoc.content)
 
         const response = await ai.messages.create({
           model: MODELS.evaluation,
           max_tokens: 8000,
-          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+          system: systemBlocks,
           messages: [
             {
               role: 'user',
-              content: `Evaluate this job description and return the complete evaluation as JSON:\n\n${jd}`,
+              content: `Archetype: ${archetype.name}\n\nEvaluate this job description and return the complete evaluation as JSON:\n\n${jd}`,
             },
           ],
         })

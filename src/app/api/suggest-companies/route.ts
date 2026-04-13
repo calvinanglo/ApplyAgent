@@ -9,7 +9,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { success: withinLimit } = rateLimit(`suggest:${user.id}`, 5, 60_000)
+    const { success: withinLimit } = await rateLimit(`suggest:${user.id}`, 5, 60_000)
     if (!withinLimit) return Response.json({ companies: [] })
 
     // Load profile and CV

@@ -1,17 +1,18 @@
-export function buildEvaluationSystemPrompt(cvContent: string, archetypeName: string): string {
-  return `You are an expert career advisor evaluating job postings for an IT/Security/Cloud professional in Canada.
+/**
+ * Evaluation system prompt — split into two Anthropic API system blocks for
+ * effective prompt caching:
+ *
+ *   Block 1 (STATIC_EVALUATION_SYSTEM): identical across every evaluation for
+ *   every user → Anthropic caches this prefix org-wide (5-min TTL).
+ *
+ *   Block 2 (CV + profile, marked ephemeral): changes only when the user
+ *   updates their CV → cached per-user within the 5-min TTL window, so
+ *   repeated evaluations of the same user get a cache hit on both blocks.
+ *
+ * The archetype is moved to the user message so it doesn't bust the CV cache.
+ */
 
-## Candidate CV
-${cvContent}
-
-## Detected Archetype: ${archetypeName}
-
-## Candidate Profile
-- Location: Manitoba, Canada
-- Target Comp: CAD $80K-115K
-- Certifications: Security+, CCNA, ITIL 4, ISC2 CC
-- Key differentiator: 30+ remote locations Arctic operations experience
-- Archetypes: Security Analyst/SOC, Network Engineer, Cloud Engineer, IT Sysadmin, IT Specialist
+const STATIC_EVALUATION_SYSTEM = `You are an expert career advisor evaluating job postings for an IT/Security/Cloud professional in Canada.
 
 ## Your Task
 Evaluate the job description and produce blocks A-F (and G if score >= 4.5). Return ONLY valid JSON.
@@ -156,4 +157,36 @@ If the overall score is 4.5 or higher, set block_g to:
 - For gaps: always check adjacent experience first before calling it a gap
 - Generate content in the language of the JD (default English)
 - Return ONLY valid JSON — no markdown, no explanation outside the JSON`
+
+type TextBlock = { type: 'text'; text: string }
+type CachedTextBlock = { type: 'text'; text: string; cache_control: { type: 'ephemeral' } }
+
+/**
+ * Returns two system blocks for the Anthropic API:
+ *
+ *   [0] Static instructions — identical for all users; prefix-cached org-wide.
+ *   [1] CV + candidate profile — per-user; marked ephemeral so repeated
+ *       evaluations within 5 minutes get a cache hit on the full prefix.
+ *
+ * Usage:
+ *   system: buildEvaluationSystemBlocks(cvContent)
+ *   messages: [{ role: 'user', content: `Archetype: ${archetype.name}\n\nEvaluate...\n\n${jd}` }]
+ */
+export function buildEvaluationSystemBlocks(cvContent: string): [TextBlock, CachedTextBlock] {
+  return [
+    {
+      type: 'text',
+      text: STATIC_EVALUATION_SYSTEM,
+    },
+    {
+      type: 'text',
+      text: `## Candidate CV\n${cvContent}\n\n## Candidate Profile\n- Location: Manitoba, Canada\n- Target Comp: CAD $80K-115K\n- Certifications: Security+, CCNA, ITIL 4, ISC2 CC\n- Key differentiator: 30+ remote locations Arctic operations experience\n- Archetypes: Security Analyst/SOC, Network Engineer, Cloud Engineer, IT Sysadmin, IT Specialist`,
+      cache_control: { type: 'ephemeral' },
+    },
+  ]
+}
+
+/** @deprecated Use buildEvaluationSystemBlocks() for proper prompt caching. */
+export function buildEvaluationSystemPrompt(cvContent: string, archetypeName: string): string {
+  return `${STATIC_EVALUATION_SYSTEM}\n\n## Candidate CV\n${cvContent}\n\n## Detected Archetype: ${archetypeName}\n\n## Candidate Profile\n- Location: Manitoba, Canada\n- Target Comp: CAD $80K-115K\n- Certifications: Security+, CCNA, ITIL 4, ISC2 CC\n- Key differentiator: 30+ remote locations Arctic operations experience\n- Archetypes: Security Analyst/SOC, Network Engineer, Cloud Engineer, IT Sysadmin, IT Specialist`
 }

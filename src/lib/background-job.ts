@@ -51,3 +51,34 @@ export async function completeJob(jobId: string, result: unknown) {
 export async function startJob(jobId: string) {
   await updateJob(jobId, { status: 'running' })
 }
+
+/**
+ * Returns true if the user has fewer than maxJobs active (pending | running)
+ * background jobs. Call BEFORE createJob to prevent one user from flooding
+ * the queue.
+ */
+export async function checkUserConcurrency(
+  db: any,
+  userId: string,
+  maxJobs = 3
+): Promise<boolean> {
+  const { count } = await db
+    .from('background_jobs')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('status', ['pending', 'running'])
+  return (count ?? 0) < maxJobs
+}
+
+/**
+ * Returns true if the total number of active jobs org-wide is under maxJobs.
+ * Prevents thundering-herd overload on the Anthropic API during traffic spikes.
+ */
+export async function checkGlobalConcurrency(maxJobs = 15): Promise<boolean> {
+  const admin = getServiceClient() as any
+  const { count } = await admin
+    .from('background_jobs')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['pending', 'running'])
+  return (count ?? 0) < maxJobs
+}

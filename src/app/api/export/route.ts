@@ -8,7 +8,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { success: withinLimit } = rateLimit(`export:${user.id}`, 3, 60_000)
+    const { success: withinLimit } = await rateLimit(`export:${user.id}`, 3, 60_000)
     if (!withinLimit) return Response.json({ error: 'Too many exports. Please wait.' }, { status: 429 })
 
     const [profile, cv, applications, reports, pipelineItems, storyBank, creditBalance, transactions, generatedFiles] = await Promise.all([

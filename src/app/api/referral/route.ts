@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Rate limit per user — 3 attempts per 5 minutes
-    const { success: withinLimit } = rateLimit(`referral:${user.id}`, 3, 300_000)
+    const { success: withinLimit } = await rateLimit(`referral:${user.id}`, 3, 300_000)
     if (!withinLimit) return Response.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
 
     const { code } = await request.json()

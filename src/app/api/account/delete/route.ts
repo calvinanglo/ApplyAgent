@@ -10,7 +10,7 @@ export async function DELETE(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { success: withinLimit } = rateLimit(`delete:${user.id}`, 3, 300_000)
+  const { success: withinLimit } = await rateLimit(`delete:${user.id}`, 3, 300_000)
   if (!withinLimit) {
     return Response.json({ error: 'Too many attempts. Please wait 5 minutes.' }, { status: 429 })
   }

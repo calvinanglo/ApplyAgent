@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { success: withinLimit } = rateLimit(`parse:${user.id}`, 10, 60_000)
+    const { success: withinLimit } = await rateLimit(`parse:${user.id}`, 10, 60_000)
     if (!withinLimit) return Response.json({ error: 'Too many uploads. Please wait.' }, { status: 429 })
 
     const formData = await request.formData()

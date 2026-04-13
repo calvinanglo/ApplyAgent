@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = user.id
 
-    const { success: withinLimit } = rateLimit(`process-batch:${userId}`, 5, 60_000)
+    const { success: withinLimit } = await rateLimit(`process-batch:${userId}`, 5, 60_000)
     if (!withinLimit) return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     let body: { ids: string[] }

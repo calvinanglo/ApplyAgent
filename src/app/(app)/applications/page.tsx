@@ -13,7 +13,7 @@ export default async function ApplicationsPage() {
     .select('*')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
-    .limit(500) as { data: Application[] | null }
+    .limit(200) as { data: Application[] | null }
 
   return (
     <div className="space-y-6">

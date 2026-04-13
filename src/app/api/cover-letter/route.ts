@@ -5,7 +5,7 @@ import { buildCoverLetterSystemPrompt } from '@/lib/prompts/cover-letter-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { getModelTier, type ModelTierId } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
-import { createJob, startJob, completeJob, failJob, getServiceClient } from '@/lib/background-job'
+import { createJob, startJob, completeJob, failJob, getServiceClient, checkUserConcurrency, checkGlobalConcurrency } from '@/lib/background-job'
 
 export const maxDuration = 60
 
@@ -26,9 +26,16 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = user.id
 
-    const { success: withinLimit } = rateLimit(`cl:${userId}`, 10, 60_000)
+    const { success: withinLimit } = await rateLimit(`cl:${userId}`, 10, 60_000)
     if (!withinLimit) {
       return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
+
+    if (!(await checkUserConcurrency(db, userId))) {
+      return Response.json({ error: 'You have too many active jobs. Please wait for them to finish.' }, { status: 429 })
+    }
+    if (!(await checkGlobalConcurrency())) {
+      return Response.json({ error: 'Service is busy. Please try again in a moment.' }, { status: 503 })
     }
 
     let body: { jd_text?: string; report_id?: string; force?: boolean; model_tier?: string }

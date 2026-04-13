@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp, Trash2, Plus } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Loader2 } from 'lucide-react'
+
+const PAGE_SIZE = 50
 
 interface Story {
   id: string
@@ -31,15 +33,35 @@ export default function StoryBankPage() {
   const [stories, setStories] = useState<Story[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [offset, setOffset] = useState(0)
   const [reportMap, setReportMap] = useState<Record<string, Report>>({})
   const [filterTag, setFilterTag] = useState<string | null>(null)
   const [selectedStories, setSelectedStories] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    loadStories()
+    loadStories(0, true)
   }, [])
 
-  async function loadStories() {
+  const loadReports = useCallback(async (storyData: Story[]) => {
+    const supabase = createClient()
+    const reportIds = [...new Set(storyData.filter(s => s.source_report_id).map(s => s.source_report_id!))]
+    if (!reportIds.length) return
+    const { data: reports } = await (supabase as any)
+      .from('reports')
+      .select('id, company, role')
+      .in('id', reportIds)
+    if (reports) {
+      setReportMap(prev => {
+        const map = { ...prev }
+        for (const r of reports as Report[]) map[r.id] = r
+        return map
+      })
+    }
+  }, [])
+
+  async function loadStories(fromOffset: number, replace = false) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -49,30 +71,23 @@ export default function StoryBankPage() {
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .range(fromOffset, fromOffset + PAGE_SIZE - 1)
 
     if (data) {
       const storyData = data as Story[]
-      setStories(storyData)
-
-      // Load report details for stories that have source_report_id
-      const reportIds = [...new Set(storyData.filter(s => s.source_report_id).map(s => s.source_report_id!))]
-      if (reportIds.length > 0) {
-        const { data: reports } = await (supabase as any)
-          .from('reports')
-          .select('id, company, role')
-          .in('id', reportIds)
-
-        if (reports) {
-          const map: Record<string, Report> = {}
-          for (const r of reports as Report[]) {
-            map[r.id] = r
-          }
-          setReportMap(map)
-        }
-      }
+      setStories(prev => replace ? storyData : [...prev, ...storyData])
+      setHasMore(storyData.length === PAGE_SIZE)
+      setOffset(fromOffset + storyData.length)
+      await loadReports(storyData)
     }
 
     setLoading(false)
+    setLoadingMore(false)
+  }
+
+  async function handleLoadMore() {
+    setLoadingMore(true)
+    await loadStories(offset)
   }
 
   function toggleExpand(id: string) {
@@ -178,7 +193,7 @@ export default function StoryBankPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map(story => {
+          {(filterTag ? stories.filter(s => s.tags?.includes(filterTag)) : stories).map(story => {
             const isOpen = expanded.has(story.id)
             const report = story.source_report_id ? reportMap[story.source_report_id] : null
 
@@ -275,6 +290,24 @@ export default function StoryBankPage() {
               </Card>
             )
           })}
+
+          {/* Load more — only shown when not filtering by tag */}
+          {!filterTag && hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <><Loader2 className="size-4 animate-spin mr-2" />Loading...</>
+                ) : (
+                  'Load more stories'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

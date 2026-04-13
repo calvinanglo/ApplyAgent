@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { success: withinLimit } = rateLimit(`project:${user.id}`, 10, 60_000)
+    const { success: withinLimit } = await rateLimit(`project:${user.id}`, 10, 60_000)
     if (!withinLimit) return Response.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     let body: { project_description: string; target_role?: string }

@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 
+// Pure read — no Node.js APIs. Runs at the edge for lower latency on polling.
+export const runtime = 'edge'
+
 /**
  * GET /api/jobs/status?id=<job_id>
  *

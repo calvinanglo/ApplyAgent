@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { success: withinLimit } = rateLimit(`checkout:${user.id}`, 5, 60_000)
+  const { success: withinLimit } = await rateLimit(`checkout:${user.id}`, 5, 60_000)
   if (!withinLimit) {
     return Response.json({ error: 'Too many checkout attempts. Please wait.' }, { status: 429 })
   }
