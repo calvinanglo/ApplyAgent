@@ -1,15 +1,17 @@
 /**
- * React-PDF resume template.
+ * React-PDF resume template with scalable font sizes.
  *
- * Mirrors the Chromium HTML template visually using @react-pdf/renderer.
- * No Chromium / puppeteer needed — generates PDF natively in Node.js with
- * zero cold-start overhead and a ~40MB smaller Lambda bundle.
+ * All font sizes are computed from a `scale` prop (0.65–1.0) so the
+ * auto-sizing loop in react-pdf.ts can binary-search for the largest
+ * scale that still fits on one page — same visual result as Chromium's
+ * auto-font-sizing, but ~10x faster (<100ms per render pass).
  *
- * Design decisions:
- *   - Times-Roman (built-in PDF font) ≈ Garamond visually — no font files to bundle
- *   - Base font 10.5pt — compact enough to fit a typical resume on one page
- *   - Sections use uppercase + bottom border, matching the HTML template
- *   - page-break avoidance via wrap={false} on job/cert/edu blocks
+ * Design parity with the Chromium HTML template:
+ *   - Times-Roman ≈ Garamond (built-in PDF font, no bundle)
+ *   - Uppercase section titles with bottom border
+ *   - Company/period on same line, role in italic below
+ *   - Bullet points with tight spacing
+ *   - Contact row with pipe separators
  */
 
 import React from 'react'
@@ -19,244 +21,115 @@ import {
   Text,
   View,
   Link,
-  StyleSheet,
 } from '@react-pdf/renderer'
 import type { PdfContent } from './generator'
 
-// ── Styles ─────────────────────────────────────────────────────────────────
+// ── Scaled style factory ────────────────────────────────────────────────────
 
-const S = StyleSheet.create({
-  page: {
-    fontFamily: 'Times-Roman',
-    fontSize: 10.5,
-    lineHeight: 1.3,
-    color: '#000',
-    paddingTop: 43,     // 0.6in ≈ 43pt
-    paddingBottom: 43,
-    paddingHorizontal: 43,
-  },
+function makeStyles(scale: number) {
+  const s = (base: number) => Math.round(base * scale * 100) / 100
 
-  // ── Header ────────────────────────────────────────────────────────────────
-  name: {
-    fontFamily: 'Times-Bold',
-    fontSize: 19,
-    marginBottom: 2,
-  },
-  rule: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    marginBottom: 3,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    fontSize: 9,
-    color: '#333',
-    marginBottom: 5,
-    gap: 0,
-  },
-  contactItem: {
-    color: '#333',
-    marginRight: 0,
-  },
-  contactSep: {
-    color: '#aaa',
-    marginHorizontal: 5,
-  },
-  contactLink: {
-    color: '#333',
-    textDecoration: 'none',
-  },
+  return {
+    page: {
+      fontFamily: 'Times-Roman' as const,
+      fontSize: s(10.5),
+      lineHeight: 1.3,
+      color: '#000',
+      paddingTop: 43,
+      paddingBottom: 43,
+      paddingHorizontal: 43,
+    },
 
-  // ── Section ───────────────────────────────────────────────────────────────
-  section: {
-    marginBottom: 5,
-  },
-  sectionTitle: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10.5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    borderBottomWidth: 0.75,
-    borderBottomColor: '#000',
-    paddingBottom: 1,
-    marginBottom: 3,
-  },
+    // Header
+    name: {
+      fontFamily: 'Times-Bold' as const,
+      fontSize: s(20),
+      marginBottom: 2,
+    },
+    rule: {
+      borderBottomWidth: 1 as const,
+      borderBottomColor: '#000',
+      marginBottom: s(3),
+    },
+    contactRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      fontSize: s(9.5),
+      color: '#333',
+      marginBottom: s(5),
+    },
+    contactItem: { color: '#333' },
+    contactSep: { color: '#aaa', marginHorizontal: s(5) },
+    contactLink: { color: '#333', textDecoration: 'none' as const },
 
-  // ── Summary ───────────────────────────────────────────────────────────────
-  summaryText: {
-    fontSize: 10.5,
-    lineHeight: 1.35,
-  },
+    // Section
+    section: { marginBottom: s(5) },
+    sectionTitle: {
+      fontFamily: 'Times-Bold' as const,
+      fontSize: s(10.5),
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+      borderBottomWidth: 0.75 as const,
+      borderBottomColor: '#000',
+      paddingBottom: 1,
+      marginBottom: s(3),
+    },
 
-  // ── Competencies / GitHub Projects ────────────────────────────────────────
-  competenciesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 0,
-  },
-  competencyTag: {
-    fontSize: 9.5,
-    marginRight: 4,
-  },
-  githubProject: {
-    fontSize: 9.5,
-    marginBottom: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  githubName: {
-    fontFamily: 'Times-Bold',
-    fontSize: 9.5,
-    textDecoration: 'none',
-    color: '#000',
-  },
-  githubDesc: {
-    fontSize: 9.5,
-    color: '#000',
-  },
+    // Summary
+    summaryText: { fontSize: s(10.5), lineHeight: 1.35 },
 
-  // ── Experience ────────────────────────────────────────────────────────────
-  job: {
-    marginBottom: 5,
-  },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  jobCompany: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10.5,
-  },
-  jobPeriod: {
-    fontSize: 9.5,
-    color: '#444',
-  },
-  jobRole: {
-    fontFamily: 'Times-Italic',
-    fontSize: 10.5,
-    marginBottom: 1,
-  },
-  jobLocation: {
-    fontSize: 9.5,
-    color: '#444',
-    marginBottom: 1,
-  },
-  bulletList: {
-    paddingLeft: 10,
-    marginTop: 1,
-  },
-  bullet: {
-    flexDirection: 'row',
-    marginBottom: 0.5,
-  },
-  bulletDot: {
-    width: 10,
-    fontSize: 10,
-    color: '#000',
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 10,
-    lineHeight: 1.3,
-  },
+    // Competencies / GitHub
+    competenciesRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const },
+    competencyTag: { fontSize: s(9.5), marginRight: s(4) },
+    githubProject: { fontSize: s(9.5), marginBottom: s(1), flexDirection: 'row' as const, flexWrap: 'wrap' as const },
+    githubName: { fontFamily: 'Times-Bold' as const, fontSize: s(9.5), textDecoration: 'none' as const, color: '#000' },
+    githubDesc: { fontSize: s(9.5), color: '#000' },
 
-  // ── Projects ──────────────────────────────────────────────────────────────
-  project: {
-    marginBottom: 3,
-  },
-  projectHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 3,
-  },
-  projectTitle: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10.5,
-  },
-  projectBadge: {
-    fontSize: 8,
-    color: '#555',
-  },
-  projectDesc: {
-    fontSize: 10,
-    color: '#000',
-  },
-  projectTech: {
-    fontSize: 9.5,
-    color: '#444',
-  },
+    // Experience
+    job: { marginBottom: s(5) },
+    jobHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'flex-end' as const },
+    jobCompany: { fontFamily: 'Times-Bold' as const, fontSize: s(10.5) },
+    jobPeriod: { fontSize: s(9.5), color: '#444' },
+    jobRole: { fontFamily: 'Times-Italic' as const, fontSize: s(10.5), marginBottom: s(1) },
+    jobLocation: { fontSize: s(9.5), color: '#444', marginBottom: s(1) },
+    bulletList: { paddingLeft: s(12), marginTop: s(1) },
+    bullet: { flexDirection: 'row' as const, marginBottom: s(0.5) },
+    bulletDot: { width: s(8), fontSize: s(10), color: '#000' },
+    bulletText: { flex: 1 as const, fontSize: s(10), lineHeight: 1.3 },
 
-  // ── Education ─────────────────────────────────────────────────────────────
-  eduItem: {
-    marginBottom: 2,
-  },
-  eduHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  eduTitle: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10.5,
-  },
-  eduOrg: {
-    fontFamily: 'Times-Roman',
-    fontSize: 10.5,
-  },
-  eduYear: {
-    fontSize: 9.5,
-    color: '#444',
-  },
-  eduDesc: {
-    fontSize: 9.5,
-    color: '#333',
-  },
+    // Projects
+    project: { marginBottom: s(3) },
+    projectHeader: { flexDirection: 'row' as const, alignItems: 'flex-end' as const, gap: s(3) },
+    projectTitle: { fontFamily: 'Times-Bold' as const, fontSize: s(10.5) },
+    projectBadge: { fontSize: s(8), color: '#555' },
+    projectDesc: { fontSize: s(10), color: '#000' },
+    projectTech: { fontSize: s(9.5), color: '#444' },
 
-  // ── Certifications ────────────────────────────────────────────────────────
-  certItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 1,
-  },
-  certOrg: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
-  },
-  certName: {
-    fontSize: 10,
-  },
-  certYear: {
-    fontSize: 9.5,
-    color: '#444',
-  },
+    // Education
+    eduItem: { marginBottom: s(2) },
+    eduHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'flex-end' as const },
+    eduTitle: { fontFamily: 'Times-Bold' as const, fontSize: s(10.5) },
+    eduOrg: { fontFamily: 'Times-Roman' as const, fontSize: s(10.5) },
+    eduYear: { fontSize: s(9.5), color: '#444' },
+    eduDesc: { fontSize: s(9.5), color: '#333' },
 
-  // ── Skills ────────────────────────────────────────────────────────────────
-  skillLine: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 1,
-    fontSize: 10,
-  },
-  skillCategory: {
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
-    marginRight: 3,
-  },
-  skillItems: {
-    flex: 1,
-    fontSize: 10,
-    color: '#000',
-  },
-})
+    // Certifications
+    certItem: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'flex-end' as const, marginBottom: s(1) },
+    certOrg: { fontFamily: 'Times-Bold' as const, fontSize: s(10) },
+    certName: { fontSize: s(10) },
+    certYear: { fontSize: s(9.5), color: '#444' },
 
-// ── Helper components ───────────────────────────────────────────────────────
+    // Skills
+    skillLine: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, marginBottom: s(1), fontSize: s(10) },
+    skillCategory: { fontFamily: 'Times-Bold' as const, fontSize: s(10), marginRight: s(3) },
+    skillItems: { flex: 1 as const, fontSize: s(10), color: '#000' },
+  }
+}
 
-function ContactRow({ content }: { content: PdfContent }) {
+// ── Components ──────────────────────────────────────────────────────────────
+
+function ContactRow({ content, S }: { content: PdfContent; S: ReturnType<typeof makeStyles> }) {
   const parts: { label: string; href?: string }[] = []
-
   if (content.email) parts.push({ label: content.email })
   if (content.phone) parts.push({ label: content.phone })
   if (content.linkedin_display || content.linkedin_url)
@@ -283,24 +156,24 @@ function ContactRow({ content }: { content: PdfContent }) {
   )
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({ children, S }: { children: string; S: ReturnType<typeof makeStyles> }) {
   return <Text style={S.sectionTitle}>{children.toUpperCase()}</Text>
 }
 
-function BulletPoint({ text }: { text: string }) {
+function BulletPoint({ text, S }: { text: string; S: ReturnType<typeof makeStyles> }) {
   return (
     <View style={S.bullet}>
-      <Text style={S.bulletDot}>•</Text>
+      <Text style={S.bulletDot}>{'\u2022'}</Text>
       <Text style={S.bulletText}>{text}</Text>
     </View>
   )
 }
 
-// ── Main document ───────────────────────────────────────────────────────────
+// ── Document ────────────────────────────────────────────────────────────────
 
-export function ResumeDocument({ content }: { content: PdfContent }) {
+export function ResumeDocument({ content, scale = 1 }: { content: PdfContent; scale?: number }) {
   const pageSize = content.paper_format === 'a4' ? 'A4' : 'LETTER'
-
+  const S = makeStyles(scale)
   const hasGithubProjects = (content.github_projects || []).length > 0
   const hasProjects = !hasGithubProjects && (content.projects || []).length > 0
 
@@ -308,23 +181,23 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
     <Document>
       <Page size={pageSize} style={S.page}>
 
-        {/* ── Header ───────────────────────────────────────────────── */}
+        {/* Header */}
         {content.name && <Text style={S.name}>{content.name}</Text>}
         <View style={S.rule} />
-        <ContactRow content={content} />
+        <ContactRow content={content} S={S} />
 
-        {/* ── Professional Summary ─────────────────────────────────── */}
+        {/* Professional Summary */}
         {content.summary && (
           <View style={S.section}>
-            <SectionTitle>Professional Summary</SectionTitle>
+            <SectionTitle S={S}>Professional Summary</SectionTitle>
             <Text style={S.summaryText}>{content.summary}</Text>
           </View>
         )}
 
-        {/* ── GitHub Projects / Core Competencies ──────────────────── */}
+        {/* GitHub Projects */}
         {hasGithubProjects && (
           <View style={S.section}>
-            <SectionTitle>GitHub Projects</SectionTitle>
+            <SectionTitle S={S}>GitHub Projects</SectionTitle>
             {(content.github_projects || []).map((p, i) => (
               <View key={i} style={S.githubProject}>
                 <Link src={p.url} style={S.githubName}><Text>{p.name}</Text></Link>
@@ -334,23 +207,24 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
           </View>
         )}
 
+        {/* Core Competencies (legacy) */}
         {!hasGithubProjects && (content.competencies || []).length > 0 && (
           <View style={S.section}>
-            <SectionTitle>Core Competencies</SectionTitle>
+            <SectionTitle S={S}>Core Competencies</SectionTitle>
             <View style={S.competenciesRow}>
               {(content.competencies || []).map((c, i, arr) => (
                 <Text key={i} style={S.competencyTag}>
-                  {c}{i < arr.length - 1 ? ' ·' : ''}
+                  {c}{i < arr.length - 1 ? ' \u00b7' : ''}
                 </Text>
               ))}
             </View>
           </View>
         )}
 
-        {/* ── Work Experience ──────────────────────────────────────── */}
+        {/* Work Experience */}
         {(content.experience || []).length > 0 && (
           <View style={S.section}>
-            <SectionTitle>Work Experience</SectionTitle>
+            <SectionTitle S={S}>Work Experience</SectionTitle>
             {(content.experience || []).map((job, i) => (
               <View key={i} style={S.job} wrap={false}>
                 <View style={S.jobHeader}>
@@ -361,7 +235,7 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
                 {job.location && <Text style={S.jobLocation}>{job.location}</Text>}
                 <View style={S.bulletList}>
                   {(job.bullets || []).map((b, j) => (
-                    <BulletPoint key={j} text={b} />
+                    <BulletPoint key={j} text={b} S={S} />
                   ))}
                 </View>
               </View>
@@ -369,10 +243,10 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
           </View>
         )}
 
-        {/* ── Projects ─────────────────────────────────────────────── */}
+        {/* Projects */}
         {hasProjects && (
           <View style={S.section} wrap={false}>
-            <SectionTitle>Projects</SectionTitle>
+            <SectionTitle S={S}>Projects</SectionTitle>
             {(content.projects || []).map((p, i) => (
               <View key={i} style={S.project}>
                 <View style={S.projectHeader}>
@@ -386,10 +260,10 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
           </View>
         )}
 
-        {/* ── Education ────────────────────────────────────────────── */}
+        {/* Education */}
         {(content.education || []).length > 0 && (
           <View style={S.section} wrap={false}>
-            <SectionTitle>Education</SectionTitle>
+            <SectionTitle S={S}>Education</SectionTitle>
             {(content.education || []).map((e, i) => (
               <View key={i} style={S.eduItem}>
                 <View style={S.eduHeader}>
@@ -405,10 +279,10 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
           </View>
         )}
 
-        {/* ── Certifications ────────────────────────────────────────── */}
+        {/* Certifications */}
         {(content.certifications || []).length > 0 && (
           <View style={S.section} wrap={false}>
-            <SectionTitle>Certifications</SectionTitle>
+            <SectionTitle S={S}>Certifications</SectionTitle>
             {(content.certifications || []).map((c, i) => (
               <View key={i} style={S.certItem}>
                 <Text>
@@ -421,14 +295,14 @@ export function ResumeDocument({ content }: { content: PdfContent }) {
           </View>
         )}
 
-        {/* ── Skills ────────────────────────────────────────────────── */}
+        {/* Skills */}
         {(content.skills || []).length > 0 && (
           <View style={S.section} wrap={false}>
-            <SectionTitle>Skills</SectionTitle>
+            <SectionTitle S={S}>Skills</SectionTitle>
             {(content.skills || []).map((s, i) => (
               <View key={i} style={S.skillLine}>
                 <Text style={S.skillCategory}>{s.category}:</Text>
-                <Text style={S.skillItems}> {s.items.join(' · ')}</Text>
+                <Text style={S.skillItems}> {s.items.join(' \u00b7 ')}</Text>
               </View>
             ))}
           </View>

@@ -239,8 +239,8 @@ export async function POST(request: Request) {
           content.phone = userProfile.phone
         }
 
-        // Try React-PDF first (no Chromium, faster cold starts, smaller bundle).
-        // Fall back to Chromium if React-PDF fails so no regression in output.
+        // React-PDF primary — auto-font-sizing via binary search (~700ms).
+        // Chromium kept as fallback for any React-PDF edge cases.
         const t3 = Date.now()
         let pdfBuffer: Buffer
         let pdfEngine = 'react-pdf'
