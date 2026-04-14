@@ -52,21 +52,21 @@ function stripHtml(html: string): string {
 
 interface JdResult { text: string; location: string | null }
 
-const UNSUPPORTED_ATS: Array<{ pattern: RegExp; name: string }> = [
-  { pattern: /taleo\.net/i, name: 'Taleo' },
-  { pattern: /icims\.com/i, name: 'iCIMS' },
-  { pattern: /\/psp\/|\/psc\/|peoplesoft/i, name: 'PeopleSoft' },
-  { pattern: /smartrecruiters\.com/i, name: 'SmartRecruiters' },
-  { pattern: /successfactors\./i, name: 'SAP SuccessFactors' },
-  { pattern: /ultipro\.com/i, name: 'UKG/UltiPro' },
-  { pattern: /ukg\.net|ultiproworkplace/i, name: 'UKG' },
-]
-
-function checkUnsupportedAts(url: string): string | null {
-  for (const { pattern, name } of UNSUPPORTED_ATS) {
-    if (pattern.test(url)) return name
-  }
-  return null
+/** Detect JS-rendered garbage that slipped through HTML stripping */
+function isGarbageContent(text: string): boolean {
+  if (text.length < 200) return true
+  // Count words (3+ letter sequences) vs total characters
+  const words = text.match(/[a-zA-Z]{3,}/g) || []
+  if (words.length < 30) return true
+  // JS template / framework artifacts
+  const jsPatterns = /function\s*\(|===|data-bind|ko\.|knockout|\$\.t\(|angular\.|ng-|v-if=|v-for=|React\.|useState|handleClick/gi
+  const jsMatches = text.match(jsPatterns) || []
+  if (jsMatches.length > 5) return true
+  // High ratio of special chars to alpha chars = code not prose
+  const alphaChars = (text.match(/[a-zA-Z]/g) || []).length
+  const specialChars = (text.match(/[{}()=;:><|&$]/g) || []).length
+  if (specialChars > 0 && alphaChars / specialChars < 3) return true
+  return false
 }
 
 async function fetchGreenhouseJd(url: string): Promise<JdResult | null> {
@@ -195,6 +195,62 @@ async function fetchWorkdayJd(url: string): Promise<JdResult | null> {
   }
 }
 
+async function fetchSmartRecruitersJd(url: string): Promise<JdResult | null> {
+  const match = url.match(/jobs\.smartrecruiters\.com\/([^/]+)\/([^/?#]+)/)
+  if (!match) return null
+  const [, company, postingId] = match
+  try {
+    const res = await fetch(`https://api.smartrecruiters.com/v1/companies/${company}/postings/${postingId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as {
+      name?: string; location?: { city?: string; region?: string; country?: string }
+      jobAd?: { sections?: Record<string, { text?: string }> }
+      department?: { label?: string }; experienceLevel?: { label?: string }
+    }
+    const parts: string[] = []
+    if (data.name) parts.push(data.name)
+    const loc = data.location
+    const locStr = [loc?.city, loc?.region, loc?.country].filter(Boolean).join(', ')
+    if (locStr) parts.push(`Location: ${locStr}`)
+    if (data.department?.label) parts.push(`Department: ${data.department.label}`)
+    if (data.experienceLevel?.label) parts.push(`Level: ${data.experienceLevel.label}`)
+    if (data.jobAd?.sections) {
+      for (const section of Object.values(data.jobAd.sections)) {
+        if (section.text) parts.push(stripHtml(section.text))
+      }
+    }
+    const result = parts.join('\n').trim()
+    return result.length > 100 ? { text: result, location: locStr || null } : null
+  } catch {
+    return null
+  }
+}
+
+async function fetchIcimsJd(url: string): Promise<JdResult | null> {
+  // iCIMS URLs: careers-*.icims.com/jobs/12345/... or *.icims.com/jobs/12345/...
+  const match = url.match(/([^/]+)\.icims\.com\/jobs\/(\d+)/)
+  if (!match) return null
+  const [, subdomain, jobId] = match
+  try {
+    const res = await fetch(`https://${subdomain}.icims.com/jobs/${jobId}/job`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    const text = stripHtml(html)
+    return text.length > 200 && !isGarbageContent(text) ? { text: text.slice(0, 12000), location: null } : null
+  } catch {
+    return null
+  }
+}
+
 async function fetchGenericJd(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: {
@@ -214,24 +270,25 @@ export async function fetchJdFromUrl(url: string): Promise<JdResult> {
     throw new Error('URL not allowed: internal or private addresses are blocked')
   }
 
-  const unsupported = checkUnsupportedAts(url)
-  if (unsupported) {
-    throw new Error(
-      `${unsupported} career pages can't be scanned automatically. ` +
-      `Copy the job description text and paste it in the Evaluate tab instead.`
-    )
-  }
-
-  const atsFetchers = [fetchGreenhouseJd, fetchLeverJd, fetchAshbyJd, fetchWorkdayJd]
+  // Try ATS-specific API fetchers first (fast + reliable)
+  const atsFetchers = [fetchGreenhouseJd, fetchLeverJd, fetchAshbyJd, fetchWorkdayJd, fetchSmartRecruitersJd, fetchIcimsJd]
   for (const fetcher of atsFetchers) {
     const result = await fetcher(url)
     if (result && result.text.length > 100) return { text: result.text.slice(0, 12000), location: result.location }
   }
 
+  // Fall back to generic HTML scraping
   try {
     const text = await fetchGenericJd(url)
+    if (isGarbageContent(text)) {
+      throw new Error(
+        `This career page uses JavaScript rendering and can't be scanned automatically. ` +
+        `Copy the job description text and paste it directly instead.`
+      )
+    }
     return { text: text.slice(0, 12000), location: null }
   } catch (err) {
+    if (err instanceof Error && err.message.includes("can't be scanned")) throw err
     throw new Error(`Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`)
   }
 }
