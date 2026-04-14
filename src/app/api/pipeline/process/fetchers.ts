@@ -58,6 +58,8 @@ const UNSUPPORTED_ATS: Array<{ pattern: RegExp; name: string }> = [
   { pattern: /\/psp\/|\/psc\/|peoplesoft/i, name: 'PeopleSoft' },
   { pattern: /smartrecruiters\.com/i, name: 'SmartRecruiters' },
   { pattern: /successfactors\./i, name: 'SAP SuccessFactors' },
+  { pattern: /ultipro\.com/i, name: 'UKG/UltiPro' },
+  { pattern: /ukg\.net|ultiproworkplace/i, name: 'UKG' },
 ]
 
 function checkUnsupportedAts(url: string): string | null {
