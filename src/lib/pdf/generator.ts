@@ -2,6 +2,8 @@ import path from 'path'
 import fs from 'fs'
 
 export interface PdfContent {
+  target_company?: string
+  target_role?: string
   keywords_extracted?: string[]
   keyword_coverage_pct?: number
   paper_format?: 'letter' | 'a4'

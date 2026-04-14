@@ -260,8 +260,10 @@ export async function POST(request: Request) {
         const initials = userProfile?.full_name
           ? userProfile.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase()
           : ''
-        const roleSlug = reportData?.role
-          ? `${reportData.company}-${reportData.role}`.replace(/[^a-zA-Z0-9 ]+/g, '').replace(/\s+/g, '-').slice(0, 60)
+        const company = reportData?.company || content.target_company || ''
+        const role = reportData?.role || content.target_role || ''
+        const roleSlug = (company || role)
+          ? `${company}-${role}`.replace(/[^a-zA-Z0-9 ]+/g, '').replace(/\s+/g, '-').slice(0, 60)
           : Date.now().toString()
         const filename = `Resume-${initials ? initials + '-' : ''}${roleSlug}.pdf`
 

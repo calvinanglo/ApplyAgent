@@ -106,6 +106,8 @@ Bullet distribution (STRICT — violating these limits wastes space and pushes t
 Return ONLY valid JSON with these fields:
 
 {
+  "target_company": "(company name from the JD, or empty string if no JD)",
+  "target_role": "(exact role title from the JD, or empty string if no JD)",
   "keywords_extracted": ["keyword1", "keyword2", "...15-20 total"],
   "keyword_coverage_pct": 85,
   "paper_format": "letter",

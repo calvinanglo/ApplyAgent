@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, Send, FileDown, Mail, Zap } from 'lucide-react'
+import { Loader2, Send, FileDown, Mail, Zap, Link2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { BlockRenderer } from '@/components/evaluation/BlockRenderer'
 import { FileUpload } from '@/components/ui/file-upload'
@@ -44,6 +45,8 @@ export default function EvaluatePage() {
   const [reportId, setReportId] = useState<string | null>(null)
   const [pipelineLoading, setPipelineLoading] = useState(false)
   const [pipelineDone, setPipelineDone] = useState<{ pdf?: string; coverLetter?: boolean } | null>(null)
+  const [jdUrl, setJdUrl] = useState('')
+  const [fetchingUrl, setFetchingUrl] = useState(false)
 
   function applyResult(result: Record<string, unknown>, statusScore: number | null, statusArchetype: string | null, statusReportId: string | null) {
     const renderedBlocks: EvaluationBlock[] = []
@@ -75,6 +78,27 @@ export default function EvaluatePage() {
     setPipelineDone(null)
 
     await startEvaluation('/api/evaluate', { jd_text: jdText })
+  }
+
+  async function handleFetchUrl() {
+    if (!jdUrl.trim()) return
+    setFetchingUrl(true)
+    try {
+      const res = await fetch('/api/fetch-jd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: jdUrl.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch')
+      setJdText(data.text)
+      setJdUrl('')
+    } catch (err) {
+      // Show inline — no dedicated error state needed, reuse existing
+      setJdText(`Error: ${err instanceof Error ? err.message : 'Failed to fetch job description from URL'}`)
+    } finally {
+      setFetchingUrl(false)
+    }
   }
 
   async function handleFullPipeline() {
@@ -164,6 +188,21 @@ export default function EvaluatePage() {
       <Card className={isActive ? 'order-3' : 'order-2'}>
         <CardContent className="pt-6">
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Paste a job URL (Greenhouse, Lever, Workday, etc.)"
+                  value={jdUrl}
+                  onChange={(e) => setJdUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleFetchUrl() }}
+                  className="pl-9 h-9 text-sm"
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={handleFetchUrl} disabled={fetchingUrl || !jdUrl.trim()}>
+                {fetchingUrl ? <Loader2 className="size-4 animate-spin" /> : 'Fetch'}
+              </Button>
+            </div>
             <FileUpload
               onTextExtracted={(text) => setJdText(text)}
               label="Upload job description"
@@ -174,7 +213,7 @@ export default function EvaluatePage() {
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
               rows={isActive ? 4 : 10}
-              className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none"
+              className="font-mono text-sm max-h-[40vh] overflow-y-auto"
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">

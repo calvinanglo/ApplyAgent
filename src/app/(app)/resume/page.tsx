@@ -238,7 +238,10 @@ function DocumentsContent() {
   // ── Download handlers ─────────────────────────────────
   function getJobSlug() {
     const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : reportIdParam ? recentReports.find(r => r.report_id === reportIdParam) : null
-    return match ? `${match.company}-${match.role}`.replace(/\s+/g, '-') : 'General'
+    if (match) return `${match.company}-${match.role}`.replace(/\s+/g, '-')
+    const c = resumeResult?.content
+    if (c?.target_company || c?.target_role) return `${c.target_company || ''}-${c.target_role || ''}`.replace(/\s+/g, '-')
+    return 'General'
   }
 
   async function handleDownloadResumePdf() {
