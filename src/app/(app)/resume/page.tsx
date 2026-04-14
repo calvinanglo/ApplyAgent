@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { Loader2, FileDown, ExternalLink, CheckCircle, Search, Download, Eye, ArrowLeft, Mail, Copy, Check } from 'lucide-react'
+import { Loader2, FileDown, ExternalLink, CheckCircle, Search, Download, Eye, ArrowLeft, Mail, Copy, Check, Link2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { FileUpload } from '@/components/ui/file-upload'
@@ -54,6 +54,8 @@ function DocumentsContent() {
   const [clDuplicateWarning, setClDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [modelTier, setModelTier] = useState<ModelTierId>('balanced')
+  const [jdUrl, setJdUrl] = useState('')
+  const [fetchingUrl, setFetchingUrl] = useState(false)
 
   // Background job runners — survive mobile sleep / reloads
   const resumeJob = useBackgroundJob<any>({
@@ -290,6 +292,27 @@ function DocumentsContent() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  async function handleFetchUrl() {
+    if (!jdUrl.trim()) return
+    setFetchingUrl(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/fetch-jd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: jdUrl.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch')
+      setJdText(data.text)
+      setJdUrl('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch job description from URL')
+    } finally {
+      setFetchingUrl(false)
+    }
+  }
+
   const selectedMatch = reportIdParam ? recentReports.find(r => r.report_id === reportIdParam) : null
   const q = searchQuery.toLowerCase()
   const filteredReports = q ? recentReports.filter(r => r.company.toLowerCase().includes(q) || r.role.toLowerCase().includes(q)) : recentReports
@@ -384,8 +407,23 @@ function DocumentsContent() {
                     <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or paste a new JD</span></div>
                   </div>
                 )}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Paste a job URL (Greenhouse, Lever, Workday, etc.)"
+                      value={jdUrl}
+                      onChange={(e) => setJdUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleFetchUrl() }}
+                      className="pl-9 h-9 text-sm"
+                    />
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleFetchUrl} disabled={fetchingUrl || !jdUrl.trim()}>
+                    {fetchingUrl ? <Loader2 className="size-4 animate-spin" /> : 'Fetch'}
+                  </Button>
+                </div>
                 <FileUpload onTextExtracted={(text) => setJdText(text)} label="Upload job description" description="PDF, DOCX, or TXT file" />
-                <Textarea placeholder="Paste the job description here..." value={jdText} onChange={(e) => setJdText(e.target.value)} rows={6} className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none" />
+                <Textarea placeholder="Paste the job description here..." value={jdText} onChange={(e) => setJdText(e.target.value)} rows={6} className="font-mono text-sm max-h-[40vh] overflow-y-auto" />
               </>
             )}
 
@@ -481,7 +519,8 @@ function DocumentsContent() {
                     <div className="flex flex-wrap gap-1">{resumeResult.keywords.slice(0, 15).map((kw, i) => <Badge key={i} variant="secondary" className="text-xs">{kw}</Badge>)}</div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {resumeResult.url && <a href={resumeResult.url} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: 'sm' }), 'inline-flex items-center gap-1.5')}><Eye className="size-4" />Preview</a>}
+                    {resumeResult.url && <a href={resumeResult.url} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: 'sm', variant: 'default' }), 'md:hidden inline-flex items-center gap-1.5')}><Eye className="size-4" />View Resume</a>}
+                    {resumeResult.url && <a href={resumeResult.url} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: 'sm' }), 'hidden md:inline-flex items-center gap-1.5')}><Eye className="size-4" />Preview</a>}
                     {(resumeResult.url || resumeResult.pdf_base64) && <Button variant="outline" size="sm" onClick={handleDownloadResumePdf}><FileDown className="size-4" />PDF</Button>}
                     {resumeResult.content && <Button variant="outline" size="sm" onClick={handleDownloadResumeDocx}><Download className="size-4" />DOCX</Button>}
                   </div>
@@ -490,7 +529,7 @@ function DocumentsContent() {
             </CardContent>
           </Card>
           {(resumeResult.previewUrl || resumeResult.url) && (
-            <Card><CardContent className="pt-6"><iframe src={`${resumeResult.previewUrl || resumeResult.url}#navpanes=0&zoom=100`} className="w-full rounded-md border" style={{ height: '80vh' }} title="Resume Preview" /></CardContent></Card>
+            <Card className="hidden md:block"><CardContent className="pt-6"><iframe src={`${resumeResult.previewUrl || resumeResult.url}#navpanes=0&zoom=100`} className="w-full rounded-md border" style={{ height: '80vh' }} title="Resume Preview" /></CardContent></Card>
           )}
         </>
       )}
