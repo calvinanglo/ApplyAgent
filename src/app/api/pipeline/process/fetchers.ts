@@ -251,6 +251,161 @@ async function fetchIcimsJd(url: string): Promise<JdResult | null> {
   }
 }
 
+async function fetchBreezyJd(url: string): Promise<JdResult | null> {
+  const match = url.match(/([^.]+)\.breezy\.hr\/p\/([a-f0-9]+)/)
+  if (!match) return null
+  const [, company, posId] = match
+  try {
+    const res = await fetch(`https://${company}.breezy.hr/json?verbose=true`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const jobs = await res.json() as Array<{ id?: string; name?: string; description?: string; location?: { name?: string } }>
+    const job = jobs.find(j => j.id && posId.startsWith(j.id))
+    if (!job?.description) return null
+    const location = job.location?.name || null
+    const parts: string[] = []
+    if (job.name) parts.push(job.name)
+    if (location) parts.push(`Location: ${location}`)
+    parts.push(stripHtml(job.description))
+    return { text: parts.join('\n').trim(), location }
+  } catch {
+    return null
+  }
+}
+
+async function fetchPinpointJd(url: string): Promise<JdResult | null> {
+  const match = url.match(/([^.]+)\.pinpointhq\.com\/(?:jobs|postings)\/(\d+)/)
+  if (!match) return null
+  const [, company, jobId] = match
+  try {
+    const res = await fetch(`https://${company}.pinpointhq.com/postings.json`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { data?: Array<{ title?: string; description?: string; link?: string; location?: string; department?: string }> }
+    const job = (data.data || []).find(j => j.link?.includes(jobId))
+    if (!job?.description) return null
+    const parts: string[] = []
+    if (job.title) parts.push(job.title)
+    if (job.location) parts.push(`Location: ${job.location}`)
+    if (job.department) parts.push(`Department: ${job.department}`)
+    parts.push(stripHtml(job.description))
+    return { text: parts.join('\n').trim(), location: job.location || null }
+  } catch {
+    return null
+  }
+}
+
+async function fetchRecruiteeJd(url: string): Promise<JdResult | null> {
+  const match = url.match(/([^.]+)\.recruitee\.com\/o\/([^/?#]+)/)
+  if (!match) return null
+  const [, company, slug] = match
+  try {
+    const res = await fetch(`https://${company}.recruitee.com/api/offers`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { offers?: Array<{ title?: string; description?: string; requirements?: string; location?: string; slug?: string; department?: string }> }
+    const job = (data.offers || []).find(o => o.slug === slug)
+    if (!job) return null
+    const parts: string[] = []
+    if (job.title) parts.push(job.title)
+    if (job.location) parts.push(`Location: ${job.location}`)
+    if (job.department) parts.push(`Department: ${job.department}`)
+    if (job.description) parts.push(stripHtml(job.description))
+    if (job.requirements) parts.push(stripHtml(job.requirements))
+    const result = parts.join('\n').trim()
+    return result.length > 100 ? { text: result, location: job.location || null } : null
+  } catch {
+    return null
+  }
+}
+
+async function fetchEightfoldJd(url: string): Promise<JdResult | null> {
+  const match = url.match(/([^.]+)\.eightfold\.ai\/.*?(?:position|job).*?(\d{5,})/)
+  if (!match) return null
+  const [, company, jobId] = match
+  try {
+    const res = await fetch(`https://${company}.eightfold.ai/api/apply/v2/jobs/${jobId}?domain=${company}.com&hl=en`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { name?: string; location?: string; department?: string; job_description?: string }
+    if (!data.job_description) return null
+    const parts: string[] = []
+    if (data.name) parts.push(data.name)
+    if (data.location) parts.push(`Location: ${data.location}`)
+    if (data.department) parts.push(`Department: ${data.department}`)
+    parts.push(stripHtml(data.job_description))
+    return { text: parts.join('\n').trim(), location: data.location || null }
+  } catch {
+    return null
+  }
+}
+
+async function fetchPersonioJd(url: string): Promise<JdResult | null> {
+  const match = url.match(/([^.]+)\.jobs\.personio\.(com|de)\/job\/(\d+)/)
+  if (!match) return null
+  const [, company, tld, jobId] = match
+  try {
+    const res = await fetch(`https://${company}.jobs.personio.${tld}/xml?language=en`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const xml = await res.text()
+    // Parse XML for the matching position
+    const posRegex = new RegExp(`<id>${jobId}</id>[\\s\\S]*?<name>([\\s\\S]*?)</name>[\\s\\S]*?(?:<office>([\\s\\S]*?)</office>)?[\\s\\S]*?<jobDescriptions>([\\s\\S]*?)</jobDescriptions>`, 'i')
+    const posMatch = xml.match(posRegex)
+    if (!posMatch) return null
+    const [, title, office, descriptions] = posMatch
+    const parts: string[] = []
+    if (title) parts.push(title.trim())
+    if (office) parts.push(`Location: ${office.trim()}`)
+    // Extract all <value> tags from jobDescriptions
+    const valueMatches = descriptions.matchAll(/<value>([\s\S]*?)<\/value>/gi)
+    for (const m of valueMatches) {
+      parts.push(stripHtml(m[1]))
+    }
+    const result = parts.join('\n').trim()
+    return result.length > 100 ? { text: result, location: office?.trim() || null } : null
+  } catch {
+    return null
+  }
+}
+
+async function fetchTeamtailorJd(url: string): Promise<JdResult | null> {
+  // Teamtailor uses custom domains, detect via /jobs/ path or .teamtailor.com
+  const ttMatch = url.match(/([^.]+)\.teamtailor\.com\/jobs\/(\d+)/)
+  if (!ttMatch) return null
+  const [, company, jobId] = ttMatch
+  try {
+    const res = await fetch(`https://${company}.teamtailor.com/jobs.rss`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApplyAgent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const xml = await res.text()
+    // Find matching item by job ID in link
+    const itemRegex = new RegExp(`<item>[\\s\\S]*?<link>[^<]*${jobId}[^<]*</link>[\\s\\S]*?<title>([^<]*)</title>[\\s\\S]*?<description>([\\s\\S]*?)</description>[\\s\\S]*?</item>`, 'i')
+    const itemMatch = xml.match(itemRegex)
+    if (!itemMatch) return null
+    const [, title, description] = itemMatch
+    const parts: string[] = []
+    if (title) parts.push(title.trim())
+    parts.push(stripHtml(description))
+    const result = parts.join('\n').trim()
+    return result.length > 100 ? { text: result, location: null } : null
+  } catch {
+    return null
+  }
+}
+
 async function fetchGenericJd(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: {
@@ -271,7 +426,11 @@ export async function fetchJdFromUrl(url: string): Promise<JdResult> {
   }
 
   // Try ATS-specific API fetchers first (fast + reliable)
-  const atsFetchers = [fetchGreenhouseJd, fetchLeverJd, fetchAshbyJd, fetchWorkdayJd, fetchSmartRecruitersJd, fetchIcimsJd]
+  const atsFetchers = [
+    fetchGreenhouseJd, fetchLeverJd, fetchAshbyJd, fetchWorkdayJd,
+    fetchSmartRecruitersJd, fetchIcimsJd, fetchBreezyJd, fetchPinpointJd,
+    fetchRecruiteeJd, fetchEightfoldJd, fetchPersonioJd, fetchTeamtailorJd,
+  ]
   for (const fetcher of atsFetchers) {
     const result = await fetcher(url)
     if (result && result.text.length > 100) return { text: result.text.slice(0, 12000), location: result.location }
