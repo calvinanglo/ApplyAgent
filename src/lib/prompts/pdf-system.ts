@@ -86,11 +86,13 @@ Bullet distribution (STRICT — violating these limits wastes space and pushes t
 - Second job: 4 bullets max (moderate JD alignment)
 - Third and older: 3 bullets max, light JD alignment only where genuine
 
-### Skills section
+### Skills section (keep breadth, drop only irrelevant noise)
+- Default: INCLUDE skills from the CV. Skills show technical breadth and help the candidate match adjacent/future opportunities.
+- Drop a skill ONLY if it is truly irrelevant or untranslatable to the target role (e.g. "Microsoft Word basic formatting" on a Senior Cloud Security Engineer resume, or "photography" on a backend engineer role). Use judgment: a transferable skill (PowerShell on a security role, Python on any technical role, SQL on most roles) stays.
 - Group into 3-5 categories. Use category names that mirror JD themes (e.g., if the JD emphasizes "Cloud Infrastructure," use that as a category name, not "Platforms").
-- List skills in order of JD priority within each category. The first skill listed in each group should be the one the JD cares about most.
-- Include every JD-mentioned tool/technology the candidate actually knows.
-- This section is an ATS keyword dump. Pack it with exact-match terms from the JD.
+- Within each category, list JD-matching skills FIRST (exact JD phrasing for ATS), then the candidate's other relevant/transferable skills.
+- If a kept skill doesn't fit any JD-themed category, use a catch-all like "Additional Technical Skills" rather than inventing a weak category for one skill.
+- This section is both an ATS keyword dump AND a showcase of relevant technical breadth — not a complete dump of every skill the person has ever touched.
 
 ### GitHub Projects
 - Select ONLY repos relevant to the JD (max 3-4). Skip if none are relevant.

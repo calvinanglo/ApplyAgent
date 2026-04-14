@@ -1,7 +1,7 @@
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAIClient, MODELS } from '@/lib/ai'
-import { buildEvaluationSystemPrompt } from '@/lib/prompts/evaluation-system'
+import { buildEvaluationSystemBlocks } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
@@ -99,15 +99,15 @@ export async function POST(request: Request) {
 
       try {
         const archetype = detectArchetype(jdText)
-        const systemPrompt = buildEvaluationSystemPrompt(cvContent, archetype.name)
+        const systemBlocks = buildEvaluationSystemBlocks(cvContent)
 
         const response = await ai.messages.create({
           model: MODELS.evaluation,
           max_tokens: 8000,
-          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+          system: systemBlocks,
           messages: [{
             role: 'user',
-            content: `Evaluate this job description:\n\n${jdText}`,
+            content: `Archetype: ${archetype.name}\n\nEvaluate this job description and return the complete evaluation as JSON:\n\n${jdText}`,
           }],
         })
 

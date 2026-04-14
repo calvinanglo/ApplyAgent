@@ -54,7 +54,7 @@ function LinkedInTool() {
           <Input placeholder="Company name" value={company} onChange={e => setCompany(e.target.value)} />
           <Input placeholder="Role / Job title" value={role} onChange={e => setRole(e.target.value)} />
         </div>
-        <Textarea placeholder="Job description (optional but improves quality)" value={jdText} onChange={e => setJdText(e.target.value)} rows={4} className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none" />
+        <Textarea placeholder="Job description (optional but improves quality)" value={jdText} onChange={e => setJdText(e.target.value)} rows={4} className="font-mono text-sm max-h-[40vh] overflow-y-auto" />
         <div className="flex justify-between items-center">
           <p className="text-xs text-muted-foreground">Costs 2 credits</p>
           <Button type="submit" disabled={loading || !company || !role}>
@@ -148,7 +148,7 @@ function DeepResearchTool() {
           <Input placeholder="Company name" value={company} onChange={e => setCompany(e.target.value)} />
           <Input placeholder="Role / Job title" value={role} onChange={e => setRole(e.target.value)} />
         </div>
-        <Textarea placeholder="Job description (optional)" value={jdText} onChange={e => setJdText(e.target.value)} rows={4} className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none" />
+        <Textarea placeholder="Job description (optional)" value={jdText} onChange={e => setJdText(e.target.value)} rows={4} className="font-mono text-sm max-h-[40vh] overflow-y-auto" />
         <div className="flex justify-between items-center">
           <p className="text-xs text-muted-foreground">Costs 3 credits — generates a research prompt you run in Perplexity/ChatGPT</p>
           <Button type="submit" disabled={loading || !company || !role}>
@@ -233,7 +233,7 @@ function ProjectEvalTool() {
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={6}
-          className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none"
+          className="font-mono text-sm max-h-[40vh] overflow-y-auto"
         />
         <div className="flex justify-between items-center">
           <p className="text-xs text-muted-foreground">Costs 2 credits</p>
@@ -319,7 +319,7 @@ function TrainingEvalTool() {
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={6}
-          className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none"
+          className="font-mono text-sm max-h-[40vh] overflow-y-auto"
         />
         <div className="flex justify-between items-center">
           <p className="text-xs text-muted-foreground">Costs 2 credits</p>
@@ -440,7 +440,7 @@ function CompareOffersTool() {
               <Input placeholder="Company" value={offer.company} onChange={e => updateOffer(i, 'company', e.target.value)} />
               <Input placeholder="Role" value={offer.role} onChange={e => updateOffer(i, 'role', e.target.value)} />
             </div>
-            <Textarea placeholder="Job description (optional)" value={offer.jd_text} onChange={e => updateOffer(i, 'jd_text', e.target.value)} rows={3} className="font-mono text-sm max-h-[40vh] overflow-y-auto md:max-h-none" />
+            <Textarea placeholder="Job description (optional)" value={offer.jd_text} onChange={e => updateOffer(i, 'jd_text', e.target.value)} rows={3} className="font-mono text-sm max-h-[40vh] overflow-y-auto" />
           </div>
         ))}
         <div className="flex items-center justify-between">
