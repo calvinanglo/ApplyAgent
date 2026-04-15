@@ -67,8 +67,12 @@ export function filterByDate(jobs: ScannedJob[], datePosted: string): ScannedJob
 export function filterByJobType(jobs: ScannedJob[], jobTypes: string[]): ScannedJob[] {
   if (!jobTypes.length) return jobs
   const types = new Set(jobTypes.map(t => t.toLowerCase()))
+  // Smart default: when a user only picks "Full-time", treat unknowns as
+  // full-time (most postings are full-time and most scrapers don't extract
+  // employment type). For any other narrower selection, be strict.
+  const fullTimeOnly = types.size === 1 && types.has('full-time')
   return jobs.filter(job => {
-    if (!job.job_type) return true
+    if (!job.job_type) return fullTimeOnly
     return types.has(job.job_type)
   })
 }
@@ -76,8 +80,12 @@ export function filterByJobType(jobs: ScannedJob[], jobTypes: string[]): Scanned
 export function filterByWorkArrangement(jobs: ScannedJob[], arrangements: string[]): ScannedJob[] {
   if (!arrangements.length) return jobs
   const arr = new Set(arrangements.map(a => a.toLowerCase()))
+  // If all three options are selected, that's effectively "no filter" — include
+  // unknowns. Otherwise be strict and exclude jobs we couldn't classify so the
+  // filter actually narrows results.
+  const all = arr.size === 3
   return jobs.filter(job => {
-    if (!job.work_arrangement) return true
+    if (!job.work_arrangement) return all
     return arr.has(job.work_arrangement)
   })
 }

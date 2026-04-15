@@ -172,6 +172,12 @@ interface ScanResult {
 
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Permanent', 'Fixed Term'] as const
 const WORK_ARRANGEMENTS = ['Remote', 'Hybrid', 'On-site'] as const
+const BOARD_SOURCES = [
+  { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'talent', label: 'Talent.com' },
+  { id: 'careerjet', label: 'CareerJet' },
+  { id: 'jooble', label: 'Jooble' },
+] as const
 const DATE_OPTIONS = [
   { value: 'any', label: 'Any time' },
   { value: '24h', label: 'Last 24 hours' },
@@ -510,8 +516,19 @@ export default function ScanPage() {
               <div>
                 <p className="text-sm font-medium">Filters</p>
                 <p className="text-xs text-muted-foreground">
-                  {targetRoles.length || companies.length || selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || salaryMin || boardLocation.trim()
-                    ? `${[targetRoles.join(', '), companies.length > 0 ? `${companies.length} companies` : '', boardLocation.trim(), ...selectedJobTypes, ...selectedArrangements, datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '', salaryMin ? `$${parseInt(salaryMin).toLocaleString()}+` : ''].filter(Boolean).join(', ')}`
+                  {targetRoles.length || companies.length || selectedJobTypes.length || selectedArrangements.length || datePosted !== 'any' || salaryMin || boardLocation.trim() || boardSources.size !== BOARD_SOURCES.length
+                    ? [
+                        targetRoles.join(', '),
+                        companies.length > 0 ? `${companies.length} companies` : '',
+                        boardLocation.trim(),
+                        ...selectedJobTypes,
+                        ...selectedArrangements,
+                        datePosted !== 'any' ? DATE_OPTIONS.find(d => d.value === datePosted)?.label : '',
+                        salaryMin ? `${salaryCurrency} ${parseInt(salaryMin).toLocaleString()}+` : '',
+                        boardSources.size !== BOARD_SOURCES.length
+                          ? `Boards: ${BOARD_SOURCES.filter(s => boardSources.has(s.id)).map(s => s.label).join('/') || 'none'}`
+                          : '',
+                      ].filter(Boolean).join(', ')
                     : 'No filters applied'}
                 </p>
               </div>
@@ -628,6 +645,34 @@ export default function ScanPage() {
                   </div>
                 </div>
 
+                {/* Job Boards (board search only — career pages are always scanned) */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                    Job Boards <span className="text-muted-foreground/60">(used when location is set)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {BOARD_SOURCES.map(({ id, label }) => {
+                      const active = boardSources.has(id)
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            setBoardSources(prev => {
+                              const next = new Set(prev)
+                              if (next.has(id)) next.delete(id)
+                              else next.add(id)
+                              return next
+                            })
+                          }}
+                          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-border'}`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 {/* Work Arrangement */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-2 block">Work Arrangement</label>
@@ -722,8 +767,25 @@ export default function ScanPage() {
                   <Input type="number" placeholder="Or enter custom amount" value={!['40000', '50000', '60000', '70000', '80000', '100000', '120000', '150000'].includes(salaryMin) ? salaryMin : ''} onChange={e => setSalaryMin(e.target.value)} className="h-8 text-sm" />
                 </div>
 
-                {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || salaryMin || boardLocation.trim() || companies.length > 0) && (
-                  <Button variant="ghost" size="sm" onClick={() => { setBoardLocation(''); setSelectedJobTypes([]); setSelectedArrangements([]); setDatePosted('any'); setSalaryMin(''); resetCompanies() }} className="text-xs">Clear all filters</Button>
+                {(selectedJobTypes.length > 0 || selectedArrangements.length > 0 || datePosted !== 'any' || salaryMin || boardLocation.trim() || companies.length > 0 || targetRoles.length > 0 || boardSources.size !== BOARD_SOURCES.length) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setBoardLocation('')
+                      setSelectedJobTypes([])
+                      setSelectedArrangements([])
+                      setDatePosted('any')
+                      setSalaryMin('')
+                      setSalaryCurrency('CAD')
+                      saveTargetRoles([])
+                      setBoardSources(new Set(BOARD_SOURCES.map(s => s.id)))
+                      resetCompanies()
+                    }}
+                    className="text-xs"
+                  >
+                    Clear all filters
+                  </Button>
                 )}
               </div>
             )}
