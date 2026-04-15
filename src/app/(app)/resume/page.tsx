@@ -56,6 +56,7 @@ function DocumentsContent() {
   const [modelTier, setModelTier] = useState<ModelTierId>('balanced')
   const [jdUrl, setJdUrl] = useState('')
   const [fetchingUrl, setFetchingUrl] = useState(false)
+  const [confirmingButton, setConfirmingButton] = useState<'both' | 'single' | null>(null)
 
   // Background job runners — survive mobile sleep / reloads
   const resumeJob = useBackgroundJob<any>({
@@ -462,23 +463,29 @@ function DocumentsContent() {
                 {MODEL_TIERS.find(t => t.id === modelTier)?.sublabel}{isResume ? ' — download as PDF or DOCX' : ''}
               </p>
               <div className="flex items-center gap-2 shrink-0">
-                <CreditConfirmButton
-                  credits={MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits + MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
-                  label="Both"
-                  loadingLabel="Generating..."
-                  disabled={resumeLoading || clLoading || (!selectedReportId && !reportIdParam && !jdText.trim())}
-                  onConfirm={handleGenerateBoth}
-                  icon={<FileDown className="size-4" />}
-                  variant="outline"
-                />
-                <CreditConfirmButton
-                  credits={isResume ? MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits : MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
-                  label={isResume ? 'Resume' : 'Cover Letter'}
-                  loadingLabel="Generating..."
-                  disabled={(isResume ? resumeLoading : clLoading) || (!selectedReportId && !reportIdParam && !jdText.trim())}
-                  onConfirm={isResume ? () => handleGenerateResume() : () => handleGenerateCL()}
-                  icon={isResume ? <FileDown className="size-4" /> : <Mail className="size-4" />}
-                />
+                {confirmingButton !== 'single' && (
+                  <CreditConfirmButton
+                    credits={MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits + MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
+                    label="Both"
+                    loadingLabel="Generating..."
+                    disabled={resumeLoading || clLoading || (!selectedReportId && !reportIdParam && !jdText.trim())}
+                    onConfirm={handleGenerateBoth}
+                    onConfirmingChange={(c) => setConfirmingButton(c ? 'both' : null)}
+                    icon={<FileDown className="size-4" />}
+                    variant="outline"
+                  />
+                )}
+                {confirmingButton !== 'both' && (
+                  <CreditConfirmButton
+                    credits={isResume ? MODEL_TIERS.find(t => t.id === modelTier)!.pdfCredits : MODEL_TIERS.find(t => t.id === modelTier)!.clCredits}
+                    label={isResume ? 'Resume' : 'Cover Letter'}
+                    loadingLabel="Generating..."
+                    disabled={(isResume ? resumeLoading : clLoading) || (!selectedReportId && !reportIdParam && !jdText.trim())}
+                    onConfirm={isResume ? () => handleGenerateResume() : () => handleGenerateCL()}
+                    onConfirmingChange={(c) => setConfirmingButton(c ? 'single' : null)}
+                    icon={isResume ? <FileDown className="size-4" /> : <Mail className="size-4" />}
+                  />
+                )}
               </div>
             </div>
           </div>

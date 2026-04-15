@@ -11,6 +11,7 @@ interface CreditConfirmButtonProps {
   loadingLabel: string
   disabled?: boolean
   onConfirm: () => Promise<void>
+  onConfirmingChange?: (confirming: boolean) => void
   className?: string
   icon?: React.ReactNode
   variant?: 'default' | 'outline' | 'ghost' | 'destructive' | 'secondary'
@@ -22,6 +23,7 @@ export function CreditConfirmButton({
   loadingLabel,
   disabled,
   onConfirm,
+  onConfirmingChange,
   className,
   icon,
   variant = 'default',
@@ -30,9 +32,14 @@ export function CreditConfirmButton({
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
+  function setConfirmingState(next: boolean) {
+    setConfirming(next)
+    onConfirmingChange?.(next)
+  }
+
   async function handleClick() {
     if (!confirming) {
-      setConfirming(true)
+      setConfirmingState(true)
       return
     }
     setLoading(true)
@@ -42,12 +49,12 @@ export function CreditConfirmButton({
       router.refresh()
     } finally {
       setLoading(false)
-      setConfirming(false)
+      setConfirmingState(false)
     }
   }
 
   function handleCancel() {
-    setConfirming(false)
+    setConfirmingState(false)
   }
 
   if (loading) {
