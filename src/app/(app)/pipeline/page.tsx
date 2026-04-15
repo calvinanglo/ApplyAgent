@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Trash2, Play, ExternalLink, AlertCircle, RotateCcw } from 'lucide-react'
+import { Loader2, Plus, Trash2, Play, ExternalLink, RotateCcw } from 'lucide-react'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -32,6 +32,7 @@ interface PipelineItem {
   url: string
   company: string | null
   title: string | null
+  location?: string | null
   source: string
   status: 'pending' | 'processing' | 'done' | 'error'
   score: number | null
@@ -552,8 +553,8 @@ export default function PipelinePage() {
                     <Badge variant="outline" className="text-xs">{item.source}</Badge>
                     <span className="text-xs text-muted-foreground/50">{timeAgo(item.created_at)}</span>
                   </div>
-                  {(item as any).location && (
-                    <p className="text-xs text-muted-foreground/60 mt-0.5">{(item as any).location}</p>
+                  {item.location && (
+                    <p className="text-xs text-muted-foreground/60 mt-0.5">{item.location}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
                     <a
