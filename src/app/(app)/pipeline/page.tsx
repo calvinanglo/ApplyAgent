@@ -7,8 +7,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Trash2, Play, ExternalLink, AlertCircle, RotateCcw } from 'lucide-react'
 import { CreditConfirmButton } from '@/components/ui/credit-confirm'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { detectDepartment, DEPARTMENTS } from '@/lib/job-departments'
 
 function timeAgo(date: string): string {
   const now = Date.now()
@@ -271,6 +273,8 @@ export default function PipelinePage() {
 
   const [clearConfirm, setClearConfirm] = useState<'pending' | 'done' | 'errors' | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all')
 
   const [counts, setCounts] = useState({ pending: 0, done: 0, error: 0, processing: 0 })
   const pendingCount = counts.pending
@@ -291,11 +295,20 @@ export default function PipelinePage() {
     toast(`${ids.length} items moved back to pending`)
     await loadItems()
   }
-  const allFiltered = activeTab === 'errors'
+  const tabFiltered = activeTab === 'errors'
       ? items.filter(i => i.status === 'error')
       : activeTab === 'done'
       ? items.filter(i => i.status === 'done').sort((a, b) => new Date(b.processed_at || 0).getTime() - new Date(a.processed_at || 0).getTime())
       : items.filter(i => i.status === activeTab)
+  // Per-department counts within the current tab — used to build the filter dropdown
+  const departmentCounts = tabFiltered.reduce<Record<string, number>>((acc, item) => {
+    const dept = detectDepartment(item.title)
+    acc[dept] = (acc[dept] ?? 0) + 1
+    return acc
+  }, {})
+  const allFiltered = departmentFilter === 'all'
+    ? tabFiltered
+    : tabFiltered.filter(i => detectDepartment(i.title) === departmentFilter)
   const totalPages = Math.ceil(allFiltered.length / PAGE_SIZE)
   const filteredItems = allFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -359,12 +372,13 @@ export default function PipelinePage() {
               </Button>
             )
           )}
-          {pendingCount > 0 && (
+          {pendingCount > 0 && (confirmingId === null || confirmingId === 'all') && (
             <CreditConfirmButton
               credits={10 * pendingCount}
               label={`Process All (${pendingCount})`}
               loadingLabel="Processing..."
               onConfirm={handleProcessAll}
+              onConfirmingChange={(c) => setConfirmingId(c ? 'all' : null)}
               icon={<Play className="size-4" />}
             />
           )}
@@ -429,6 +443,40 @@ export default function PipelinePage() {
         ))}
       </div>
 
+      {/* Department filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Department:</span>
+        <Select
+          value={departmentFilter}
+          onValueChange={(v) => { setDepartmentFilter(v as string); setPage(1) }}
+        >
+          <SelectTrigger className="h-8 min-w-[200px]">
+            <SelectValue placeholder="All departments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All departments ({tabFiltered.length})</SelectItem>
+            {DEPARTMENTS.map(dept => {
+              const count = departmentCounts[dept] ?? 0
+              return (
+                <SelectItem key={dept} value={dept} disabled={count === 0}>
+                  {dept} ({count})
+                </SelectItem>
+              )
+            })}
+          </SelectContent>
+        </Select>
+        {departmentFilter !== 'all' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setDepartmentFilter('all'); setPage(1) }}
+            className="h-7 text-xs"
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+
       {/* Selection controls */}
       {filteredItems.length > 0 && (
         <div className="flex items-center justify-between">
@@ -441,12 +489,13 @@ export default function PipelinePage() {
           </label>
           {selectedItems.size > 0 && (
             <div className="flex items-center gap-2">
-              {(activeTab === 'pending' || activeTab === 'errors') && (
+              {(activeTab === 'pending' || activeTab === 'errors') && (confirmingId === null || confirmingId === 'selected') && (
                 <CreditConfirmButton
                   credits={10 * items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || i.status === 'error')).length}
                   label={`Process Selected (${items.filter(i => selectedItems.has(i.id) && (i.status === 'pending' || i.status === 'error')).length})`}
                   loadingLabel="Processing..."
                   onConfirm={handleProcessSelected}
+                  onConfirmingChange={(c) => setConfirmingId(c ? 'selected' : null)}
                   icon={<Play className="size-4" />}
                 />
               )}
@@ -557,13 +606,14 @@ export default function PipelinePage() {
                       <RotateCcw className="size-4" />
                     </Button>
                   )}
-                  {item.status === 'pending' && (
+                  {item.status === 'pending' && (confirmingId === null || confirmingId === item.id) && (
                     <CreditConfirmButton
                       credits={10}
                       label=""
                       loadingLabel=""
                       disabled={processing[item.id]}
                       onConfirm={() => handleProcess(item)}
+                      onConfirmingChange={(c) => setConfirmingId(c ? item.id : null)}
                       icon={processing[item.id] ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                     />
                   )}
