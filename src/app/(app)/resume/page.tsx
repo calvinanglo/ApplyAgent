@@ -237,13 +237,25 @@ function DocumentsContent() {
   }
 
   // ── Download handlers ─────────────────────────────────
-  function getJobSlug() {
+  // Returns { company, role } from the active report or pasted-JD context.
+  function getJobParts(): { company: string; role: string } {
     const match = selectedReportId ? recentReports.find(r => r.report_id === selectedReportId) : reportIdParam ? recentReports.find(r => r.report_id === reportIdParam) : null
-    if (match) return `${match.company}-${match.role}`.replace(/\s+/g, '-')
+    if (match) return { company: match.company || '', role: match.role || '' }
     const c = resumeResult?.content
-    if (c?.target_company || c?.target_role) return `${c.target_company || ''}-${c.target_role || ''}`.replace(/\s+/g, '-')
-    return 'General'
+    return { company: c?.target_company || '', role: c?.target_role || '' }
   }
+
+  // With company → "{prefix}-CA-Miovision-Security-Analyst.{ext}"
+  // No company but has role → "CA-Security-Analyst.{ext}"
+  // Nothing → "CA-{prefix}.{ext}"
+  function buildDownloadFilename(prefix: 'Resume' | 'Cover-Letter', ext: 'pdf' | 'docx') {
+    const { company, role } = getJobParts()
+    const sanitize = (s: string) => s.replace(/\s+/g, '-')
+    if (company) return `${prefix}-${userInitials ? userInitials + '-' : ''}${sanitize(`${company}-${role}`)}.${ext}`
+    if (role) return `${userInitials ? userInitials + '-' : ''}${sanitize(role)}.${ext}`
+    return `${userInitials || prefix}${userInitials ? '-' + prefix : ''}.${ext}`
+  }
+  const buildCLFilename = (ext: 'pdf' | 'docx') => buildDownloadFilename('Cover-Letter', ext)
 
   async function handleDownloadResumePdf() {
     if (!resumeResult) return
@@ -257,7 +269,7 @@ function DocumentsContent() {
 
   async function handleDownloadResumeDocx() {
     if (!resumeResult?.content) return
-    await buildResumeDocx(resumeResult.content, `Resume-${userInitials ? userInitials + '-' : ''}${getJobSlug()}.docx`)
+    await buildResumeDocx(resumeResult.content, buildDownloadFilename('Resume', 'docx'))
   }
 
   async function handleDownloadCLPdf() {
@@ -277,12 +289,12 @@ function DocumentsContent() {
     for (const para of (clResult.body_paragraphs || [])) { const lines = doc.splitTextToSize(para, pageWidth); if (y + lines.length * 15 > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin } doc.text(lines, margin, y); y += lines.length * 15 + 10 }
     if (clResult.closing) { doc.text(clResult.closing, margin, y); y += 18 }
     if (clResult.signature_name) { doc.setFont('times', 'bold'); doc.text(clResult.signature_name, margin, y) }
-    doc.save(`Cover-Letter-${userInitials ? userInitials + '-' : ''}${getJobSlug()}.pdf`)
+    doc.save(buildCLFilename('pdf'))
   }
 
   async function handleDownloadCLDocx() {
     if (!clResult) return
-    await buildCoverLetterDocx(clResult, `Cover-Letter-${userInitials ? userInitials + '-' : ''}${getJobSlug()}.docx`)
+    await buildCoverLetterDocx(clResult, buildCLFilename('docx'))
   }
 
   async function handleCopyCL() {

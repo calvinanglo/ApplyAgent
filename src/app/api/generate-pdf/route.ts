@@ -262,10 +262,15 @@ export async function POST(request: Request) {
           : ''
         const company = reportData?.company || content.target_company || ''
         const role = reportData?.role || content.target_role || ''
-        const roleSlug = (company || role)
-          ? `${company}-${role}`.replace(/[^a-zA-Z0-9 ]+/g, '').replace(/\s+/g, '-').slice(0, 60)
-          : Date.now().toString()
-        const filename = `Resume-${initials ? initials + '-' : ''}${roleSlug}.pdf`
+        const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9 ]+/g, '').replace(/\s+/g, '-').slice(0, 60)
+        // With company → "Resume-CA-Miovision-Security-Analyst.pdf"
+        // No company but has role → "CA-Security-Analyst.pdf"
+        // Nothing → "CA-Resume.pdf"
+        const filename = company
+          ? `Resume-${initials ? initials + '-' : ''}${sanitize(`${company}-${role}`)}.pdf`
+          : role
+          ? `${initials ? initials + '-' : ''}${sanitize(role)}.pdf`
+          : `${initials || 'Resume'}${initials ? '-Resume' : ''}.pdf`
 
         const { error: uploadError } = await admin.storage
           .from('generated-files')

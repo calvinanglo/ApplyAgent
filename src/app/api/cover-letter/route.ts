@@ -200,9 +200,21 @@ Write the cover letter following your instructions. Use today's date in the head
 
         // Save cover letter record + upload JSON to storage
         try {
-          const company = reportCompany || (result as any).header?.recipient_company || 'Unknown'
-          const role = reportRole || 'Cover Letter'
-          const clFilename = `Cover-Letter-${company}-${role}`.replace(/[^a-zA-Z0-9 -]/g, '').replace(/\s+/g, '-').slice(0, 80)
+          const headerCompany = (result as { header?: { recipient_company?: string } }).header?.recipient_company || ''
+          const company = reportCompany || headerCompany || ''
+          const role = reportRole || ''
+          const initials = userProfile?.full_name
+            ? userProfile.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase()
+            : ''
+          const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9 -]/g, '').replace(/\s+/g, '-').slice(0, 80)
+          // With company → "Cover-Letter-CA-Miovision-Security-Analyst"
+          // No company but has role → "CA-Security-Analyst"
+          // Nothing → "CA-Cover-Letter"
+          const clFilename = company
+            ? sanitize(`Cover-Letter-${initials ? initials + '-' : ''}${company}-${role}`)
+            : role
+            ? sanitize(`${initials ? initials + '-' : ''}${role}`)
+            : `${initials || 'Cover-Letter'}${initials ? '-Cover-Letter' : ''}`
           const jsonPath = `${userId}/${clFilename}.json`
 
           // Upload via service role storage (bypasses user session)
