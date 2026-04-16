@@ -19,7 +19,7 @@ export function NavigationBlockerProvider({ children }: { children: ReactNode })
 
   const confirmNavigation = useCallback(() => {
     if (!isBlocked) return true
-    return window.confirm('You have unsaved changes. Leave anyway?')
+    return window.confirm('You have unsaved changes that will be lost. Save your profile before leaving, or click OK to discard changes.')
   }, [isBlocked])
 
   return (

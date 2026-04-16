@@ -211,8 +211,11 @@ export default function SettingsPage() {
       }
     }
 
-    // Update dirty-tracking snapshot
-    savedProfileRef.current = JSON.stringify({ profile: { ...profile, target_roles: targetRoles }, cvContent })
+    // Sync profile state with the exact values we just saved (fixes dirty-tracking mismatch
+    // when e.g. target_roles was null from DB but parsed to [] from text)
+    const savedProfile = { ...profile, target_roles: targetRoles }
+    setProfile(savedProfile)
+    savedProfileRef.current = JSON.stringify({ profile: savedProfile, cvContent })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -246,26 +249,39 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Profile</h1>
           <p className="text-muted-foreground">Your profile and CV configuration</p>
         </div>
-        <Button className="hidden sm:inline-flex" onClick={() => {
-          if (!profile.full_name?.trim()) { alert('Full Name is required'); return }
-          if (!profile.email?.trim()) { alert('Email is required'); return }
-          if (!profile.phone?.trim()) { alert('Phone number is required'); return }
-          if (!cvContent.trim()) { alert('Resume/CV is required — upload or paste your resume below'); return }
-          handleSave()
-        }} disabled={saving}>
-          {saving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : saved ? (
-            <CheckCircle2 className="size-4" />
-          ) : (
-            <Save className="size-4" />
+        <div className="flex items-center gap-3">
+          {isDirty() && !saving && !saved && (
+            <span className="text-xs text-amber-600 dark:text-amber-400 hidden sm:inline">Unsaved changes</span>
           )}
-          {saved ? 'Saved!' : 'Save Changes'}
-        </Button>
+          <Button className="hidden sm:inline-flex" onClick={() => {
+            if (!profile.full_name?.trim()) { alert('Full Name is required'); return }
+            if (!profile.email?.trim()) { alert('Email is required'); return }
+            if (!profile.phone?.trim()) { alert('Phone number is required'); return }
+            if (!cvContent.trim()) { alert('Resume/CV is required — upload or paste your resume below'); return }
+            handleSave()
+          }} disabled={saving}>
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : saved ? (
+              <CheckCircle2 className="size-4" />
+            ) : isDirty() ? (
+              <span className="relative">
+                <Save className="size-4" />
+                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500" />
+              </span>
+            ) : (
+              <Save className="size-4" />
+            )}
+            {saved ? 'Saved!' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       {/* Sticky save button on mobile */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 sm:hidden">
+        {isDirty() && !saving && !saved && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 text-center mb-2">You have unsaved changes</p>
+        )}
         <Button className="w-full" size="lg" onClick={() => {
           if (!profile.full_name?.trim()) { alert('Full Name is required'); return }
           if (!profile.email?.trim()) { alert('Email is required'); return }
@@ -277,6 +293,11 @@ export default function SettingsPage() {
             <Loader2 className="size-4 animate-spin" />
           ) : saved ? (
             <CheckCircle2 className="size-4" />
+          ) : isDirty() ? (
+            <span className="relative">
+              <Save className="size-4" />
+              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500" />
+            </span>
           ) : (
             <Save className="size-4" />
           )}
