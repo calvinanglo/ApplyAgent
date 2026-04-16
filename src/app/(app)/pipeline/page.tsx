@@ -276,6 +276,8 @@ export default function PipelinePage() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
+  // Sources that are currently hidden. Default empty = all sources shown.
+  const [hiddenSources, setHiddenSources] = useState<Set<string>>(new Set())
 
   const [counts, setCounts] = useState({ pending: 0, done: 0, error: 0, processing: 0 })
   const pendingCount = counts.pending
@@ -307,9 +309,19 @@ export default function PipelinePage() {
     acc[dept] = (acc[dept] ?? 0) + 1
     return acc
   }, {})
-  const allFiltered = departmentFilter === 'all'
+  // Per-source counts within the current tab — used to build the source chip row
+  const sourceCounts = tabFiltered.reduce<Record<string, number>>((acc, item) => {
+    const src = item.source || 'Unknown'
+    acc[src] = (acc[src] ?? 0) + 1
+    return acc
+  }, {})
+  const availableSources = Object.keys(sourceCounts).sort((a, b) => sourceCounts[b] - sourceCounts[a])
+  const deptFiltered = departmentFilter === 'all'
     ? tabFiltered
     : tabFiltered.filter(i => detectDepartment(i.title) === departmentFilter)
+  const allFiltered = hiddenSources.size === 0
+    ? deptFiltered
+    : deptFiltered.filter(i => !hiddenSources.has(i.source || 'Unknown'))
   const totalPages = Math.ceil(allFiltered.length / PAGE_SIZE)
   const filteredItems = allFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -478,6 +490,47 @@ export default function PipelinePage() {
         )}
       </div>
 
+      {/* Source filter — toggle chips to hide/show boards */}
+      {availableSources.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Source:</span>
+          {availableSources.map(src => {
+            const hidden = hiddenSources.has(src)
+            return (
+              <button
+                key={src}
+                onClick={() => {
+                  setHiddenSources(prev => {
+                    const next = new Set(prev)
+                    if (next.has(src)) next.delete(src); else next.add(src)
+                    return next
+                  })
+                  setPage(1)
+                }}
+                className={`px-2 py-1 rounded-full text-xs border transition-colors ${
+                  hidden
+                    ? 'bg-muted text-muted-foreground/60 line-through border-dashed'
+                    : 'bg-primary/10 text-foreground border-primary/30 hover:bg-primary/20'
+                }`}
+                title={hidden ? `Show ${src}` : `Hide ${src}`}
+              >
+                {src} ({sourceCounts[src]})
+              </button>
+            )
+          })}
+          {hiddenSources.size > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setHiddenSources(new Set()); setPage(1) }}
+              className="h-7 text-xs"
+            >
+              Show all
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Selection controls */}
       {filteredItems.length > 0 && (
         <div className="flex items-center justify-between">
@@ -529,7 +582,7 @@ export default function PipelinePage() {
           )}
         </div>
       ) : (
-        <div className="space-y-2 max-h-[60vh] overflow-y-auto md:max-h-none md:overflow-visible">
+        <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           {filteredItems.map((item) => (
             <div key={item.id} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">
