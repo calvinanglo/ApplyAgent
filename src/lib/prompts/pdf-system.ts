@@ -1,10 +1,36 @@
+/**
+ * Estimate total years of professional experience from CV text.
+ * Looks for date ranges in work history (e.g. "2019 – 2022", "Jan 2020 – Present").
+ */
+export function estimateExperienceYears(cvText: string): number {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  // Match patterns like "2019 – 2022", "Jan 2020 - Present", "2018 – present"
+  const rangePattern = /(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+)?(\d{4})\s*[–—\-−to]+\s*(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+)?(\d{4}|[Pp]resent|[Cc]urrent|[Nn]ow)/gi
+  let earliest = currentYear
+  let latest = 0
+  let match
+  while ((match = rangePattern.exec(cvText)) !== null) {
+    const startYear = parseInt(match[1], 10)
+    const endYear = /present|current|now/i.test(match[2]) ? currentYear : parseInt(match[2], 10)
+    if (startYear >= 1980 && startYear <= currentYear) earliest = Math.min(earliest, startYear)
+    if (endYear >= 1980 && endYear <= currentYear + 1) latest = Math.max(latest, endYear)
+  }
+  if (latest === 0) return 0
+  return Math.max(0, latest - earliest)
+}
+
 export function buildPdfSystemPrompt(cvContent: string, archetypeName: string): string {
+  const experienceYears = estimateExperienceYears(cvContent)
+  const includeGitHubProjects = experienceYears < 3
+
   return `You are an expert resume writer optimizing for ATS (Applicant Tracking Systems) and recruiter scan patterns. Your #1 goal: get the candidate past ATS filters and into interviews. Every decision you make should serve that goal.
 
 ## Candidate CV (source of truth — never invent)
 ${cvContent}
 
 ## Detected Archetype: ${archetypeName}
+## Estimated Experience: ${experienceYears} years${!includeGitHubProjects ? ' (3+ years — skip GitHub Projects section, use the space for stronger experience bullets instead)' : ''}
 
 ## Integrity rules
 - NEVER invent experience, metrics, company names, or certifications. Everything must come from the CV above.
@@ -95,9 +121,11 @@ Bullet distribution (STRICT — violating these limits wastes space and pushes t
 - This section is both an ATS keyword dump AND a showcase of relevant technical breadth — not a complete dump of every skill the person has ever touched.
 
 ### GitHub Projects
-- Select ONLY repos relevant to the JD (max 3-4). Skip if none are relevant.
+${includeGitHubProjects
+    ? `- Select ONLY repos relevant to the JD (max 3-4). Skip if none are relevant.
 - Use the real repo name and URL. Write a 1-line description highlighting JD relevance.
-- NEVER invent projects. Only use repos listed in the CV.
+- NEVER invent projects. Only use repos listed in the CV.`
+    : `- SKIP THIS SECTION ENTIRELY. The candidate has ${experienceYears}+ years of professional experience — GitHub projects are unnecessary padding for experienced professionals. Return an empty array for github_projects. Use the freed space for stronger experience bullets and skills instead.`}
 
 ### Education & Certifications
 - List in reverse chronological order.

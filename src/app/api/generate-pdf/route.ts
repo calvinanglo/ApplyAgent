@@ -1,7 +1,7 @@
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAIClient } from '@/lib/ai'
-import { buildPdfSystemPrompt } from '@/lib/prompts/pdf-system'
+import { buildPdfSystemPrompt, estimateExperienceYears } from '@/lib/prompts/pdf-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
 import { buildResumeHtml, type PdfContent } from '@/lib/pdf/generator'
 import { getReactPdfBuffer } from '@/lib/pdf/react-pdf'
@@ -121,7 +121,10 @@ export async function POST(request: Request) {
           cvContent += `\nPortfolio: ${userProfile.portfolio_url}`
         }
 
-        if (userProfile?.github_url) {
+        // Only fetch GitHub repos for candidates with <3 years experience.
+        // Experienced candidates don't need projects padding — use the space for experience bullets.
+        const expYears = estimateExperienceYears(cvContent)
+        if (userProfile?.github_url && expYears < 3) {
           try {
             const ghMatch = userProfile.github_url.match(/github\.com\/([^/\s?#]+)/)
             if (ghMatch) {
