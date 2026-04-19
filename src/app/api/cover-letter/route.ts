@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     // Load CV + profile before touching credits
     const [cvRes, profileRes] = await Promise.all([
       db.from('cv_documents').select('content').eq('user_id', userId).eq('is_active', true).single(),
-      db.from('profiles').select('github_url, linkedin_url, portfolio_url, full_name, email, phone, location').eq('id', userId).single(),
+      db.from('profiles').select('github_url, linkedin_url, portfolio_url, full_name, email, phone, location, voice_sample').eq('id', userId).single(),
     ])
     const cvDoc = cvRes.data
     const userProfile = profileRes.data
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
         }
 
         const archetype = detectArchetype(jdText)
-        const systemPrompt = buildCoverLetterSystemPrompt(cvContent, archetype.name)
+        const systemPrompt = buildCoverLetterSystemPrompt(cvContent, archetype.name, userProfile?.voice_sample || undefined)
         const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
         const response = await ai.messages.create({

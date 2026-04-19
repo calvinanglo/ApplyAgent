@@ -44,6 +44,7 @@ export default function SettingsPage() {
     salary_currency: 'CAD',
     work_arrangement: [] as string[],
     job_types: [] as string[],
+    voice_sample: '',
   })
   const [targetRolesText, setTargetRolesText] = useState('')
   const [cvContent, setCvContent] = useState('')
@@ -525,6 +526,29 @@ export default function SettingsPage() {
             rows={20}
             className="font-mono text-sm max-h-[50vh] overflow-y-auto md:max-h-none"
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Writing Voice</CardTitle>
+          <CardDescription>
+            Paste a short sample of your own writing — a LinkedIn post, a project summary, a past cover letter, or an email you're proud of. Anything you wrote yourself, in your real voice. Generated cover letters and LinkedIn messages use this as a style reference so the output reads less like generic AI and more like you. Recruiters increasingly screen inbound text with AI detectors; this is the single most effective way to stay under the radar. Optional but strongly recommended.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Textarea
+            placeholder={`Paste 1\u20133 short things you've actually written. Plain text only. Example:\n\nFinished rolling out MFA to our Arctic sites last month. Fourteen locations, weird latency, no local IT staff. The trick ended up being a phased cut-over window that let each site validate sign-in before we pulled the fallback. Zero escalations, which I will take.`}
+            value={profile.voice_sample || ''}
+            onChange={(e) => setProfile({ ...profile, voice_sample: e.target.value.slice(0, 2000) })}
+            rows={8}
+            maxLength={2000}
+            className="text-sm"
+          />
+          <p className="text-xs text-muted-foreground">
+            {(profile.voice_sample || '').length} / 2000 characters
+            {(profile.voice_sample || '').length > 0 && (profile.voice_sample || '').length < 40 && ' — aim for at least 40 characters to make this effective'}
+          </p>
         </CardContent>
       </Card>
 

@@ -23,7 +23,12 @@ export async function POST(request: Request) {
     if (body.jd_text && body.jd_text.length > 50000) return Response.json({ error: 'JD text too long' }, { status: 400 })
 
     const ai = getAIClient()
-    const { data: cvDoc } = await db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single()
+    const [cvRes, profileRes] = await Promise.all([
+      db.from('cv_documents').select('content').eq('user_id', user.id).eq('is_active', true).single(),
+      db.from('profiles').select('voice_sample').eq('id', user.id).single(),
+    ])
+    const cvDoc = cvRes.data
+    const userProfile = profileRes.data
     if (!cvDoc) return Response.json({ error: 'No CV found. Upload your CV in Settings.' }, { status: 400 })
 
     const { data: creditResult } = await db.rpc('deduct_credits', {
@@ -31,7 +36,7 @@ export async function POST(request: Request) {
     }) as any
     if (!creditResult?.success) return Response.json({ error: creditResult?.error || 'Insufficient credits' }, { status: 402 })
 
-    const systemPrompt = buildLinkedInSystemPrompt(cvDoc.content)
+    const systemPrompt = buildLinkedInSystemPrompt(cvDoc.content, userProfile?.voice_sample || undefined)
     const response = await ai.messages.create({
       model: MODELS.quick,
       max_tokens: 1000,

@@ -17,6 +17,15 @@ ${reportContext ? `## Prior Evaluation Report\n${reportContext}\n` : ''}
 - Tone: "I am choosing you." The candidate has options and is choosing this company. Confident, specific, not desperate.
 - Confidence without overselling — state facts, let them sell
 
+## AI-detector tells — ban these in all free-text answers
+Application portals increasingly screen free-text responses with AI classifiers. The following words and phrases are high-signal tells and must not appear in any generated answer. Paraphrase into concrete, specific language instead.
+
+Words: leverage, streamline, robust, seamless, spearhead, delve, navigate (as metaphor), foster, empower, holistic, synergy, ecosystem (outside real tech ecosystems), cutting-edge, game-changer, comprehensive (as filler), pivotal, dynamic (as descriptor), innovative (as self-description), passionate.
+
+Phrases: "proven track record," "results-driven," "detail-oriented," "team player," "in today's landscape," "at the end of the day," "testament to," "bring to the table," "under my belt," "hit the ground running."
+
+Vary sentence length within each answer — do not write three sentences in a row at similar lengths.
+
 ## Form Field Types
 Handle all common field types:
 - Free text fields: provide ready-to-paste answers with proof points
