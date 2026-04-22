@@ -14,6 +14,54 @@ import { LocationSelect } from '@/components/location-select'
 import { useRouter } from 'next/navigation'
 import { useNavigationBlocker } from '@/components/navigation-blocker'
 
+// Example resume shown as placeholder to guide formatting. Fully fabricated —
+// fake name, companies, schools, numbers. Purely an illustrative template.
+const RESUME_TEMPLATE_PLACEHOLDER = `JORDAN PATEL
+Ontario, Canada | jordan.patel@example.com | (416) 555-0123 | linkedin.com/in/jordan-patel | https://github.com/jordanpatel
+
+PROFESSIONAL SUMMARY
+Cybersecurity and IT Infrastructure professional with 4+ years of progressive experience in security monitoring, incident response, threat detection, system hardening, and compliance enforcement across enterprise and remote environments. Proven track record in SOC operations, SIEM-based triage, EDR/XDR management, endpoint security, SOC 2 audit readiness, and Zero Trust IAM implementation. Skilled in applying NIST and MITRE ATT&CK frameworks to translate technical findings into business risk impacts. Holds CCNA, CySA+, Security+, and AWS Certified Security – Specialty.
+
+EXPERIENCE
+
+Northern Logistics Group — Toronto, ON
+Security Operations Analyst | Jun 2022 – Present
+• Primary Incident Responder for 24/7 on-call rotations; perform SIEM triage (Splunk, CrowdStrike Falcon), log analysis, root-cause analysis, and escalation per MITRE ATT&CK and NIST incident response frameworks.
+• Implement Zero Trust security posture with Conditional Access, MFA, RBAC, and IAM policies in Azure AD/Entra ID, reducing unauthorized access attempts by 40% year over year.
+• Enforce SOC 2 and ISO 27001 controls and daily backup verification, maintaining audit-readiness and supporting change management to mitigate regulatory risk.
+• Manage EDR/endpoint security across 800+ endpoints: patch management, vulnerability remediation, threat hunting, and remediation documentation.
+• Configure and validate Palo Alto, Cisco, and AWS deployments including firewall rules, ACLs, network segmentation, and site-to-site VPN tunnels for 12 distributed offices.
+• Triage security alerts via SIEM/SOAR workflows, reducing mean time to detect (MTTD) by 35% and mean time to respond (MTTR) by 28%.
+• Collaborate with vendors, field teams, and leadership to align security operations with GRC frameworks and risk assessment procedures.
+
+Pacific Retail Solutions — Vancouver, BC
+IT Support Technician | Sep 2021 – Jun 2022
+• Supported 300+ retail clients on POS and network systems, resolving 85% of tickets on first contact while maintaining PCI-DSS compliance and DLP controls for payment data.
+• Built PowerShell and Python automation scripts to auto-remediate common incidents, reducing manual workload by 30% and improving SLA consistency.
+• Authored internal runbooks and SOPs; trained junior staff, improving onboarding efficiency by 25%.
+• Coordinated with vendors to resolve integration issues, ensuring 99.5% uptime and business continuity for mission-critical systems.
+
+Summit Manufacturing Corp — Brandon, MB
+IT Co-op Student | Jan 2020 – Aug 2020
+• Configured SSO, MFA, and RBAC access policies via Active Directory and Group Policy, reducing unauthorized login attempts by 20%.
+• Optimized ITSM ticket triage and escalation workflows, improving resolution speed and reducing backlog by 15%.
+• Automated imaging and deployment with WDS and Group Policy, ensuring consistent configurations across 250+ devices.
+• Tracked asset lifecycle data for compliance with IT inventory, audit, and change management requirements.
+
+EDUCATION
+
+Lakeshore Technical Institute | Sep 2017 – Apr 2021
+Bachelor of Information Technology with Distinction — GPA: 3.85/4.0
+
+CERTIFICATIONS
+CompTIA Security+ (SY0-701) | CompTIA CySA+ (CS0-003) | AWS Certified Security – Specialty | Cisco CCNA | ITIL 4 Foundation — Verify on Credly
+
+TECHNICAL SKILLS
+Security & Compliance: SIEM (Splunk, CrowdStrike Falcon, Sentinel), EDR/XDR, IDS/IPS, SOAR, DLP, Threat Intelligence, Vulnerability Management, Penetration Testing, Digital Forensics, Incident Response, Threat Hunting, IoC Analysis, NIST, CIS Benchmarks, MITRE ATT&CK, SOC 2, ISO 27001, PCI-DSS, GRC, Risk Assessment, BCP/DR, Defense in Depth
+Identity & Access: Azure AD/Entra ID, Active Directory, Zero Trust, Conditional Access, RBAC, MFA, SSO, SAML, OAuth 2.0, OIDC, LDAP, Kerberos, 802.1X, RADIUS, TACACS+, NAC, PKI, TLS/SSL, IPSec, Least Privilege
+Networking: Cisco Routing & Switching, Palo Alto, OSPF, BGP, STP/RSTP, EtherChannel, HSRP, VLANs, 802.1Q, ACLs, Port Security, DHCP Snooping, Network Segmentation, TCP/IP, IPv4/IPv6, Subnetting, DNS, DHCP, NAT/PAT, VPN, QoS, SNMP, Syslog, SD-WAN, Wireshark
+Systems & Automation: Windows Server, GPO, Microsoft 365, Intune MDM, Hyper-V, VMware, PowerShell, Python, Bash, Ansible, Terraform, REST APIs, Nessus, Qualys, GitHub Actions, WDS | Platforms: Windows, Linux/Ubuntu, macOS, AWS, Azure, GCP`
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -520,12 +568,15 @@ export default function SettingsPage() {
             description="PDF, DOCX, TXT, or Markdown. Text will be extracted and editable below."
           />
           <Textarea
-            placeholder="Paste your resume here in plain text or Markdown format..."
+            placeholder={RESUME_TEMPLATE_PLACEHOLDER}
             value={cvContent}
             onChange={(e) => setCvContent(e.target.value)}
             rows={20}
-            className="font-mono text-sm max-h-[50vh] overflow-y-auto md:max-h-none"
+            className="font-mono text-sm max-h-[50vh] overflow-y-auto md:max-h-none placeholder:text-muted-foreground/40 placeholder:whitespace-pre-line"
           />
+          <p className="text-xs text-muted-foreground">
+            Tip: The greyed-out text above is an example of a well-formatted resume. Clear it and paste your own — or upload a file to auto-fill.
+          </p>
         </CardContent>
       </Card>
 
