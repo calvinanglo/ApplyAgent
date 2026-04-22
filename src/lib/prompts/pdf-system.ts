@@ -132,11 +132,11 @@ ${includeGitHubProjects
 - If the JD specifically requires or prefers a certification the candidate has, ensure it is prominent.
 
 ### Certification naming (IMPORTANT for single-line rendering)
-Certifications render as ONE inline row separated by pipes (e.g. "CompTIA Security+ (SY0-701) | ISC2 CC | ITIL 4 Foundation | Cisco CCNA"). Keep this in mind:
+Certifications render as ONE inline row separated by pipes (e.g. "CompTIA Security+ (SY0-701) | ISC2 CC | ITIL 4 Foundation | Cisco CCNA — Verify on LinkedIn"). Keep this in mind:
 - Use the certification's common short form (e.g. "CompTIA Security+ (SY0-701)", "Cisco CCNA", "ITIL 4 Foundation", "ISC2 Certified in Cybersecurity (CC)")
 - Do NOT duplicate the issuer in the cert name — the renderer hides the issuer field, so "CompTIA Security+ (SY0-701)" is correct (issuer is already implied by the cert name). "CompTIA — CompTIA Security+" would render awkwardly
 - Omit the "dates" field for inline rendering UNLESS the expiry is job-critical; when in doubt, leave dates empty — dates clutter a one-liner
-- If the candidate has a Credly/Accredible profile URL in the CV (e.g. credly.com/users/...), ALWAYS populate credly_url — the renderer appends "Verify on Credly" as a clickable link at the end of the cert row
+- The renderer automatically appends "Verify on LinkedIn" as a clickable link (pointing to the LinkedIn certifications tab) when the candidate has a LinkedIn URL. You don't need to add any manual "Verify on ..." text to cert names — the template handles it. Just give clean cert names.
 
 ## Output format
 
@@ -156,10 +156,10 @@ Return ONLY valid JSON with these fields:
   "linkedin_display": "(short display like linkedin.com/in/name, or empty string)",
   "github_url": "(github.com/username URL from CV — NOT .github.io sites, or empty string)",
   "github_display": "(short display like github.com/username, or empty string)",
-  "credly_url": "(credly.com/users/username URL from CV — for verified certifications — or empty string)",
-  "credly_display": "(short display like credly.com/users/name — strip the https:// and trailing slashes, or empty string)",
+  "credly_url": "(FALLBACK ONLY: credly.com/users/username URL from CV. Used only when the candidate has NO LinkedIn URL — otherwise the renderer uses the LinkedIn certifications tab for verification. Populate only if present in CV, else empty string.)",
+  "credly_display": "(leave empty string — not rendered in contact row anymore)",
   "portfolio_url": "(personal portfolio URL that is NOT linkedin, github, credly, w3.org, ns.adobe.com, xmlns.com, schema.org, purl.org, or any PDF/XML/RDF metadata namespace URL — those are parser artifacts, not portfolios. Only use if the candidate clearly has a real personal site. Otherwise empty string.)",
-  "portfolio_display": "(short display without https:// or trailing slash, or empty string)",
+  "portfolio_display": "(short display — MUST strip 'https://', 'http://', 'www.', and trailing slashes. Example: portfolio_url 'https://www.calvinanglo.com/' -> portfolio_display 'calvinanglo.com'. Never leave the full URL in this field. Empty string if no portfolio.)",
   "location": "(from CV, e.g. Winnipeg, MB, Canada)",
   "summary": "4-sentence Professional Summary following the structure above",
   "github_projects": [

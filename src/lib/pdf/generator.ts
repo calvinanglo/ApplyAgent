@@ -128,21 +128,34 @@ export function buildResumeHtml(content: PdfContent): string {
     ${e.notes ? `<div class="edu-desc">${escHtml(e.notes)}</div>` : ''}
   </div>`).join('\n')
 
-  // Build certifications HTML — single inline row, pipe-separated.
-  // Dates are omitted here (they'd clutter the line); issuer is hidden unless
-  // the cert name doesn't already include it. Optional "Verify on Credly"
-  // suffix appended when the candidate has a Credly profile URL.
+  // Derive a LinkedIn certifications deep-link from the profile URL:
+  //   https://linkedin.com/in/user  ->  https://linkedin.com/in/user/details/certifications/
+  // Falls back to empty string if no LinkedIn URL.
+  const linkedInCertsUrl = (): string => {
+    const url = (content.linkedin_url || '').trim()
+    if (!url || !/linkedin\.com\/in\//i.test(url)) return ''
+    const noTrailing = url.replace(/\/+$/, '')
+    return `${noTrailing}/details/certifications/`
+  }
+
+  // Build certifications HTML — single inline row, pipe-separated names.
+  // Appends a "Verify on LinkedIn" clickable link when a LinkedIn URL exists
+  // (universal, no extra setup). Falls back to Credly only if no LinkedIn.
   const certNames = (content.certifications || [])
     .map(c => escHtml(c.name))
     .filter(n => n.length > 0)
   let certificationsHtml = ''
   if (certNames.length > 0) {
     const inlineCerts = certNames.join(' <span class="cert-sep">|</span> ')
-    const credlySuffix = content.credly_url
-      ? ` <span class="cert-sep">\u2014</span> <a href="${safeUrl(content.credly_url)}" class="cert-verify">Verify on Credly</a>`
-      : ''
+    const liCertsUrl = linkedInCertsUrl()
+    let verifySuffix = ''
+    if (liCertsUrl) {
+      verifySuffix = ` <span class="cert-sep">\u2014</span> <a href="${safeUrl(liCertsUrl)}" class="cert-verify">Verify on LinkedIn</a>`
+    } else if (content.credly_url) {
+      verifySuffix = ` <span class="cert-sep">\u2014</span> <a href="${safeUrl(content.credly_url)}" class="cert-verify">Verify on Credly</a>`
+    }
     certificationsHtml = `
-  <div class="cert-inline">${inlineCerts}${credlySuffix}</div>`
+  <div class="cert-inline">${inlineCerts}${verifySuffix}</div>`
   }
 
   // Build skills HTML
@@ -159,9 +172,11 @@ export function buildResumeHtml(content: PdfContent): string {
     if (!raw) return fallbackLabel
     return raw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '')
   }
+  // Contact row — LinkedIn already covers cert verification via the
+  // "Verify on LinkedIn" link in the certifications section, so Credly is
+  // intentionally NOT included here to keep the header uncluttered.
   const hasLinkedin = !!(content.linkedin_display || content.linkedin_url)
   const hasGithub = !!(content.github_display || content.github_url)
-  const hasCredly = !!(content.credly_display || content.credly_url)
   const hasPortfolio = !!(content.portfolio_display || content.portfolio_url)
   const hasPhone = !!content.phone
   const contactParts: string[] = []
@@ -169,7 +184,6 @@ export function buildResumeHtml(content: PdfContent): string {
   if (hasPhone) contactParts.push(`<span>${escHtml(content.phone || '')}</span>`)
   if (hasLinkedin) contactParts.push(`<a href="${safeUrl(content.linkedin_url || '#')}">${escHtml(shortenDisplay(content.linkedin_display, content.linkedin_url, 'LinkedIn'))}</a>`)
   if (hasGithub) contactParts.push(`<a href="${safeUrl(content.github_url || '#')}">${escHtml(shortenDisplay(content.github_display, content.github_url, 'GitHub'))}</a>`)
-  if (hasCredly) contactParts.push(`<a href="${safeUrl(content.credly_url || '#')}">${escHtml(shortenDisplay(content.credly_display, content.credly_url, 'Credly'))}</a>`)
   if (hasPortfolio) contactParts.push(`<a href="${safeUrl(content.portfolio_url || '#')}">${escHtml(shortenDisplay(content.portfolio_display, content.portfolio_url, 'Portfolio'))}</a>`)
   contactParts.push(`<span>${escHtml(content.location || '')}</span>`)
   const contactRowHtml = `
@@ -186,11 +200,11 @@ export function buildResumeHtml(content: PdfContent): string {
     '{{CONTACT_ROW}}': contactRowHtml,
     '{{EMAIL}}': escHtml(content.email || ''),
     '{{LINKEDIN_URL}}': safeUrl(content.linkedin_url || '#'),
-    '{{LINKEDIN_DISPLAY}}': escHtml(content.linkedin_display || content.linkedin_url || ''),
+    '{{LINKEDIN_DISPLAY}}': escHtml(shortenDisplay(content.linkedin_display, content.linkedin_url, '')),
     '{{GITHUB_URL}}': safeUrl(content.github_url || '#'),
-    '{{GITHUB_DISPLAY}}': escHtml(content.github_display || content.github_url || ''),
+    '{{GITHUB_DISPLAY}}': escHtml(shortenDisplay(content.github_display, content.github_url, '')),
     '{{PORTFOLIO_URL}}': safeUrl(content.portfolio_url || '#'),
-    '{{PORTFOLIO_DISPLAY}}': escHtml(content.portfolio_display || content.portfolio_url || ''),
+    '{{PORTFOLIO_DISPLAY}}': escHtml(shortenDisplay(content.portfolio_display, content.portfolio_url, '')),
     '{{LOCATION}}': escHtml(content.location || ''),
     '{{SECTION_SUMMARY}}': 'Professional Summary',
     '{{SUMMARY_TEXT}}': escHtml(content.summary || ''),

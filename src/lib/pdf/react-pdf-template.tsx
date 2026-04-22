@@ -143,8 +143,8 @@ function ContactRow({ content, S }: { content: PdfContent; S: ReturnType<typeof 
     parts.push({ label: shorten(content.linkedin_display, content.linkedin_url, 'LinkedIn'), href: content.linkedin_url })
   if (content.github_display || content.github_url)
     parts.push({ label: shorten(content.github_display, content.github_url, 'GitHub'), href: content.github_url })
-  if (content.credly_display || content.credly_url)
-    parts.push({ label: shorten(content.credly_display, content.credly_url, 'Credly'), href: content.credly_url })
+  // Credly intentionally omitted from contact row — LinkedIn certs tab
+  // handles verification via the "Verify on LinkedIn" link in the cert row.
   if (content.portfolio_display || content.portfolio_url)
     parts.push({ label: shorten(content.portfolio_display, content.portfolio_url, 'Portfolio'), href: content.portfolio_url })
   if (content.location) parts.push({ label: content.location })
@@ -288,29 +288,38 @@ export function ResumeDocument({ content, scale = 1 }: { content: PdfContent; sc
           </View>
         )}
 
-        {/* Certifications — single inline row, pipe-separated names,
-            optional "Verify on Credly" link at end. */}
-        {(content.certifications || []).length > 0 && (
-          <View style={S.section} wrap={false}>
-            <SectionTitle S={S}>Certifications</SectionTitle>
-            <Text style={S.certName}>
-              {(content.certifications || []).map((c, i) => (
-                <Text key={i}>
-                  {i > 0 && <Text style={{ color: '#999' }}> | </Text>}
-                  <Text>{c.name}</Text>
-                </Text>
-              ))}
-              {content.credly_url && (
-                <Text>
-                  <Text style={{ color: '#999' }}> — </Text>
-                  <Link src={content.credly_url} style={{ color: '#000', textDecoration: 'underline' }}>
-                    <Text>Verify on Credly</Text>
-                  </Link>
-                </Text>
-              )}
-            </Text>
-          </View>
-        )}
+        {/* Certifications — single inline row, pipe-separated names, with a
+            "Verify on LinkedIn" deep-link to the profile's certifications tab.
+            Falls back to Credly only when no LinkedIn URL is available. */}
+        {(content.certifications || []).length > 0 && (() => {
+          const liUrl = (content.linkedin_url || '').trim()
+          const liCertsUrl = liUrl && /linkedin\.com\/in\//i.test(liUrl)
+            ? `${liUrl.replace(/\/+$/, '')}/details/certifications/`
+            : ''
+          const verifyUrl = liCertsUrl || content.credly_url || ''
+          const verifyLabel = liCertsUrl ? 'Verify on LinkedIn' : 'Verify on Credly'
+          return (
+            <View style={S.section} wrap={false}>
+              <SectionTitle S={S}>Certifications</SectionTitle>
+              <Text style={S.certName}>
+                {(content.certifications || []).map((c, i) => (
+                  <Text key={i}>
+                    {i > 0 && <Text style={{ color: '#999' }}> | </Text>}
+                    <Text>{c.name}</Text>
+                  </Text>
+                ))}
+                {verifyUrl && (
+                  <Text>
+                    <Text style={{ color: '#999' }}> — </Text>
+                    <Link src={verifyUrl} style={{ color: '#000', textDecoration: 'underline' }}>
+                      <Text>{verifyLabel}</Text>
+                    </Link>
+                  </Text>
+                )}
+              </Text>
+            </View>
+          )
+        })()}
 
         {/* Skills */}
         {(content.skills || []).length > 0 && (
