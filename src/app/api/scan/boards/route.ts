@@ -1,6 +1,10 @@
 /**
- * Job Board Search API — searches LinkedIn, Talent.com, CareerJet, Google, and Jooble.
+ * Job Board Search API — searches 13 job boards in parallel.
  * Separate from the ATS portal scanner (/api/scan) which scans company career pages.
+ *
+ * Boards: LinkedIn, Talent.com, CareerJet, Jooble, Remote OK, Remotive,
+ * WeWorkRemotely, The Muse, Job Bank Canada, USAJobs, Adzuna, Arbeitnow,
+ * HN Who is Hiring, Himalayas, Indeed, FindWork.
  */
 
 import { createClient } from '@/lib/supabase/server'
@@ -10,6 +14,18 @@ import { scrapeLinkedIn } from '@/lib/scrapers/linkedin'
 import { scrapeTalent } from '@/lib/scrapers/talent'
 import { scrapeCareerJet } from '@/lib/scrapers/careerjet'
 import { scrapeJooble } from '@/lib/scrapers/jooble'
+import { scrapeRemoteOk } from '@/lib/scrapers/remoteok'
+import { scrapeRemotive } from '@/lib/scrapers/remotive'
+import { scrapeWeWorkRemotely } from '@/lib/scrapers/weworkremotely'
+import { scrapeMuse } from '@/lib/scrapers/themuse'
+import { scrapeJobBank } from '@/lib/scrapers/jobbank'
+import { scrapeUSAJobs } from '@/lib/scrapers/usajobs'
+import { scrapeAdzuna } from '@/lib/scrapers/adzuna'
+import { scrapeArbeitnow } from '@/lib/scrapers/arbeitnow'
+import { scrapeHNHiring } from '@/lib/scrapers/hnhiring'
+import { scrapeHimalayas } from '@/lib/scrapers/himalayas'
+import { scrapeIndeed } from '@/lib/scrapers/indeed'
+import { scrapeFindWork } from '@/lib/scrapers/findwork'
 import {
   type ScannedJob,
   titleMatches,
@@ -21,6 +37,32 @@ import {
 } from '@/lib/scrapers/types'
 
 export const maxDuration = 60
+
+// All supported board source IDs — keep in sync with UI BOARD_SOURCES
+export type BoardSource =
+  | 'linkedin'
+  | 'talent'
+  | 'careerjet'
+  | 'jooble'
+  | 'remoteok'
+  | 'remotive'
+  | 'weworkremotely'
+  | 'themuse'
+  | 'jobbank'
+  | 'usajobs'
+  | 'adzuna'
+  | 'arbeitnow'
+  | 'hnhiring'
+  | 'himalayas'
+  | 'indeed'
+  | 'findwork'
+
+const ALL_BOARDS: BoardSource[] = [
+  'linkedin', 'talent', 'careerjet', 'jooble',
+  'remoteok', 'remotive', 'weworkremotely', 'themuse',
+  'jobbank', 'usajobs', 'adzuna', 'arbeitnow',
+  'hnhiring', 'himalayas', 'indeed', 'findwork',
+]
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +77,7 @@ export async function POST(request: Request) {
     let body: {
       keywords: string
       location: string
-      sources?: ('linkedin' | 'talent' | 'careerjet' | 'jooble')[]
+      sources?: BoardSource[]
       target_roles?: string[]
       filters?: {
         job_types?: string[]
@@ -82,19 +124,31 @@ export async function POST(request: Request) {
     const existingApps = existingAppsRes.data || []
 
     // Run scrapers in parallel
-    const sources = body.sources || ['linkedin', 'talent', 'careerjet', 'jooble']
+    const sources = body.sources || ALL_BOARDS
     const sourceStats: Record<string, { found: number; error: boolean }> = {}
 
-    const scraperMap: Record<string, (p: { keywords: string; location: string }) => Promise<ScannedJob[]>> = {
+    const scraperMap: Record<BoardSource, (p: { keywords: string; location: string }) => Promise<ScannedJob[]>> = {
       linkedin: scrapeLinkedIn,
       talent: scrapeTalent,
       careerjet: scrapeCareerJet,
       jooble: scrapeJooble,
+      remoteok: scrapeRemoteOk,
+      remotive: scrapeRemotive,
+      weworkremotely: scrapeWeWorkRemotely,
+      themuse: scrapeMuse,
+      jobbank: scrapeJobBank,
+      usajobs: scrapeUSAJobs,
+      adzuna: scrapeAdzuna,
+      arbeitnow: scrapeArbeitnow,
+      hnhiring: scrapeHNHiring,
+      himalayas: scrapeHimalayas,
+      indeed: scrapeIndeed,
+      findwork: scrapeFindWork,
     }
 
     const promises: Promise<{ source: string; jobs: ScannedJob[] }>[] = []
     for (const src of sources) {
-      const scraper = scraperMap[src]
+      const scraper = scraperMap[src as BoardSource]
       if (!scraper) continue
       promises.push(
         scraper({ keywords: body.keywords, location: body.location })
@@ -108,7 +162,7 @@ export async function POST(request: Request) {
     // Collect and cross-source dedupe
     const seenUrls = new Set<string>()
     const seenTitles = new Set<string>()
-    let allJobs: ScannedJob[] = []
+    const allJobs: ScannedJob[] = []
 
     for (const { jobs } of results) {
       for (const job of jobs) {
@@ -174,19 +228,23 @@ export async function POST(request: Request) {
       return true
     })
 
-    // Insert into pipeline
+    // Insert into pipeline — batch inserts of 500 to avoid row-size issues
     if (newJobs.length > 0) {
-      await db.from('pipeline_items').insert(
-        newJobs.map(job => ({
-          user_id: user.id,
-          url: job.url,
-          company: job.company,
-          title: job.title,
-          location: job.location || null,
-          source: job.source,
-          status: 'pending',
-        }))
-      )
+      const CHUNK = 500
+      for (let i = 0; i < newJobs.length; i += CHUNK) {
+        const chunk = newJobs.slice(i, i + CHUNK)
+        await db.from('pipeline_items').insert(
+          chunk.map(job => ({
+            user_id: user.id,
+            url: job.url,
+            company: job.company,
+            title: job.title,
+            location: job.location || null,
+            source: job.source,
+            status: 'pending',
+          }))
+        )
+      }
     }
 
     return Response.json({

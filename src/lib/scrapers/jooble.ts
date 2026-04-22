@@ -6,7 +6,11 @@
  * Requires JOOBLE_API_KEY env var.
  */
 
-import { ScannedJob, detectJobType, detectWorkArrangement, parseSalary } from './types'
+import { ScannedJob, detectJobType, detectWorkArrangement, parseSalary, delay } from './types'
+
+const MAX_PAGES = 20
+const RESULT_ON_PAGE = 50
+const DELAY_MS = 400
 
 export interface JoobleSearchParams {
   keywords: string
@@ -31,33 +35,47 @@ export async function scrapeJooble(params: JoobleSearchParams): Promise<ScannedJ
   const apiKey = process.env.JOOBLE_API_KEY
   if (!apiKey) return []
 
-  const maxResults = params.maxResults || 30
-
-  const res = await fetch(`https://jooble.org/api/${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      keywords: params.keywords,
-      location: params.location,
-      ResultOnPage: maxResults,
-      page: 1,
-    }),
-    signal: AbortSignal.timeout(15000),
-  })
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Jooble ${res.status}: ${text.slice(0, 200)}`)
-  }
-
-  const data = await res.json()
-  const results: JoobleJob[] = data.jobs || []
-
+  const maxResults = params.maxResults || 1000
   const jobs: ScannedJob[] = []
-  for (const r of results) {
-    if (jobs.length >= maxResults) break
-    const job = mapJob(r)
-    if (job) jobs.push(job)
+  const seen = new Set<string>()
+
+  for (let page = 1; page <= MAX_PAGES && jobs.length < maxResults; page++) {
+    try {
+      if (page > 1) await delay(DELAY_MS)
+
+      const res = await fetch(`https://jooble.org/api/${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords: params.keywords,
+          location: params.location,
+          ResultOnPage: RESULT_ON_PAGE,
+          page,
+        }),
+        signal: AbortSignal.timeout(15000),
+      })
+
+      if (!res.ok) break
+
+      const data = await res.json()
+      const results: JoobleJob[] = data.jobs || []
+      if (!results.length) break
+
+      let newCount = 0
+      for (const r of results) {
+        if (jobs.length >= maxResults) break
+        const job = mapJob(r)
+        if (job && !seen.has(job.url)) {
+          seen.add(job.url)
+          jobs.push(job)
+          newCount++
+        }
+      }
+
+      if (newCount === 0) break
+    } catch {
+      break
+    }
   }
 
   return jobs

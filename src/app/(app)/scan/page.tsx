@@ -174,9 +174,21 @@ const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Permanent
 const WORK_ARRANGEMENTS = ['Remote', 'Hybrid', 'On-site'] as const
 const BOARD_SOURCES = [
   { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'indeed', label: 'Indeed' },
   { id: 'talent', label: 'Talent.com' },
   { id: 'careerjet', label: 'CareerJet' },
   { id: 'jooble', label: 'Jooble' },
+  { id: 'adzuna', label: 'Adzuna' },
+  { id: 'jobbank', label: 'Job Bank Canada' },
+  { id: 'usajobs', label: 'USAJobs (Federal)' },
+  { id: 'themuse', label: 'The Muse' },
+  { id: 'remoteok', label: 'Remote OK' },
+  { id: 'remotive', label: 'Remotive' },
+  { id: 'weworkremotely', label: 'We Work Remotely' },
+  { id: 'himalayas', label: 'Himalayas' },
+  { id: 'arbeitnow', label: 'Arbeitnow' },
+  { id: 'findwork', label: 'FindWork' },
+  { id: 'hnhiring', label: 'HN Who is Hiring' },
 ] as const
 const DATE_OPTIONS = [
   { value: 'any', label: 'Any time' },
@@ -255,7 +267,7 @@ export default function ScanPage() {
   const [boardLoading, setBoardLoading] = useState(false)
   const [boardResult, setBoardResult] = useState<any>(null)
   const [boardError, setBoardError] = useState<string | null>(null)
-  const [boardSources, setBoardSources] = useState<Set<string>>(new Set(['linkedin', 'talent', 'careerjet', 'jooble']))
+  const [boardSources, setBoardSources] = useState<Set<string>>(new Set(BOARD_SOURCES.map(s => s.id)))
   const [suggesting] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(true)
   const [companiesExpanded, setCompaniesExpanded] = useState(false)

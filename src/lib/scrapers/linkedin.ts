@@ -10,9 +10,9 @@ import * as cheerio from 'cheerio'
 import { ScannedJob, getRandomUserAgent, delay, cleanText, detectJobType, detectWorkArrangement, parseSalary } from './types'
 
 const API_URL = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search'
-const MAX_PAGES = 2
+const MAX_PAGES = 40 // 40 × 25 = 1000 jobs max per search
 const PAGE_SIZE = 25
-const DELAY_MS = 1500
+const DELAY_MS = 800
 
 export interface LinkedInSearchParams {
   keywords: string
@@ -21,7 +21,7 @@ export interface LinkedInSearchParams {
 }
 
 export async function scrapeLinkedIn(params: LinkedInSearchParams): Promise<ScannedJob[]> {
-  const maxResults = params.maxResults || 25
+  const maxResults = params.maxResults || 1000
   const jobs: ScannedJob[] = []
 
   for (let page = 0; page < MAX_PAGES && jobs.length < maxResults; page++) {

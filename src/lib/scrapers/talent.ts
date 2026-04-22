@@ -7,9 +7,11 @@
  */
 
 import * as cheerio from 'cheerio'
-import { ScannedJob, getRandomUserAgent, cleanText, detectJobType, detectWorkArrangement, parseSalary } from './types'
+import { ScannedJob, getRandomUserAgent, cleanText, detectJobType, detectWorkArrangement, parseSalary, delay } from './types'
 
 const BASE_URL = 'https://www.talent.com/jobs'
+const MAX_PAGES = 20
+const DELAY_MS = 600
 
 export interface TalentSearchParams {
   keywords: string
@@ -18,41 +20,55 @@ export interface TalentSearchParams {
 }
 
 export async function scrapeTalent(params: TalentSearchParams): Promise<ScannedJob[]> {
-  const maxResults = params.maxResults || 30
+  const maxResults = params.maxResults || 500
+  const jobs: ScannedJob[] = []
+  const seen = new Set<string>()
 
-  try {
-    const url = new URL(BASE_URL)
-    url.searchParams.set('k', params.keywords)
-    url.searchParams.set('l', params.location)
+  for (let page = 1; page <= MAX_PAGES && jobs.length < maxResults; page++) {
+    try {
+      if (page > 1) await delay(DELAY_MS)
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': getRandomUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-CA,en-US;q=0.9,en;q=0.8',
-        'Referer': 'https://www.talent.com/',
-      },
-      signal: AbortSignal.timeout(15000),
-    })
+      const url = new URL(BASE_URL)
+      url.searchParams.set('k', params.keywords)
+      url.searchParams.set('l', params.location)
+      if (page > 1) url.searchParams.set('p', String(page))
 
-    if (!res.ok) return []
+      const res = await fetch(url.toString(), {
+        headers: {
+          'User-Agent': getRandomUserAgent(),
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-CA,en-US;q=0.9,en;q=0.8',
+          'Referer': 'https://www.talent.com/',
+        },
+        signal: AbortSignal.timeout(15000),
+      })
 
-    const html = await res.text()
-    const $ = cheerio.load(html)
+      if (!res.ok) break
 
-    const jobs: ScannedJob[] = []
-    const cards = $('[data-job-id]')
+      const html = await res.text()
+      const $ = cheerio.load(html)
 
-    cards.each((_, el) => {
-      if (jobs.length >= maxResults) return false
-      const job = parseCard($, $(el))
-      if (job) jobs.push(job)
-    })
+      const cards = $('[data-job-id]')
+      if (!cards.length) break
 
-    return jobs
-  } catch {
-    return []
+      let newCount = 0
+      cards.each((_, el) => {
+        if (jobs.length >= maxResults) return false
+        const job = parseCard($, $(el))
+        if (job && !seen.has(job.url)) {
+          seen.add(job.url)
+          jobs.push(job)
+          newCount++
+        }
+      })
+
+      if (newCount === 0) break
+    } catch {
+      break
+    }
   }
+
+  return jobs
 }
 
 function parseCard($: cheerio.CheerioAPI, card: cheerio.Cheerio<any>): ScannedJob | null {
