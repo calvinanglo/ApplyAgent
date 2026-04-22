@@ -584,7 +584,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Writing Voice</CardTitle>
           <CardDescription>
-            Paste a short sample of your own writing — a LinkedIn post, a project summary, a past cover letter, or an email you're proud of. Anything you wrote yourself, in your real voice. Generated cover letters and LinkedIn messages use this as a style reference so the output reads less like generic AI and more like you. Recruiters increasingly screen inbound text with AI detectors; this is the single most effective way to stay under the radar. Optional but strongly recommended.
+            Paste a short sample of your own writing — a LinkedIn post, a project summary, a past cover letter, or an email you're proud of. Anything you wrote yourself, in your real voice. Generated cover letters and LinkedIn messages use this as a style reference so the output reads like you wrote it yourself. Recruiters increasingly screen inbound text for generic phrasing; this is the single most effective way to stay authentic and sound like a real candidate. Optional but strongly recommended.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
