@@ -15,6 +15,8 @@ export interface PdfContent {
   linkedin_display?: string
   github_url?: string
   github_display?: string
+  credly_url?: string
+  credly_display?: string
   portfolio_url?: string
   portfolio_display?: string
   location?: string
@@ -139,17 +141,26 @@ export function buildResumeHtml(content: PdfContent): string {
     <span class="skill-category">${escHtml(s.category)}:</span> ${s.items.map(i => escHtml(i)).join(' \u00b7 ')}
   </div>`).join('\n')
 
-  // Build contact row — LinkedIn | GitHub | Portfolio | Location
+  // Build contact row — LinkedIn | GitHub | Credly | Portfolio | Location
+  // Shorten display text: strip protocol + trailing slashes so we show
+  // "credly.com/users/calvin-anglo" instead of the full URL.
+  const shortenDisplay = (display: string | undefined, fallbackUrl: string | undefined, fallbackLabel: string): string => {
+    const raw = (display || fallbackUrl || '').trim()
+    if (!raw) return fallbackLabel
+    return raw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '')
+  }
   const hasLinkedin = !!(content.linkedin_display || content.linkedin_url)
   const hasGithub = !!(content.github_display || content.github_url)
+  const hasCredly = !!(content.credly_display || content.credly_url)
   const hasPortfolio = !!(content.portfolio_display || content.portfolio_url)
   const hasPhone = !!content.phone
   const contactParts: string[] = []
   contactParts.push(`<span>${escHtml(content.email || '')}</span>`)
   if (hasPhone) contactParts.push(`<span>${escHtml(content.phone || '')}</span>`)
-  if (hasLinkedin) contactParts.push(`<a href="${safeUrl(content.linkedin_url || '#')}">${escHtml(content.linkedin_display || 'LinkedIn')}</a>`)
-  if (hasGithub) contactParts.push(`<a href="${safeUrl(content.github_url || '#')}">${escHtml(content.github_display || 'GitHub')}</a>`)
-  if (hasPortfolio) contactParts.push(`<a href="${safeUrl(content.portfolio_url || '#')}">${escHtml(content.portfolio_display || 'Portfolio')}</a>`)
+  if (hasLinkedin) contactParts.push(`<a href="${safeUrl(content.linkedin_url || '#')}">${escHtml(shortenDisplay(content.linkedin_display, content.linkedin_url, 'LinkedIn'))}</a>`)
+  if (hasGithub) contactParts.push(`<a href="${safeUrl(content.github_url || '#')}">${escHtml(shortenDisplay(content.github_display, content.github_url, 'GitHub'))}</a>`)
+  if (hasCredly) contactParts.push(`<a href="${safeUrl(content.credly_url || '#')}">${escHtml(shortenDisplay(content.credly_display, content.credly_url, 'Credly'))}</a>`)
+  if (hasPortfolio) contactParts.push(`<a href="${safeUrl(content.portfolio_url || '#')}">${escHtml(shortenDisplay(content.portfolio_display, content.portfolio_url, 'Portfolio'))}</a>`)
   contactParts.push(`<span>${escHtml(content.location || '')}</span>`)
   const contactRowHtml = `
       <div class="contact-row">

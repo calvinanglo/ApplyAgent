@@ -149,8 +149,10 @@ Return ONLY valid JSON with these fields:
   "linkedin_display": "(short display like linkedin.com/in/name, or empty string)",
   "github_url": "(github.com/username URL from CV — NOT .github.io sites, or empty string)",
   "github_display": "(short display like github.com/username, or empty string)",
-  "portfolio_url": "(personal website URL that is NOT linkedin, github.com, or *.github.io — or empty string)",
-  "portfolio_display": "(short display, or empty string)",
+  "credly_url": "(credly.com/users/username URL from CV — for verified certifications — or empty string)",
+  "credly_display": "(short display like credly.com/users/name — strip the https:// and trailing slashes, or empty string)",
+  "portfolio_url": "(personal portfolio URL that is NOT linkedin, github, credly, w3.org, ns.adobe.com, xmlns.com, schema.org, purl.org, or any PDF/XML/RDF metadata namespace URL — those are parser artifacts, not portfolios. Only use if the candidate clearly has a real personal site. Otherwise empty string.)",
+  "portfolio_display": "(short display without https:// or trailing slash, or empty string)",
   "location": "(from CV, e.g. Winnipeg, MB, Canada)",
   "summary": "4-sentence Professional Summary following the structure above",
   "github_projects": [

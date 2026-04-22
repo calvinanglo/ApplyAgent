@@ -129,15 +129,24 @@ function makeStyles(scale: number) {
 // ── Components ──────────────────────────────────────────────────────────────
 
 function ContactRow({ content, S }: { content: PdfContent; S: ReturnType<typeof makeStyles> }) {
+  // Shorten display text: strip protocol + trailing slashes so we show
+  // "credly.com/users/name" instead of "https://www.credly.com/users/name/".
+  const shorten = (display: string | undefined, fallbackUrl: string | undefined, fallbackLabel: string): string => {
+    const raw = (display || fallbackUrl || '').trim()
+    if (!raw) return fallbackLabel
+    return raw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '')
+  }
   const parts: { label: string; href?: string }[] = []
   if (content.email) parts.push({ label: content.email })
   if (content.phone) parts.push({ label: content.phone })
   if (content.linkedin_display || content.linkedin_url)
-    parts.push({ label: content.linkedin_display || 'LinkedIn', href: content.linkedin_url })
+    parts.push({ label: shorten(content.linkedin_display, content.linkedin_url, 'LinkedIn'), href: content.linkedin_url })
   if (content.github_display || content.github_url)
-    parts.push({ label: content.github_display || 'GitHub', href: content.github_url })
+    parts.push({ label: shorten(content.github_display, content.github_url, 'GitHub'), href: content.github_url })
+  if (content.credly_display || content.credly_url)
+    parts.push({ label: shorten(content.credly_display, content.credly_url, 'Credly'), href: content.credly_url })
   if (content.portfolio_display || content.portfolio_url)
-    parts.push({ label: content.portfolio_display || 'Portfolio', href: content.portfolio_url })
+    parts.push({ label: shorten(content.portfolio_display, content.portfolio_url, 'Portfolio'), href: content.portfolio_url })
   if (content.location) parts.push({ label: content.location })
 
   return (

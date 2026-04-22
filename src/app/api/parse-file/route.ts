@@ -2,9 +2,33 @@ import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
 /**
+ * Hosts and path-prefixes that appear inside PDF/DOCX internal metadata
+ * (XMP, RDF namespaces, ICC profiles, document schemas) — NOT real user
+ * hyperlinks. Filter them out to avoid polluting the CV text.
+ */
+const JUNK_HOST_PATTERNS: RegExp[] = [
+  /^https?:\/\/(www\.)?w3\.org\//i,
+  /^https?:\/\/(www\.)?ns\.adobe\.com\//i,
+  /^https?:\/\/iptc\.org\//i,
+  /^https?:\/\/purl\.org\//i,
+  /^https?:\/\/schema\.org\//i,
+  /^https?:\/\/(www\.)?aiim\.org\//i,
+  /^https?:\/\/(www\.)?pdfa\.org\//i,
+  /^https?:\/\/openoffice\.org\//i,
+  /^https?:\/\/xmlns\.com\//i,
+  /^https?:\/\/(www\.)?color\.org\//i,
+  /^https?:\/\/(www\.)?oasis-open\.org\//i,
+  /^https?:\/\/(www\.)?microsoft\.com\/.*\/(office|schemas)\//i,
+]
+
+function isJunkUrl(url: string): boolean {
+  return JUNK_HOST_PATTERNS.some(rx => rx.test(url))
+}
+
+/**
  * Extract unique URLs from raw bytes that look like hyperlinks.
  * Used to recover links that upstream parsers strip (DOCX display-text-only,
- * PDF annotation URIs, etc.).
+ * PDF annotation URIs, etc.). Filters out PDF/DOCX internal metadata URLs.
  */
 function extractUrls(raw: string): string[] {
   const found = new Set<string>()
@@ -13,13 +37,13 @@ function extractUrls(raw: string): string[] {
   for (const m of raw.matchAll(genericUrl)) {
     // Strip trailing punctuation common in text (., ,, ;, ))
     const clean = m[0].replace(/[.,;:)'"]+$/, '')
-    if (clean.length > 10 && clean.length < 500) found.add(clean)
+    if (clean.length > 10 && clean.length < 500 && !isJunkUrl(clean)) found.add(clean)
   }
   // PDF annotation URIs: /URI (https://...) or /URI(https://...)
   const pdfUri = /\/URI\s*\(([^)]+)\)/gi
   for (const m of raw.matchAll(pdfUri)) {
     const clean = m[1].trim().replace(/[.,;:)'"]+$/, '')
-    if (clean.length > 10 && clean.length < 500) found.add(clean)
+    if (clean.length > 10 && clean.length < 500 && !isJunkUrl(clean)) found.add(clean)
   }
   return Array.from(found)
 }
