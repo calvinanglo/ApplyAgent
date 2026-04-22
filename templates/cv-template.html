@@ -268,6 +268,24 @@
   }
 
   /* === CERTIFICATIONS === */
+  /* New inline layout: one row, pipe-separated names, optional Credly link. */
+  .cert-inline {
+    font-size: 10.5px;
+    color: #000;
+    line-height: 1.5;
+  }
+
+  .cert-sep {
+    color: #999;
+    margin: 0 4px;
+  }
+
+  .cert-verify {
+    color: #000;
+    text-decoration: underline;
+  }
+
+  /* Legacy block layout kept for backward-compat with any rendered docs. */
   .cert-item {
     display: flex;
     justify-content: space-between;

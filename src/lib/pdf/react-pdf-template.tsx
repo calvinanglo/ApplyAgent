@@ -288,19 +288,27 @@ export function ResumeDocument({ content, scale = 1 }: { content: PdfContent; sc
           </View>
         )}
 
-        {/* Certifications */}
+        {/* Certifications — single inline row, pipe-separated names,
+            optional "Verify on Credly" link at end. */}
         {(content.certifications || []).length > 0 && (
           <View style={S.section} wrap={false}>
             <SectionTitle S={S}>Certifications</SectionTitle>
-            {(content.certifications || []).map((c, i) => (
-              <View key={i} style={S.certItem}>
-                <Text>
-                  {c.issuer && <Text style={S.certOrg}>{c.issuer} — </Text>}
-                  <Text style={S.certName}>{c.name}</Text>
+            <Text style={S.certName}>
+              {(content.certifications || []).map((c, i) => (
+                <Text key={i}>
+                  {i > 0 && <Text style={{ color: '#999' }}> | </Text>}
+                  <Text>{c.name}</Text>
                 </Text>
-                {c.dates && <Text style={S.certYear}>{c.dates}</Text>}
-              </View>
-            ))}
+              ))}
+              {content.credly_url && (
+                <Text>
+                  <Text style={{ color: '#999' }}> — </Text>
+                  <Link src={content.credly_url} style={{ color: '#000', textDecoration: 'underline' }}>
+                    <Text>Verify on Credly</Text>
+                  </Link>
+                </Text>
+              )}
+            </Text>
           </View>
         )}
 

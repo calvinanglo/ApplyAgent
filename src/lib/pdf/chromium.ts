@@ -41,7 +41,7 @@ async function setFontSize(page: any, sizePx: number): Promise<void> {
     const heading = Math.round(size * 1.15 * 10) / 10
     style.textContent = `
       body, .summary-text, .job-role, .job li,
-      .project-desc, .cert-title,
+      .project-desc, .cert-title, .cert-inline, .cert-sep, .cert-verify,
       .skill-item, .skill-line, .skill-category,
       .contact-row, .job-period, .job-location, .edu-year, .edu-desc,
       .cert-year, .project-tech, .competency-tag, .github-project,

@@ -128,12 +128,22 @@ export function buildResumeHtml(content: PdfContent): string {
     ${e.notes ? `<div class="edu-desc">${escHtml(e.notes)}</div>` : ''}
   </div>`).join('\n')
 
-  // Build certifications HTML
-  const certificationsHtml = (content.certifications || []).map(c => `
-  <div class="cert-item">
-    <span class="cert-title"><span class="cert-org">${escHtml(c.issuer || '')}</span>${c.issuer ? ' \u2014 ' : ''}${escHtml(c.name)}</span>
-    ${c.dates ? `<span class="cert-year">${escHtml(c.dates)}</span>` : ''}
-  </div>`).join('\n')
+  // Build certifications HTML — single inline row, pipe-separated.
+  // Dates are omitted here (they'd clutter the line); issuer is hidden unless
+  // the cert name doesn't already include it. Optional "Verify on Credly"
+  // suffix appended when the candidate has a Credly profile URL.
+  const certNames = (content.certifications || [])
+    .map(c => escHtml(c.name))
+    .filter(n => n.length > 0)
+  let certificationsHtml = ''
+  if (certNames.length > 0) {
+    const inlineCerts = certNames.join(' <span class="cert-sep">|</span> ')
+    const credlySuffix = content.credly_url
+      ? ` <span class="cert-sep">\u2014</span> <a href="${safeUrl(content.credly_url)}" class="cert-verify">Verify on Credly</a>`
+      : ''
+    certificationsHtml = `
+  <div class="cert-inline">${inlineCerts}${credlySuffix}</div>`
+  }
 
   // Build skills HTML
   const skillsHtml = (content.skills || []).map(s => `

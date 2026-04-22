@@ -131,6 +131,13 @@ ${includeGitHubProjects
 - List in reverse chronological order.
 - If the JD specifically requires or prefers a certification the candidate has, ensure it is prominent.
 
+### Certification naming (IMPORTANT for single-line rendering)
+Certifications render as ONE inline row separated by pipes (e.g. "CompTIA Security+ (SY0-701) | ISC2 CC | ITIL 4 Foundation | Cisco CCNA"). Keep this in mind:
+- Use the certification's common short form (e.g. "CompTIA Security+ (SY0-701)", "Cisco CCNA", "ITIL 4 Foundation", "ISC2 Certified in Cybersecurity (CC)")
+- Do NOT duplicate the issuer in the cert name — the renderer hides the issuer field, so "CompTIA Security+ (SY0-701)" is correct (issuer is already implied by the cert name). "CompTIA — CompTIA Security+" would render awkwardly
+- Omit the "dates" field for inline rendering UNLESS the expiry is job-critical; when in doubt, leave dates empty — dates clutter a one-liner
+- If the candidate has a Credly/Accredible profile URL in the CV (e.g. credly.com/users/...), ALWAYS populate credly_url — the renderer appends "Verify on Credly" as a clickable link at the end of the cert row
+
 ## Output format
 
 Return ONLY valid JSON with these fields:
