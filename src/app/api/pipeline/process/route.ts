@@ -1,5 +1,5 @@
 import { after } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { getAIClient, MODELS } from '@/lib/ai'
 import { buildEvaluationSystemBlocks } from '@/lib/prompts/evaluation-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
@@ -12,7 +12,7 @@ export const maxDuration = 300 // 5 minutes — evaluation + URL fetch + DB can 
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -184,7 +184,7 @@ export async function POST(request: Request) {
   } catch (err) {
     // Ensure pipeline item is marked as error so it doesn't stay stuck at 'processing'
     try {
-      const supabase = await createClient()
+      const supabase = await getApiClient(request)
       const db = supabase as any
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {

@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import { getAccountCredits } from '../lib/api'
 
 interface Stats {
   credits: number
-  freeLeft: number
   totalApps: number
   recentApps: Array<{ id: string; company: string; role: string; score: number; status: string; created_at: string }>
+  subscription: { plan_id: string; status: string } | null
 }
 
 export function DashboardScreen({ navigation }: any) {
@@ -19,21 +20,34 @@ export function DashboardScreen({ navigation }: any) {
   const loadStats = useCallback(async () => {
     if (!user) return
 
-    const [balanceRes, appsRes] = await Promise.all([
-      (supabase as any).from('credit_balances').select('balance, free_evaluations_used').eq('user_id', user.id).single(),
-      (supabase as any).from('applications').select('id, company, role, score, status, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
-    ])
+    // Single round-trip via /api/account/credits (mobile-optimized) plus
+    // applications query for the recent list. Falls back to direct Supabase
+    // queries if the credits endpoint isn't deployed yet.
+    try {
+      const [credits, appsRes] = await Promise.all([
+        getAccountCredits().catch(() => null),
+        (supabase as any)
+          .from('applications')
+          .select('id, company, role, score, status, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ])
 
-    const balance = balanceRes.data
-    const apps = appsRes.data || []
-
-    setStats({
-      credits: balance?.balance || 0,
-      freeLeft: Math.max(0, 3 - (balance?.free_evaluations_used || 0)),
-      totalApps: apps.length,
-      recentApps: apps,
-    })
-    setLoading(false)
+      const apps = appsRes.data || []
+      setStats({
+        credits: credits?.balance ?? 0,
+        totalApps: apps.length,
+        recentApps: apps,
+        subscription: credits?.subscription
+          ? { plan_id: credits.subscription.plan_id, status: credits.subscription.status }
+          : null,
+      })
+    } catch {
+      // Soft-fail — user can pull-to-refresh
+    } finally {
+      setLoading(false)
+    }
   }, [user])
 
   useEffect(() => { loadStats() }, [loadStats])
@@ -62,12 +76,14 @@ export function DashboardScreen({ navigation }: any) {
           <Text style={styles.statLabel}>Credits</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats?.freeLeft || 0}</Text>
-          <Text style={styles.statLabel}>Free Evals</Text>
-        </View>
-        <View style={styles.statCard}>
           <Text style={styles.statNumber}>{stats?.totalApps || 0}</Text>
           <Text style={styles.statLabel}>Applications</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statNumber, { fontSize: 14, marginTop: 6 }]}>
+            {stats?.subscription?.status === 'active' ? (stats?.subscription?.plan_id || 'Active') : 'Free'}
+          </Text>
+          <Text style={styles.statLabel}>Plan</Text>
         </View>
       </View>
 
@@ -75,12 +91,18 @@ export function DashboardScreen({ navigation }: any) {
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Evaluate')}>
-            <Text style={styles.actionIcon}>Q</Text>
-            <Text style={styles.actionLabel}>Evaluate</Text>
+            <Text style={styles.actionLabel}>Evaluate JD</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Applications')}>
-            <Text style={styles.actionIcon}>B</Text>
-            <Text style={styles.actionLabel}>Applications</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ScanTab')}>
+            <Text style={styles.actionLabel}>Scan Boards</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.actionsGrid, { marginTop: 8 }]}>
+          <TouchableOpacity style={styles.actionBtnSecondary} onPress={() => navigation.navigate('PipelineTab')}>
+            <Text style={styles.actionLabelSecondary}>Pipeline</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtnSecondary} onPress={() => navigation.navigate('Applications')}>
+            <Text style={styles.actionLabelSecondary}>Applications</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -128,9 +150,10 @@ const styles = StyleSheet.create({
   quickActions: { marginBottom: 24 },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   actionsGrid: { flexDirection: 'row', gap: 12 },
-  actionBtn: { flex: 1, backgroundColor: '#000', borderRadius: 12, padding: 20, alignItems: 'center' },
-  actionIcon: { fontSize: 20, color: '#fff', marginBottom: 4 },
+  actionBtn: { flex: 1, backgroundColor: '#000', borderRadius: 12, padding: 16, alignItems: 'center' },
   actionLabel: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  actionBtnSecondary: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' },
+  actionLabelSecondary: { fontSize: 13, fontWeight: '600' },
   section: { marginBottom: 24 },
   appItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   appCompany: { fontSize: 15, fontWeight: '600' },

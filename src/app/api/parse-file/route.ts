@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { rateLimit } from '@/lib/rate-limit'
 
 /**
@@ -61,7 +61,7 @@ function mergeLinks(text: string, urls: string[]): string {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })

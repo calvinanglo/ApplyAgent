@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 
 // Pure read — no Node.js APIs. Runs at the edge for lower latency on polling.
 export const runtime = 'edge'
@@ -11,7 +11,7 @@ export const runtime = 'edge'
  * own jobs.
  */
 export async function GET(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
 

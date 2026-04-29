@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 
 export const runtime = 'edge'
 
-export async function GET() {
-  const supabase = await createClient()
+export async function GET(request: Request) {
+  const supabase = await getApiClient(request)
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -24,7 +24,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

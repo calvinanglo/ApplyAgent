@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { rateLimit } from '@/lib/rate-limit'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })

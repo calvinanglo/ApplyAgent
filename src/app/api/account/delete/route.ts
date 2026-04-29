@@ -1,9 +1,9 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function DELETE(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

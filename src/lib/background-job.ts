@@ -1,4 +1,5 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { sendPush } from './push'
 
 /**
  * Background job helper. Used by long-running routes (cover-letter, resume PDF,
@@ -40,12 +41,51 @@ export async function updateJob(
   await admin.from('background_jobs').update(patch).eq('id', jobId)
 }
 
+// Human-friendly notification copy keyed by job kind. Avoids leaking technical
+// details ("resume_pdf") to end users.
+const JOB_LABELS: Record<JobKind, { success: string; failure: string }> = {
+  cover_letter:     { success: 'Your cover letter is ready', failure: 'Cover letter generation failed' },
+  resume_pdf:       { success: 'Your tailored resume is ready', failure: 'Resume generation failed' },
+  scan:             { success: 'Your job scan is complete', failure: 'Job scan failed' },
+  pipeline_process: { success: 'Job evaluation complete', failure: 'Pipeline evaluation failed' },
+  evaluation:       { success: 'Your job evaluation is ready', failure: 'Evaluation failed' },
+}
+
+/**
+ * Look up the user_id + kind for a job and send an Expo push notification.
+ * Fire-and-forget — never throws so it can't take down job processing.
+ */
+async function notifyJobComplete(jobId: string, success: boolean, errorMessage?: string): Promise<void> {
+  try {
+    const admin = getServiceClient() as any
+    const { data: job } = await admin
+      .from('background_jobs')
+      .select('user_id, kind')
+      .eq('id', jobId)
+      .single()
+    if (!job?.user_id) return
+
+    const labels = JOB_LABELS[job.kind as JobKind] || { success: 'Job complete', failure: 'Job failed' }
+    await sendPush(job.user_id, {
+      title: success ? labels.success : labels.failure,
+      body: success
+        ? 'Tap to view the result.'
+        : errorMessage?.slice(0, 140) || 'Tap to retry.',
+      data: { job_id: jobId, kind: job.kind, success: success ? 1 : 0 },
+    })
+  } catch {
+    // Push failures must never break job lifecycle.
+  }
+}
+
 export async function failJob(jobId: string, error: string) {
   await updateJob(jobId, { status: 'failed', error })
+  void notifyJobComplete(jobId, false, error)
 }
 
 export async function completeJob(jobId: string, result: unknown) {
   await updateJob(jobId, { status: 'completed', result })
+  void notifyJobComplete(jobId, true)
 }
 
 export async function startJob(jobId: string) {

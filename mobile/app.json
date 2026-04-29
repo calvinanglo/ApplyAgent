@@ -45,8 +45,20 @@
     },
     "scheme": "applyagent",
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#000000"
+        }
+      ]
     ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#000000",
+      "iosDisplayInForeground": true
+    },
     "extra": {
       "eas": {
         "projectId": "2c381589-1d10-4c4b-b1ba-9ec1f20716d5"

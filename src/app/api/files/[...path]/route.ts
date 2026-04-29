@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { getServiceClient } from '@/lib/background-job'
 
 /**
@@ -18,11 +18,11 @@ import { getServiceClient } from '@/lib/background-job'
  * in resume and cover-letter download flows.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   // Auth check
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return new Response('Unauthorized', { status: 401 })

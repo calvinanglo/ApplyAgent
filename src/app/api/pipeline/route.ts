@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -89,7 +89,7 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })

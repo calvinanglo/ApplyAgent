@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { CREDIT_COSTS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
 import {
@@ -212,7 +212,7 @@ async function scanWorkday(slug: string, company: string): Promise<ScannedJob[]>
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })

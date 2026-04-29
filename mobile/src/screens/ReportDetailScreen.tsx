@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { generateCoverLetter } from '../lib/api'
+import { generateCoverLetter, generatePdf, pollJob } from '../lib/api'
+import { downloadAndShare } from '../lib/files'
 
 interface Report {
   id: string
@@ -58,21 +59,65 @@ export function ReportDetailScreen({ route }: any) {
   async function handleCoverLetter() {
     setClLoading(true)
     try {
-      const data = await generateCoverLetter(reportId)
-      if (data.cover_letter) {
-        const fullText = [
-          data.cover_letter.greeting || 'Dear Hiring Manager,',
-          '',
-          ...(data.cover_letter.body_paragraphs || []),
-          '',
-          data.cover_letter.closing || 'Best regards,',
-        ].join('\n\n')
-        Alert.alert('Cover Letter Generated', fullText.substring(0, 500) + '...')
+      // Job pattern: POST returns { job_id }, poll status, then download
+      // generated file via signed URL.
+      const { job_id } = await generateCoverLetter(reportId)
+      const status = await pollJob<{ storage_path?: string; cover_letter?: any }>(job_id, { intervalMs: 2500 })
+      if (status.status === 'failed') {
+        throw new Error(status.error || 'Cover letter generation failed')
+      }
+
+      // If the generator stored a JSON file, offer to download it. Otherwise
+      // show the inline content.
+      const storagePath = status.result?.storage_path
+      if (storagePath) {
+        try {
+          await downloadAndShare(storagePath)
+        } catch {
+          // Fall back to inline preview on share-sheet failure
+          showInlineCoverLetter(status.result?.cover_letter)
+        }
+      } else {
+        showInlineCoverLetter(status.result?.cover_letter)
       }
     } catch (err: any) {
       Alert.alert('Error', err.message)
     } finally {
       setClLoading(false)
+    }
+  }
+
+  function showInlineCoverLetter(cl: any) {
+    if (!cl) {
+      Alert.alert('Cover letter ready', 'Open the web app to view the full content.')
+      return
+    }
+    const fullText = [
+      cl.greeting || 'Dear Hiring Manager,',
+      '',
+      ...(cl.body_paragraphs || []),
+      '',
+      cl.closing || 'Best regards,',
+    ].join('\n\n')
+    Alert.alert('Cover Letter Generated', fullText.substring(0, 500) + (fullText.length > 500 ? '…' : ''))
+  }
+
+  const [pdfLoading, setPdfLoading] = useState(false)
+  async function handleResumePdf() {
+    setPdfLoading(true)
+    try {
+      const { job_id } = await generatePdf(reportId, 'fast')
+      const status = await pollJob<{ storage_path?: string }>(job_id, { intervalMs: 3000 })
+      if (status.status === 'failed') {
+        throw new Error(status.error || 'Resume generation failed')
+      }
+      const storagePath = status.result?.storage_path
+      if (!storagePath) throw new Error('Resume file not found')
+      await downloadAndShare(storagePath)
+    } catch (err: any) {
+      Alert.alert('Error', err.message)
+    } finally {
+      setPdfLoading(false)
     }
   }
 
@@ -108,8 +153,11 @@ export function ReportDetailScreen({ route }: any) {
 
       {report.score >= 4.5 && (
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleCoverLetter} disabled={clLoading}>
-            {clLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.actionBtnText}>Generate Cover Letter</Text>}
+          <TouchableOpacity style={styles.actionBtn} onPress={handleResumePdf} disabled={pdfLoading || clLoading}>
+            {pdfLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.actionBtnText}>Tailored Resume PDF</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { marginTop: 8 }]} onPress={handleCoverLetter} disabled={clLoading || pdfLoading}>
+            {clLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.actionBtnText}>Cover Letter</Text>}
           </TouchableOpacity>
         </View>
       )}

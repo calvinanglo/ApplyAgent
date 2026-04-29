@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 
 export const runtime = 'edge'
 
@@ -10,7 +10,7 @@ export const runtime = 'edge'
  * mobile tab suspension or network drops.
  */
 export async function GET(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
 

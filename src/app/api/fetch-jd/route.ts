@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { rateLimit } from '@/lib/rate-limit'
 import { fetchJdFromUrl } from '@/app/api/pipeline/process/fetchers'
 
 export const maxDuration = 30
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 

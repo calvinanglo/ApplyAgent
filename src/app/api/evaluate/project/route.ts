@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { getAIClient, MODELS } from '@/lib/ai'
 import { buildProjectSystemPrompt } from '@/lib/prompts/project-system'
 import { detectArchetype } from '@/lib/prompts/shared-context'
@@ -7,7 +7,7 @@ import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })

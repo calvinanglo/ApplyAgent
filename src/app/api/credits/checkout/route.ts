@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { getStripe, getOrCreateCustomer, STRIPE_SUBSCRIPTION_PRICES } from '@/lib/stripe'
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@/lib/credits'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
-import { evaluate } from '../lib/api'
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { evaluate, pollJob } from '../lib/api'
 
 interface Block {
   key: string
@@ -8,9 +8,17 @@ interface Block {
   content: any
 }
 
+interface EvaluationResult {
+  report_id?: string
+  score?: number
+  blocks?: Block[]
+  archetype?: string
+}
+
 export function EvaluateScreen({ navigation }: any) {
   const [jdText, setJdText] = useState('')
   const [loading, setLoading] = useState(false)
+  const [progressMessage, setProgressMessage] = useState('')
   const [score, setScore] = useState<number | null>(null)
   const [blocks, setBlocks] = useState<Block[]>([])
   const [reportId, setReportId] = useState<string | null>(null)
@@ -23,46 +31,29 @@ export function EvaluateScreen({ navigation }: any) {
     setBlocks([])
     setScore(null)
     setReportId(null)
+    setProgressMessage('Starting evaluation…')
 
     try {
-      const res = await evaluate(jdText)
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
+      // Long-running job pattern: POST returns { job_id }, then poll
+      // /api/jobs/status?id=… until completed/failed. Notification fires
+      // server-side when complete so users can leave the app and come back.
+      const { job_id } = await evaluate(jdText)
+      setProgressMessage('Analyzing job description… you can close the app and we\'ll notify you when it\'s ready.')
 
-      if (!reader) throw new Error('No response stream')
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') continue
-            try {
-              const event = JSON.parse(data)
-              if (event.type === 'block') {
-                setBlocks(prev => [...prev, event.data])
-              } else if (event.type === 'score') {
-                setScore(event.data.score)
-              } else if (event.type === 'saved') {
-                setReportId(event.data.report_id)
-              } else if (event.type === 'error') {
-                setError(event.data.message)
-              }
-            } catch {}
-          }
-        }
+      const status = await pollJob<EvaluationResult>(job_id, { intervalMs: 2500 })
+      if (status.status === 'failed') {
+        throw new Error(status.error || 'Evaluation failed')
       }
+
+      const result = status.result
+      if (result?.score != null) setScore(result.score)
+      if (result?.blocks) setBlocks(result.blocks)
+      if (result?.report_id) setReportId(result.report_id)
     } catch (err: any) {
       setError(err.message || 'Evaluation failed')
     } finally {
       setLoading(false)
+      setProgressMessage('')
     }
   }
 
@@ -97,6 +88,10 @@ export function EvaluateScreen({ navigation }: any) {
           <Text style={styles.buttonText}>Evaluate (10 credits)</Text>
         )}
       </TouchableOpacity>
+
+      {loading && progressMessage ? (
+        <Text style={styles.progress}>{progressMessage}</Text>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -140,6 +135,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   error: { color: '#dc2626', fontSize: 14, marginTop: 12, backgroundColor: '#fef2f2', padding: 12, borderRadius: 8 },
+  progress: { color: '#666', fontSize: 13, marginTop: 12, textAlign: 'center', lineHeight: 18 },
   scoreCard: { marginTop: 20, alignItems: 'center', padding: 20, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
   scoreBadge: { borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, flexDirection: 'row', alignItems: 'baseline' },
   scoreNumber: { color: '#fff', fontSize: 36, fontWeight: '700' },

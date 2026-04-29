@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Common disposable email domains
@@ -78,9 +78,9 @@ const MAX_REFERRALS_PER_USER = 20
 const REFERRAL_REWARD = 20
 
 // GET — get user's referral code and stats
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -110,7 +110,7 @@ export async function GET() {
 // POST — apply referral code (called during signup callback)
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getApiClient(request)
     const db = supabase as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })

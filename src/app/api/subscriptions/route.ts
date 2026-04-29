@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { getApiClient } from '@/lib/supabase/api'
 import { getStripe } from '@/lib/stripe'
 
 // GET — fetch current subscription
-export async function GET() {
-  const supabase = await createClient()
+export async function GET(request: Request) {
+  const supabase = await getApiClient(request)
   const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,7 +22,7 @@ export async function GET() {
 
 // POST — manage subscription (cancel, resume, portal)
 export async function POST(request: Request) {
-  const supabase = await createClient()
+  const supabase = await getApiClient(request)
   const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
