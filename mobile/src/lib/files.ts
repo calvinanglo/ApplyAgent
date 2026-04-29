@@ -8,7 +8,10 @@
  *      AirDrop, email, etc.
  */
 
-import * as FileSystem from 'expo-file-system'
+// expo-file-system v19+ moved the imperative API behind /legacy. The new
+// File-class API is more idiomatic but more disruptive — using legacy keeps
+// download flow simple and stable.
+import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import { getSignedFileUrl } from './api'
 
