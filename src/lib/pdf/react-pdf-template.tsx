@@ -40,15 +40,18 @@ function makeStyles(scale: number) {
       paddingHorizontal: 43,
     },
 
-    // Header
+    // Header — explicit lineHeight + paddingBottom so descenders (g, y, p)
+    // don't kiss the divider rule below.
     name: {
       fontFamily: 'Times-Bold' as const,
       fontSize: s(20),
-      marginBottom: 2,
+      lineHeight: 1.15,
+      paddingBottom: 4,
     },
     rule: {
       borderBottomWidth: 1 as const,
       borderBottomColor: '#000',
+      marginTop: 2,
       marginBottom: s(3),
     },
     contactRow: {
