@@ -172,23 +172,35 @@ interface ScanResult {
 
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Permanent', 'Fixed Term'] as const
 const WORK_ARRANGEMENTS = ['Remote', 'Hybrid', 'On-site'] as const
+// Boards grouped by category. UI can render the groups so users understand
+// which boards cover which kinds of work.
 const BOARD_SOURCES = [
-  { id: 'linkedin', label: 'LinkedIn' },
-  { id: 'indeed', label: 'Indeed' },
-  { id: 'talent', label: 'Talent.com' },
-  { id: 'careerjet', label: 'CareerJet' },
-  { id: 'jooble', label: 'Jooble' },
-  { id: 'adzuna', label: 'Adzuna' },
-  { id: 'jobbank', label: 'Job Bank Canada' },
-  { id: 'usajobs', label: 'USAJobs (Federal)' },
-  { id: 'themuse', label: 'The Muse' },
-  { id: 'remoteok', label: 'Remote OK' },
-  { id: 'remotive', label: 'Remotive' },
-  { id: 'weworkremotely', label: 'We Work Remotely' },
-  { id: 'himalayas', label: 'Himalayas' },
-  { id: 'arbeitnow', label: 'Arbeitnow' },
-  { id: 'findwork', label: 'FindWork' },
-  { id: 'hnhiring', label: 'HN Who is Hiring' },
+  // Universal — every industry (use these for non-tech roles too)
+  { id: 'linkedin', label: 'LinkedIn', category: 'Universal' },
+  { id: 'indeed', label: 'Indeed', category: 'Universal' },
+  { id: 'simplyhired', label: 'SimplyHired', category: 'Universal' },
+  { id: 'talent', label: 'Talent.com', category: 'Universal' },
+  { id: 'careerjet', label: 'CareerJet', category: 'Universal' },
+  { id: 'jooble', label: 'Jooble', category: 'Universal' },
+  { id: 'adzuna', label: 'Adzuna', category: 'Universal' },
+  { id: 'workopolis', label: 'Workopolis', category: 'Universal (Canada)' },
+  { id: 'eluta', label: 'Eluta', category: 'Universal (Canada)' },
+  // Government / public sector
+  { id: 'jobbank', label: 'Job Bank Canada', category: 'Government' },
+  { id: 'usajobs', label: 'USAJobs (Federal)', category: 'Government' },
+  { id: 'govjobs', label: 'GovernmentJobs.com', category: 'Government' },
+  // Hourly / retail / trades / hospitality
+  { id: 'snagajob', label: 'Snagajob', category: 'Hourly / Trades / Retail' },
+  // Curated / professional
+  { id: 'themuse', label: 'The Muse', category: 'Professional' },
+  // Tech-only (return 0 results for non-tech roles)
+  { id: 'remoteok', label: 'Remote OK', category: 'Tech only' },
+  { id: 'remotive', label: 'Remotive', category: 'Tech only' },
+  { id: 'weworkremotely', label: 'We Work Remotely', category: 'Tech only' },
+  { id: 'himalayas', label: 'Himalayas', category: 'Tech only' },
+  { id: 'arbeitnow', label: 'Arbeitnow', category: 'Tech only' },
+  { id: 'findwork', label: 'FindWork', category: 'Tech only' },
+  { id: 'hnhiring', label: 'HN Who is Hiring', category: 'Tech only' },
 ] as const
 const DATE_OPTIONS = [
   { value: 'any', label: 'Any time' },

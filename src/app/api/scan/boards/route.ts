@@ -26,6 +26,11 @@ import { scrapeHNHiring } from '@/lib/scrapers/hnhiring'
 import { scrapeHimalayas } from '@/lib/scrapers/himalayas'
 import { scrapeIndeed } from '@/lib/scrapers/indeed'
 import { scrapeFindWork } from '@/lib/scrapers/findwork'
+import { scrapeSimplyHired } from '@/lib/scrapers/simplyhired'
+import { scrapeWorkopolis } from '@/lib/scrapers/workopolis'
+import { scrapeEluta } from '@/lib/scrapers/eluta'
+import { scrapeSnagajob } from '@/lib/scrapers/snagajob'
+import { scrapeGovJobs } from '@/lib/scrapers/govjobs'
 import {
   type ScannedJob,
   titleMatches,
@@ -40,28 +45,39 @@ export const maxDuration = 60
 
 // All supported board source IDs — keep in sync with UI BOARD_SOURCES
 export type BoardSource =
+  // Universal aggregators (every industry)
   | 'linkedin'
+  | 'indeed'
+  | 'simplyhired'
   | 'talent'
   | 'careerjet'
   | 'jooble'
+  | 'adzuna'
+  | 'workopolis'
+  | 'eluta'
+  // Government / public sector
+  | 'jobbank'
+  | 'usajobs'
+  | 'govjobs'
+  // Hourly / retail / trades / hospitality
+  | 'snagajob'
+  // Curated / professional / lifestyle
+  | 'themuse'
+  // Tech-only
   | 'remoteok'
   | 'remotive'
   | 'weworkremotely'
-  | 'themuse'
-  | 'jobbank'
-  | 'usajobs'
-  | 'adzuna'
-  | 'arbeitnow'
-  | 'hnhiring'
   | 'himalayas'
-  | 'indeed'
+  | 'arbeitnow'
   | 'findwork'
+  | 'hnhiring'
 
 const ALL_BOARDS: BoardSource[] = [
-  'linkedin', 'talent', 'careerjet', 'jooble',
-  'remoteok', 'remotive', 'weworkremotely', 'themuse',
-  'jobbank', 'usajobs', 'adzuna', 'arbeitnow',
-  'hnhiring', 'himalayas', 'indeed', 'findwork',
+  'linkedin', 'indeed', 'simplyhired', 'talent', 'careerjet', 'jooble', 'adzuna', 'workopolis', 'eluta',
+  'jobbank', 'usajobs', 'govjobs',
+  'snagajob',
+  'themuse',
+  'remoteok', 'remotive', 'weworkremotely', 'himalayas', 'arbeitnow', 'findwork', 'hnhiring',
 ]
 
 export async function POST(request: Request) {
@@ -144,6 +160,11 @@ export async function POST(request: Request) {
       himalayas: scrapeHimalayas,
       indeed: scrapeIndeed,
       findwork: scrapeFindWork,
+      simplyhired: scrapeSimplyHired,
+      workopolis: scrapeWorkopolis,
+      eluta: scrapeEluta,
+      snagajob: scrapeSnagajob,
+      govjobs: scrapeGovJobs,
     }
 
     const promises: Promise<{ source: string; jobs: ScannedJob[] }>[] = []
