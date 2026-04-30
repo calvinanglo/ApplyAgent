@@ -199,39 +199,240 @@ const DATE_OPTIONS = [
 ] as const
 
 const ROLE_SUGGESTIONS = [
-  // Engineering & IT
+  // ── Engineering & Software ──────────────────────────────────────
   'Software Engineer', 'Software Developer', 'Frontend Developer', 'Backend Developer', 'Full Stack Developer',
+  'Mobile Developer', 'iOS Developer', 'Android Developer', 'React Native Developer', 'Flutter Developer',
+  'Web Developer', 'WordPress Developer', 'Shopify Developer',
+  'Game Developer', 'Unity Developer', 'Unreal Engine Developer',
+  'Embedded Systems Engineer', 'Firmware Engineer', 'Hardware Engineer', 'Electrical Engineer',
+  'Mechanical Engineer', 'Civil Engineer', 'Structural Engineer', 'Chemical Engineer',
+  'Industrial Engineer', 'Manufacturing Engineer', 'Process Engineer', 'Quality Engineer',
+  'Aerospace Engineer', 'Biomedical Engineer', 'Environmental Engineer', 'Petroleum Engineer',
+
+  // ── DevOps, Cloud & Infrastructure ──────────────────────────────
   'DevOps Engineer', 'Site Reliability Engineer', 'Cloud Engineer', 'Platform Engineer',
-  'Data Engineer', 'Machine Learning Engineer', 'AI Engineer', 'Data Scientist', 'Data Analyst',
-  'Infrastructure Analyst', 'Infrastructure Engineer', 'Systems Administrator', 'Network Engineer',
-  'Security Analyst', 'Security Engineer', 'Cybersecurity Analyst', 'SOC Analyst',
-  'QA Engineer', 'Test Engineer', 'Automation Engineer',
-  'Mobile Developer', 'iOS Developer', 'Android Developer',
-  'Embedded Systems Engineer', 'Firmware Engineer', 'Hardware Engineer',
-  'Database Administrator', 'Database Engineer',
-  'IT Analyst', 'IT Support Specialist', 'IT Administrator', 'IT Consultant',
-  'Solutions Architect', 'Cloud Architect', 'Enterprise Architect',
-  'Technical Support Engineer', 'Help Desk Analyst',
-  // Product & Design
-  'Product Manager', 'Product Owner', 'Product Analyst', 'Technical Product Manager',
-  'UX Designer', 'UI Designer', 'UX Researcher', 'Product Designer', 'Graphic Designer',
-  // Business & Operations
-  'Business Analyst', 'Business Intelligence Analyst', 'Operations Analyst',
+  'Infrastructure Engineer', 'Infrastructure Analyst', 'Systems Engineer', 'Systems Administrator',
+  'Network Engineer', 'Network Administrator', 'Network Architect',
+  'Cloud Architect', 'Solutions Architect', 'Enterprise Architect', 'Technical Architect',
+  'Database Administrator', 'Database Engineer', 'Database Developer',
+
+  // ── Cybersecurity ───────────────────────────────────────────────
+  'Security Analyst', 'Security Engineer', 'Cybersecurity Analyst', 'Cybersecurity Engineer',
+  'SOC Analyst', 'Threat Intelligence Analyst', 'Incident Responder', 'Penetration Tester',
+  'Vulnerability Analyst', 'GRC Analyst', 'Information Security Officer', 'CISO',
+  'IAM Engineer', 'Application Security Engineer', 'Cloud Security Engineer',
+
+  // ── Data, AI & ML ───────────────────────────────────────────────
+  'Data Engineer', 'Data Scientist', 'Data Analyst', 'Analytics Engineer',
+  'Machine Learning Engineer', 'AI Engineer', 'MLOps Engineer', 'Research Scientist',
+  'Business Intelligence Analyst', 'BI Developer', 'Data Architect',
+  'Quantitative Analyst', 'Statistician',
+
+  // ── QA & Testing ────────────────────────────────────────────────
+  'QA Engineer', 'QA Analyst', 'Test Engineer', 'Automation Engineer', 'SDET',
+  'Performance Engineer', 'Quality Assurance Lead',
+
+  // ── IT Support & Operations ─────────────────────────────────────
+  'IT Analyst', 'IT Support Specialist', 'IT Administrator', 'IT Consultant', 'IT Manager',
+  'Technical Support Engineer', 'Help Desk Analyst', 'Help Desk Technician',
+  'Desktop Support Technician', 'Field Service Technician', 'Service Desk Analyst',
+
+  // ── Product & Design ────────────────────────────────────────────
+  'Product Manager', 'Senior Product Manager', 'Product Owner', 'Product Analyst',
+  'Technical Product Manager', 'Group Product Manager', 'Director of Product',
+  'UX Designer', 'UI Designer', 'UX Researcher', 'Product Designer', 'Visual Designer',
+  'Graphic Designer', 'Motion Designer', 'Industrial Designer', 'Interaction Designer',
+  'Design Lead', 'Design Director', 'Brand Designer', 'Web Designer', 'Illustrator',
+
+  // ── Project & Program Management ────────────────────────────────
   'Project Manager', 'Program Manager', 'Scrum Master', 'Agile Coach',
+  'Project Coordinator', 'PMO Analyst', 'Technical Program Manager',
+  'Construction Project Manager', 'IT Project Manager',
+
+  // ── Business & Strategy ─────────────────────────────────────────
+  'Business Analyst', 'Business Operations Analyst', 'Strategy Analyst', 'Operations Analyst',
   'Management Consultant', 'Strategy Consultant', 'Technology Consultant',
-  // Finance & Accounting
-  'Financial Analyst', 'Investment Analyst', 'Risk Analyst', 'Compliance Analyst',
-  'Accountant', 'Auditor', 'Controller', 'Tax Analyst',
-  // Marketing & Sales
-  'Marketing Analyst', 'Digital Marketing Specialist', 'Content Strategist', 'SEO Specialist',
-  'Sales Representative', 'Account Executive', 'Account Manager', 'Customer Success Manager',
-  // HR & Recruiting
-  'HR Analyst', 'Recruiter', 'Talent Acquisition Specialist', 'People Operations',
-  // Supply Chain & Logistics
-  'Supply Chain Analyst', 'Logistics Coordinator', 'Procurement Analyst',
-  // Co-op & Intern
+  'Business Development Manager', 'Corporate Development Analyst',
+  'Chief of Staff', 'COO', 'General Manager',
+
+  // ── Finance & Accounting ────────────────────────────────────────
+  'Financial Analyst', 'Senior Financial Analyst', 'FP&A Analyst', 'Investment Analyst',
+  'Investment Banker', 'Equity Analyst', 'Portfolio Manager', 'Wealth Manager',
+  'Risk Analyst', 'Credit Analyst', 'Underwriter', 'Loan Officer',
+  'Accountant', 'Senior Accountant', 'Staff Accountant', 'Cost Accountant',
+  'Auditor', 'Internal Auditor', 'Controller', 'Treasurer', 'CFO',
+  'Tax Analyst', 'Tax Accountant', 'Bookkeeper', 'Payroll Specialist',
+  'Actuary', 'Financial Advisor', 'Financial Planner',
+
+  // ── Marketing ───────────────────────────────────────────────────
+  'Marketing Manager', 'Marketing Analyst', 'Digital Marketing Specialist', 'Marketing Coordinator',
+  'Content Strategist', 'Content Writer', 'Copywriter', 'Editorial Manager',
+  'SEO Specialist', 'SEM Specialist', 'PPC Specialist', 'Email Marketing Manager',
+  'Social Media Manager', 'Community Manager', 'Influencer Marketing Manager',
+  'Brand Manager', 'Product Marketing Manager', 'Growth Marketer', 'Performance Marketer',
+  'Marketing Director', 'CMO', 'Public Relations Specialist', 'PR Manager',
+  'Event Coordinator', 'Event Manager',
+
+  // ── Sales & Customer Success ────────────────────────────────────
+  'Sales Representative', 'Sales Development Representative', 'SDR', 'BDR',
+  'Account Executive', 'Senior Account Executive', 'Enterprise Account Executive',
+  'Account Manager', 'Key Account Manager', 'Strategic Account Manager',
+  'Sales Engineer', 'Solutions Engineer', 'Pre-Sales Consultant',
+  'Sales Manager', 'Sales Director', 'VP of Sales', 'Chief Revenue Officer',
+  'Customer Success Manager', 'Customer Success Associate', 'Customer Support Specialist',
+  'Customer Service Representative', 'Call Center Agent', 'Technical Account Manager',
+  'Retention Specialist', 'Onboarding Specialist',
+
+  // ── HR & Recruiting ─────────────────────────────────────────────
+  'HR Analyst', 'HR Generalist', 'HR Manager', 'HR Business Partner', 'HR Director', 'CHRO',
+  'Recruiter', 'Senior Recruiter', 'Technical Recruiter', 'Executive Recruiter',
+  'Talent Acquisition Specialist', 'Talent Acquisition Manager', 'Sourcer',
+  'People Operations Specialist', 'People Operations Manager',
+  'Compensation Analyst', 'Benefits Specialist', 'HRIS Analyst',
+  'Learning & Development Manager', 'Training Specialist', 'Organizational Development Consultant',
+  'Diversity & Inclusion Manager',
+
+  // ── Operations & Supply Chain ───────────────────────────────────
+  'Operations Manager', 'Operations Coordinator', 'Operations Director',
+  'Supply Chain Analyst', 'Supply Chain Manager', 'Logistics Coordinator', 'Logistics Manager',
+  'Procurement Analyst', 'Procurement Manager', 'Buyer', 'Sourcing Manager',
+  'Inventory Manager', 'Warehouse Manager', 'Warehouse Associate',
+  'Production Planner', 'Demand Planner', 'Materials Planner',
+  'Distribution Manager', 'Fleet Manager',
+
+  // ── Manufacturing & Production ──────────────────────────────────
+  'Production Supervisor', 'Production Manager', 'Plant Manager', 'Factory Manager',
+  'Machine Operator', 'CNC Operator', 'Assembler', 'Production Worker',
+  'Maintenance Technician', 'Industrial Maintenance Mechanic',
+  'Quality Control Inspector', 'Quality Assurance Inspector',
+
+  // ── Skilled Trades & Construction ───────────────────────────────
+  'Electrician', 'Apprentice Electrician', 'Plumber', 'Apprentice Plumber',
+  'Carpenter', 'Welder', 'Pipefitter', 'Millwright', 'HVAC Technician',
+  'Mechanic', 'Automotive Technician', 'Diesel Mechanic',
+  'Construction Worker', 'Site Supervisor', 'Foreman', 'General Contractor',
+  'Heavy Equipment Operator', 'Crane Operator', 'Roofer', 'Mason',
+  'Painter', 'Drywall Installer', 'Flooring Installer', 'Glazier',
+  'Estimator', 'Surveyor',
+
+  // ── Healthcare & Life Sciences ──────────────────────────────────
+  'Registered Nurse', 'RN', 'Licensed Practical Nurse', 'LPN', 'Nurse Practitioner',
+  'Physician', 'Doctor', 'Family Physician', 'General Practitioner', 'Resident Physician',
+  'Surgeon', 'Anesthesiologist', 'Cardiologist', 'Pediatrician', 'Psychiatrist',
+  'Pharmacist', 'Pharmacy Technician', 'Medical Assistant', 'Medical Office Assistant',
+  'Physician Assistant', 'Dental Hygienist', 'Dentist', 'Dental Assistant',
+  'Physical Therapist', 'Occupational Therapist', 'Speech-Language Pathologist',
+  'Respiratory Therapist', 'Radiologic Technologist', 'Ultrasound Technician',
+  'Lab Technician', 'Medical Laboratory Technologist', 'Phlebotomist',
+  'Healthcare Administrator', 'Hospital Administrator', 'Clinical Manager',
+  'Public Health Analyst', 'Epidemiologist', 'Health Data Analyst',
+  'Personal Support Worker', 'PSW', 'Caregiver', 'Home Health Aide',
+  'Veterinarian', 'Veterinary Technician', 'Veterinary Assistant',
+  'Clinical Research Associate', 'Biostatistician', 'Bioinformatician',
+  'Counsellor', 'Therapist', 'Social Worker', 'Mental Health Worker',
+  'Paramedic', 'EMT',
+
+  // ── Education ───────────────────────────────────────────────────
+  'Teacher', 'Elementary Teacher', 'Secondary Teacher', 'Substitute Teacher',
+  'Special Education Teacher', 'ESL Teacher', 'Tutor', 'Math Tutor',
+  'Professor', 'Assistant Professor', 'Adjunct Professor', 'Lecturer',
+  'Teaching Assistant', 'Research Assistant', 'Academic Advisor',
+  'School Counselor', 'School Principal', 'Assistant Principal', 'School Administrator',
+  'Curriculum Developer', 'Instructional Designer', 'Education Coordinator',
+  'Early Childhood Educator', 'Daycare Worker', 'Librarian', 'Library Assistant',
+
+  // ── Legal & Compliance ──────────────────────────────────────────
+  'Lawyer', 'Attorney', 'Associate Attorney', 'Corporate Lawyer', 'Litigation Attorney',
+  'Paralegal', 'Legal Assistant', 'Legal Counsel', 'In-House Counsel', 'General Counsel',
+  'Compliance Analyst', 'Compliance Officer', 'Compliance Manager',
+  'Privacy Officer', 'Data Protection Officer', 'Contract Manager', 'Contracts Specialist',
+  'Notary', 'Court Reporter', 'Mediator', 'Arbitrator',
+
+  // ── Hospitality & Food Service ──────────────────────────────────
+  'Server', 'Waiter', 'Waitress', 'Bartender', 'Host', 'Hostess', 'Busser',
+  'Line Cook', 'Prep Cook', 'Sous Chef', 'Executive Chef', 'Pastry Chef', 'Baker',
+  'Restaurant Manager', 'Kitchen Manager', 'Food and Beverage Director',
+  'Hotel Manager', 'Front Desk Agent', 'Concierge', 'Housekeeper', 'Housekeeping Supervisor',
+  'Event Planner', 'Catering Manager', 'Sommelier', 'Barista',
+
+  // ── Retail & E-commerce ─────────────────────────────────────────
+  'Retail Associate', 'Sales Associate', 'Cashier', 'Store Manager', 'Assistant Store Manager',
+  'Visual Merchandiser', 'Merchandiser', 'Buyer', 'Category Manager',
+  'E-commerce Manager', 'E-commerce Specialist', 'Marketplace Manager', 'Amazon Specialist',
+  'Loss Prevention Specialist', 'District Manager', 'Regional Manager',
+
+  // ── Transportation & Driving ────────────────────────────────────
+  'Truck Driver', 'Long Haul Driver', 'Class 1 Driver', 'CDL Driver',
+  'Delivery Driver', 'Courier', 'Rideshare Driver', 'Bus Driver', 'School Bus Driver',
+  'Forklift Operator', 'Pilot', 'First Officer', 'Flight Attendant',
+  'Train Conductor', 'Locomotive Engineer', 'Captain', 'Marine Officer',
+  'Dispatcher', 'Logistics Dispatcher',
+
+  // ── Real Estate ─────────────────────────────────────────────────
+  'Real Estate Agent', 'Realtor', 'Real Estate Broker', 'Real Estate Analyst',
+  'Property Manager', 'Leasing Consultant', 'Mortgage Broker', 'Mortgage Specialist',
+  'Real Estate Appraiser', 'Real Estate Investor', 'Commercial Real Estate Broker',
+
+  // ── Media, Communications & Writing ─────────────────────────────
+  'Journalist', 'Reporter', 'News Anchor', 'Editor', 'Managing Editor', 'Copy Editor',
+  'Technical Writer', 'Grant Writer', 'Speechwriter', 'Ghostwriter',
+  'Communications Manager', 'Communications Specialist', 'Internal Communications Manager',
+  'Spokesperson', 'Public Affairs Officer',
+
+  // ── Arts, Entertainment & Creative ──────────────────────────────
+  'Photographer', 'Videographer', 'Video Editor', 'Film Editor', 'Sound Engineer',
+  'Animator', '3D Artist', 'Concept Artist', 'Game Designer', 'Level Designer',
+  'Musician', 'Music Producer', 'DJ', 'Composer', 'Sound Designer',
+  'Actor', 'Voice Actor', 'Stage Manager', 'Director',
+  'Tattoo Artist', 'Makeup Artist', 'Hairstylist', 'Hair Stylist', 'Esthetician', 'Barber',
+  'Fashion Designer', 'Interior Designer', 'Floral Designer',
+
+  // ── Science & Research ──────────────────────────────────────────
+  'Research Scientist', 'Postdoctoral Researcher', 'Lab Manager', 'Research Coordinator',
+  'Biologist', 'Microbiologist', 'Molecular Biologist', 'Geneticist',
+  'Chemist', 'Analytical Chemist', 'Organic Chemist',
+  'Physicist', 'Astronomer', 'Geologist', 'Geophysicist', 'Hydrologist',
+  'Meteorologist', 'Climate Scientist', 'Oceanographer',
+
+  // ── Government & Non-profit ─────────────────────────────────────
+  'Policy Analyst', 'Public Policy Analyst', 'Legislative Aide', 'Legislative Analyst',
+  'Program Officer', 'Grant Manager', 'Fundraising Manager', 'Development Officer',
+  'Non-profit Director', 'Executive Director', 'Volunteer Coordinator',
+  'Diplomat', 'Foreign Service Officer', 'Intelligence Analyst',
+  'Urban Planner', 'City Planner', 'Civil Servant', 'Government Affairs Manager',
+
+  // ── Public Safety ───────────────────────────────────────────────
+  'Police Officer', 'Detective', 'Investigator', 'Private Investigator',
+  'Firefighter', 'Fire Chief', 'Fire Inspector',
+  'Security Guard', 'Loss Prevention Officer', 'Bouncer', 'Bodyguard',
+  'Correctional Officer', 'Probation Officer', 'Parole Officer',
+  'Border Services Officer', 'Customs Officer',
+  'Lifeguard',
+
+  // ── Agriculture, Environment & Energy ───────────────────────────
+  'Farmer', 'Farm Manager', 'Agricultural Technician', 'Agronomist',
+  'Forester', 'Park Ranger', 'Conservation Officer', 'Wildlife Biologist',
+  'Environmental Consultant', 'Sustainability Analyst', 'ESG Analyst',
+  'Solar Installer', 'Wind Turbine Technician', 'Energy Auditor',
+  'Mining Engineer', 'Oil Rig Worker',
+
+  // ── Personal Services ───────────────────────────────────────────
+  'Personal Trainer', 'Fitness Instructor', 'Yoga Instructor', 'Nutritionist', 'Dietitian',
+  'Massage Therapist', 'Chiropractor', 'Acupuncturist',
+  'Life Coach', 'Career Coach', 'Wedding Planner', 'Funeral Director',
+  'Pet Groomer', 'Dog Walker', 'Pet Sitter',
+
+  // ── Administrative ──────────────────────────────────────────────
+  'Administrative Assistant', 'Executive Assistant', 'Office Manager',
+  'Receptionist', 'Office Coordinator', 'Office Administrator',
+  'Data Entry Clerk', 'Records Clerk', 'File Clerk',
+  'Virtual Assistant', 'Personal Assistant',
+
+  // ── Co-op & Internships (entry level) ───────────────────────────
   'Software Engineering Intern', 'Data Science Intern', 'IT Co-op', 'Engineering Co-op',
   'Business Analyst Intern', 'Product Management Intern', 'Marketing Intern',
+  'Finance Intern', 'HR Intern', 'Sales Intern', 'Design Intern', 'Research Intern',
+  'Legal Intern', 'Communications Intern', 'Operations Intern',
 ]
 
 const STORAGE_KEY = 'applyagent_scan_companies'
