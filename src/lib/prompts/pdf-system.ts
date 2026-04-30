@@ -124,16 +124,41 @@ ${pageLength === 1
 - Summary: 4 sentences, no more
 - Skills: 3-4 categories total, ~6-8 skills per category
 - If candidate has 5+ jobs, consider truncating the oldest one to a single combined line ("Various IT roles, 2015-2018 — Help Desk, Junior Sysadmin")`
-    : `**TARGET: 2 pages (US Letter / A4).** You have room to breathe — but don't pad. Bullet distribution:
-- Most recent job: 6-8 bullets (heavy JD keyword alignment, more depth on impact + scale)
-- Second job: 5-6 bullets (moderate JD alignment, include numbers + context)
-- Third job: 4-5 bullets (relevant achievements + transferable skills)
-- Fourth and older: 3-4 bullets each (preserve career narrative)
-- Summary: 5-6 sentences (sentence 1 = positioning, 2 = signature achievement, 3 = technical depth, 4 = differentiator, 5 = career trajectory)
-- Skills: 4-5 categories, ~8-12 skills per category
-- Include older roles in full rather than collapsing them
-- Add Certifications, Projects, GitHub Projects (if eligible), and Education in standard depth — do NOT compress
-- Better to have 2 well-used pages than 1.5 awkwardly stretched pages`}
+    : `**TARGET: 2 FULL PAGES (US Letter / A4).** Mandatory fill: the rendered PDF MUST be at least 1.7 pages. A half-empty page 2 looks worse than a packed page 1, so commit to filling page 2.
+
+Bullet distribution (MINIMUMS, not maximums — meet or exceed):
+- Most recent job: **MINIMUM 7 bullets** (target 8). Heavy JD keyword alignment + depth on impact, scale, and stakeholder context.
+- Second job: **MINIMUM 6 bullets**. Moderate JD alignment, include numbers + business context.
+- Third job: **MINIMUM 5 bullets**. Relevant achievements + transferable skills.
+- Fourth and older: **MINIMUM 4 bullets each**. Preserve career narrative — never collapse to a single line.
+- Co-ops / internships count as full jobs — give them at least 4 bullets.
+
+Bullet density (CRITICAL):
+- Every bullet must be **18-28 words long** — short bullets fit on 1 page, defeating the point.
+- Each bullet packs three things: action verb + scope (what/scale) + result (numbers, %, time saved, dollar impact).
+- Bad (1-page-style, too short): "Configured Cisco firewalls."
+- Good (2-page-style, dense): "Configured and maintained Cisco ASA firewalls across 30+ remote sites, reducing unauthorized access incidents by 40% over 12 months and earning compliance praise during the annual SOC 2 audit."
+
+Summary: **6-7 sentences** that flow as a narrative:
+1. Years of experience + role positioning matching the JD title.
+2. Signature quantified achievement that maps to JD's top requirement.
+3. Technical depth — tools, platforms, scale.
+4. Cross-functional / leadership differentiator.
+5. Career trajectory + domain expertise.
+6. Closing line on what the candidate is looking for / what they bring.
+
+Skills: **5-6 categories**, **10-14 skills per category**. Include all relevant skills from the CV — breadth signals competence.
+
+Required sections (do NOT skip any if data exists):
+- Professional Summary (6-7 sentences)
+- Work Experience (every job with full bullets)
+- Education (full — institution, degree, dates, GPA if 3.5+, relevant coursework or honors)
+- Certifications (full — issuer, name, dates if relevant)
+- Skills (5-6 dense categories)
+- Projects / GitHub Projects (if data exists in CV — include 2-4)
+- Optional but encouraged: "Selected Achievements" or "Awards & Recognition" sub-section under Experience or as standalone if the candidate has them
+
+If the CV is genuinely thin (1-2 jobs, no projects, no certs), DO NOT pad with fluff — instead, expand the available content (longer bullets per job, more skills, fuller education). Quality over quantity, but 2-page minimum.`}
 
 Always set the JSON field "target_length" to ${pageLength} so the renderer can verify.
 
