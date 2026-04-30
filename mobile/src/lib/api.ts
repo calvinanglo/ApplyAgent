@@ -160,10 +160,14 @@ export async function evaluate(jdText: string): Promise<{ job_id: string }> {
   return expectJson<{ job_id: string }>(res)
 }
 
-export async function generatePdf(reportId: string, modelTier: string = 'fast'): Promise<{ job_id: string }> {
+export async function generatePdf(
+  reportId: string,
+  modelTier: string = 'fast',
+  pageLength: 1 | 2 = 1,
+): Promise<{ job_id: string }> {
   const res = await authFetch('/api/generate-pdf', {
     method: 'POST',
-    body: JSON.stringify({ report_id: reportId, model_tier: modelTier }),
+    body: JSON.stringify({ report_id: reportId, model_tier: modelTier, page_length: pageLength }),
   })
   return expectJson<{ job_id: string }>(res)
 }

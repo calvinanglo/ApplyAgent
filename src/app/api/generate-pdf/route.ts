@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Service is busy. Please try again in a moment.' }, { status: 503 })
     }
 
-    let body: { jd_text?: string; report_id?: string; force?: boolean; model_tier?: string }
+    let body: { jd_text?: string; report_id?: string; force?: boolean; model_tier?: string; page_length?: 1 | 2 }
     try { body = await request.json() }
     catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }) }
 
@@ -85,10 +85,13 @@ export async function POST(request: Request) {
     }) as any
     if (!creditResult?.success) return Response.json({ error: creditResult?.error || 'Insufficient credits' }, { status: 402 })
 
+    const pageLength: 1 | 2 = body.page_length === 2 ? 2 : 1
+
     const jobId = await createJob(db, userId, 'resume_pdf', {
       jd_text: body.jd_text || null,
       report_id: body.report_id || null,
       model_tier: tier.id,
+      page_length: pageLength,
     })
 
     if (!jobId) {
@@ -158,7 +161,7 @@ export async function POST(request: Request) {
         }
 
         const archetype = detectArchetype(jdText || cvContent)
-        const systemPrompt = buildPdfSystemPrompt(cvContent, archetype.name)
+        const systemPrompt = buildPdfSystemPrompt(cvContent, archetype.name, pageLength)
 
         let userMessage = ''
         if (jdText) {

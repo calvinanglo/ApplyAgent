@@ -20,7 +20,13 @@ export function estimateExperienceYears(cvText: string): number {
   return Math.max(0, latest - earliest)
 }
 
-export function buildPdfSystemPrompt(cvContent: string, archetypeName: string): string {
+export type PageLength = 1 | 2
+
+export function buildPdfSystemPrompt(
+  cvContent: string,
+  archetypeName: string,
+  pageLength: PageLength = 1,
+): string {
   const experienceYears = estimateExperienceYears(cvContent)
   const includeGitHubProjects = experienceYears < 3
 
@@ -31,6 +37,7 @@ ${cvContent}
 
 ## Detected Archetype: ${archetypeName}
 ## Estimated Experience: ${experienceYears} years${!includeGitHubProjects ? ' (3+ years — skip GitHub Projects section, use the space for stronger experience bullets instead)' : ''}
+## Target length: ${pageLength === 1 ? 'ONE page' : 'TWO pages'} (this is a hard requirement — see "Length budget" section)
 
 ## Integrity rules
 - NEVER invent experience, metrics, company names, or certifications. Everything must come from the CV above.
@@ -107,10 +114,28 @@ Recruiters spot fake resumes instantly. Older or junior roles (help desk, IT sup
 - Maximum 1-2 bullets per older job may use JD-targeted language. The rest should highlight transferable skills (troubleshooting, automation, documentation, client support) in their own natural terms.
 - The current/most recent job is where heavy JD tailoring belongs. Older jobs show career progression and breadth — they don't need to echo the same keywords.
 
-Bullet distribution (STRICT — violating these limits wastes space and pushes the resume past 1 page):
+### Length budget (HARD requirement — match the target_length value below)
+${pageLength === 1
+    ? `**TARGET: 1 page (US Letter / A4).** Be ruthless. Bullet distribution is STRICT:
 - Most recent job: 5-6 bullets (heavy JD keyword alignment)
 - Second job: 4 bullets max (moderate JD alignment)
 - Third and older: 3 bullets max, light JD alignment only where genuine
+- Older jobs (4th+) should be SHORT — title, dates, 2-3 bullets max
+- Summary: 4 sentences, no more
+- Skills: 3-4 categories total, ~6-8 skills per category
+- If candidate has 5+ jobs, consider truncating the oldest one to a single combined line ("Various IT roles, 2015-2018 — Help Desk, Junior Sysadmin")`
+    : `**TARGET: 2 pages (US Letter / A4).** You have room to breathe — but don't pad. Bullet distribution:
+- Most recent job: 6-8 bullets (heavy JD keyword alignment, more depth on impact + scale)
+- Second job: 5-6 bullets (moderate JD alignment, include numbers + context)
+- Third job: 4-5 bullets (relevant achievements + transferable skills)
+- Fourth and older: 3-4 bullets each (preserve career narrative)
+- Summary: 5-6 sentences (sentence 1 = positioning, 2 = signature achievement, 3 = technical depth, 4 = differentiator, 5 = career trajectory)
+- Skills: 4-5 categories, ~8-12 skills per category
+- Include older roles in full rather than collapsing them
+- Add Certifications, Projects, GitHub Projects (if eligible), and Education in standard depth — do NOT compress
+- Better to have 2 well-used pages than 1.5 awkwardly stretched pages`}
+
+Always set the JSON field "target_length" to ${pageLength} so the renderer can verify.
 
 ### Skills section (keep breadth, drop only irrelevant noise)
 - Default: INCLUDE skills from the CV. Skills show technical breadth and help the candidate match adjacent/future opportunities.
@@ -148,6 +173,7 @@ Return ONLY valid JSON with these fields:
   "keywords_extracted": ["keyword1", "keyword2", "...15-20 total"],
   "keyword_coverage_pct": 85,
   "paper_format": "letter",
+  "target_length": ${pageLength},
   "lang": "en",
   "name": "(from CV)",
   "email": "(from CV)",

@@ -54,6 +54,7 @@ function DocumentsContent() {
   const [clDuplicateWarning, setClDuplicateWarning] = useState<{ file_name: string; created_at: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [modelTier, setModelTier] = useState<ModelTierId>('balanced')
+  const [pageLength, setPageLength] = useState<1 | 2>(1)
   const [jdUrl, setJdUrl] = useState('')
   const [fetchingUrl, setFetchingUrl] = useState(false)
   const [confirmingButton, setConfirmingButton] = useState<'both' | 'single' | null>(null)
@@ -125,6 +126,7 @@ function DocumentsContent() {
       report_id: selectedReportId || undefined,
       force,
       model_tier: modelTier,
+      page_length: pageLength,
     })
 
     // Direct response (cached already_exists) — no job was started
@@ -469,6 +471,33 @@ function DocumentsContent() {
                 )
               })}
             </div>
+
+            {/* Page length selector — only meaningful for resumes */}
+            {isResume && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Resume length</p>
+                <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+                  {[
+                    { value: 1 as const, label: '1 page', sublabel: 'Tight, ATS-optimized' },
+                    { value: 2 as const, label: '2 pages', sublabel: 'More depth, full career' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setPageLength(opt.value)}
+                      className={cn(
+                        'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors text-left',
+                        pageLength === opt.value
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <div>{opt.label}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">{opt.sublabel}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground truncate">
