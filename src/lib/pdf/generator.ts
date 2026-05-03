@@ -167,8 +167,17 @@ export function buildResumeHtml(content: PdfContent): string {
   // Build contact row — LinkedIn | GitHub | Credly | Portfolio | Location
   // Shorten display text: strip protocol + trailing slashes so we show
   // "credly.com/users/calvin-anglo" instead of the full URL.
+  //
+  // Safety net: if the AI slips up and outputs a literal placeholder like
+  // "github.com/username" or "linkedin.com/in/name", we override with the
+  // actual handle parsed from the URL.
+  const PLACEHOLDER_TOKENS = /\/(?:username|user|name|handle|your[-_]?username|your[-_]?handle|<[^>]+>)\/?$/i
   const shortenDisplay = (display: string | undefined, fallbackUrl: string | undefined, fallbackLabel: string): string => {
-    const raw = (display || fallbackUrl || '').trim()
+    let raw = (display || '').trim()
+    // If the AI returned a placeholder, fall back to deriving from the URL
+    if (!raw || PLACEHOLDER_TOKENS.test(raw)) {
+      raw = (fallbackUrl || '').trim()
+    }
     if (!raw) return fallbackLabel
     return raw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '')
   }

@@ -134,8 +134,14 @@ function makeStyles(scale: number) {
 function ContactRow({ content, S }: { content: PdfContent; S: ReturnType<typeof makeStyles> }) {
   // Shorten display text: strip protocol + trailing slashes so we show
   // "credly.com/users/name" instead of "https://www.credly.com/users/name/".
+  // Safety net: if the AI outputs a literal placeholder like ".../username"
+  // or ".../name", we fall back to deriving from the URL.
+  const PLACEHOLDER_TOKENS = /\/(?:username|user|name|handle|your[-_]?username|your[-_]?handle|<[^>]+>)\/?$/i
   const shorten = (display: string | undefined, fallbackUrl: string | undefined, fallbackLabel: string): string => {
-    const raw = (display || fallbackUrl || '').trim()
+    let raw = (display || '').trim()
+    if (!raw || PLACEHOLDER_TOKENS.test(raw)) {
+      raw = (fallbackUrl || '').trim()
+    }
     if (!raw) return fallbackLabel
     return raw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '')
   }
