@@ -248,6 +248,6 @@ Built solo by **Calvin Anglo**, an IT and security professional based in Winnipe
 
 <div align="center">
 
-_Built because rewriting the same cover letter 100 times is a software problem._
+_Built because rewriting the same resume/cover letter 100 times is a software problem._
 
 </div>
