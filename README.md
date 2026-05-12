@@ -244,13 +244,6 @@ App runs at [http://localhost:3000](http://localhost:3000).
 
 Built solo by **Calvin Anglo**, an IT and security professional based in Winnipeg, Canada. Background in infrastructure, detection engineering, and security automation across 30+ remote sites at a Canadian co-operative. Certifications include CCNA, Security+, AZ-104, ISC2 CC, and ITIL 4.
 
-Open to roles in **Detection Engineering**, **Security Automation**, and **Senior Cybersecurity Engineering** with Canadian MSSPs or US-remote teams.
-
-- Portfolio: [applyagent.ca](https://applyagent.ca)
-- GitHub: [@calvinanglo](https://github.com/calvinanglo)
-- LinkedIn: _add your link here_
-- Email: _add your email here_
-
 ---
 
 <div align="center">
