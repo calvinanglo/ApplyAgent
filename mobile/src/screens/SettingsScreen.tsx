@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Linking } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../lib/auth'
+import { useTheme, type ThemeMode } from '../lib/theme'
 import { supabase } from '../lib/supabase'
+import { Card, Badge, H2, P, Caption, CenteredSpinner } from '../components/ui'
 
 interface ProfileSummary {
   full_name: string | null
@@ -10,24 +13,13 @@ interface ProfileSummary {
   cv_chars: number
 }
 
-/**
- * Settings root screen. Acts as a hub linking to:
- *   - CV upload / paste
- *   - Billing (credits + plan)
- *   - Account (sign out / delete)
- *
- * The full edit-everything settings page on web is intentionally NOT mirrored
- * here — long forms are an awful mobile UX. Mobile focuses on the high-impact
- * actions (CV, billing, sign-out). Edit profile fields lives in v1.1.
- */
 export function SettingsScreen({ navigation }: any) {
   const { user } = useAuth()
+  const { theme, mode, setMode } = useTheme()
   const [summary, setSummary] = useState<ProfileSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    void loadSummary()
-  }, [user?.id])
+  useEffect(() => { void loadSummary() }, [user?.id])
 
   async function loadSummary() {
     if (!user) return
@@ -44,125 +36,139 @@ export function SettingsScreen({ navigation }: any) {
         cv_chars: cvContent.length,
       })
     } catch {
-      // Soft-fail
+      // soft-fail
     } finally {
       setLoading(false)
     }
   }
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" /></View>
-  }
+  if (loading) return <CenteredSpinner />
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.profileCard}>
-        <Text style={styles.profileName}>{summary?.full_name || 'Welcome'}</Text>
-        <Text style={styles.profileEmail}>{summary?.email}</Text>
-      </View>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {/* Profile card */}
+      <Card style={{ marginBottom: 16 }}>
+        <View style={styles.profileRow}>
+          <View style={[styles.avatar, { backgroundColor: theme.muted }]}>
+            <Feather name="user" size={22} color={theme.foreground} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.foreground, fontSize: 16, fontWeight: '700' }}>
+              {summary?.full_name || 'Welcome'}
+            </Text>
+            <Text style={{ color: theme.mutedForeground, fontSize: 13, marginTop: 2 }}>
+              {summary?.email}
+            </Text>
+          </View>
+        </View>
+      </Card>
 
-      <Text style={styles.sectionLabel}>Profile</Text>
+      <Caption style={{ marginTop: 8, marginBottom: 8 }}>Profile</Caption>
+      <Row icon="user" title="Edit Profile" subtitle="Name, contact, target roles, salary, preferences" onPress={() => navigation.navigate('ProfileEdit')} />
       <Row
-        title="Edit Profile"
-        subtitle="Name, contact, target roles, salary range, work preferences"
-        onPress={() => navigation.navigate('ProfileEdit')}
-      />
-      <Row
+        icon="file-text"
         title="Resume / CV"
         subtitle={summary?.has_cv ? `${Math.round((summary.cv_chars || 0) / 100) / 10}k chars saved` : 'Upload your resume to get started'}
-        badge={summary?.has_cv ? 'Active' : 'Required'}
-        badgeStyle={summary?.has_cv ? 'success' : 'warning'}
+        rightSlot={
+          <Badge tone={summary?.has_cv ? 'success' : 'warning'}>
+            {summary?.has_cv ? 'Active' : 'Required'}
+          </Badge>
+        }
         onPress={() => navigation.navigate('CvUpload')}
       />
 
-      <Text style={styles.sectionLabel}>Workspace</Text>
-      <Row
-        title="Applications"
-        subtitle="All evaluated jobs and reports"
-        onPress={() => navigation.navigate('Applications')}
-      />
-      <Row
-        title="Story Bank"
-        subtitle="STAR-format stories from your evaluations"
-        onPress={() => navigation.navigate('StoryBank')}
-      />
-      <Row
-        title="Tools"
-        subtitle="LinkedIn outreach, compare offers, and more"
-        onPress={() => navigation.navigate('Tools')}
-      />
+      <Caption style={{ marginTop: 16, marginBottom: 8 }}>Workspace</Caption>
+      <Row icon="briefcase" title="Applications" subtitle="All evaluated jobs and reports" onPress={() => navigation.navigate('Applications')} />
+      <Row icon="book-open" title="Story Bank" subtitle="STAR-format stories from your evaluations" onPress={() => navigation.navigate('StoryBank')} />
+      <Row icon="tool" title="Tools" subtitle="LinkedIn outreach, compare offers, and more" onPress={() => navigation.navigate('Tools')} />
 
-      <Text style={styles.sectionLabel}>Account</Text>
-      <Row
-        title="Billing & Credits"
-        subtitle="Plan, credit balance, and purchases"
-        onPress={() => navigation.navigate('Billing')}
-      />
-      <Row
-        title="Account"
-        subtitle="Sign out or delete your account"
-        onPress={() => navigation.navigate('Account')}
-      />
+      <Caption style={{ marginTop: 16, marginBottom: 8 }}>Appearance</Caption>
+      <Card padded={false}>
+        <View style={styles.themeRow}>
+          {(['light', 'dark', 'system'] as ThemeMode[]).map((m, i) => {
+            const active = mode === m
+            const icon = m === 'light' ? 'sun' : m === 'dark' ? 'moon' : 'smartphone'
+            return (
+              <TouchableOpacity
+                key={m}
+                activeOpacity={0.7}
+                style={[
+                  styles.themeChip,
+                  { borderRightWidth: i < 2 ? 1 : 0, borderRightColor: theme.border },
+                  active && { backgroundColor: theme.muted },
+                ]}
+                onPress={() => setMode(m)}
+              >
+                <Feather name={icon} size={16} color={active ? theme.foreground : theme.mutedForeground} />
+                <Text
+                  style={{
+                    color: active ? theme.foreground : theme.mutedForeground,
+                    fontWeight: active ? '700' : '500',
+                    fontSize: 13,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {m}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      </Card>
 
-      <Text style={styles.sectionLabel}>About</Text>
-      <Row
-        title="Privacy Policy"
-        onPress={() => Alert.alert('Privacy Policy', 'Visit applyagent.ca/privacy in your browser.')}
-      />
-      <Row
-        title="Terms of Service"
-        onPress={() => Alert.alert('Terms', 'Visit applyagent.ca/terms in your browser.')}
-      />
-      <Text style={styles.version}>ApplyAgent v1.0.0</Text>
+      <Caption style={{ marginTop: 16, marginBottom: 8 }}>Account</Caption>
+      <Row icon="credit-card" title="Billing & Credits" subtitle="Plan, balance, and purchases" onPress={() => navigation.navigate('Billing')} />
+      <Row icon="settings" title="Account" subtitle="Sign out or delete your account" onPress={() => navigation.navigate('Account')} />
+
+      <Caption style={{ marginTop: 16, marginBottom: 8 }}>About</Caption>
+      <Row icon="shield" title="Privacy Policy" onPress={() => Linking.openURL('https://applyagent.ca/privacy')} />
+      <Row icon="file" title="Terms of Service" onPress={() => Linking.openURL('https://applyagent.ca/terms')} />
+      <Row icon="globe" title="Visit applyagent.ca" onPress={() => Linking.openURL('https://applyagent.ca')} />
+
+      <Text style={{ color: theme.mutedForeground, fontSize: 11, textAlign: 'center', marginTop: 24 }}>
+        ApplyAgent v1.0.0
+      </Text>
     </ScrollView>
   )
 }
 
 function Row({
-  title,
-  subtitle,
-  badge,
-  badgeStyle,
-  onPress,
+  icon, title, subtitle, rightSlot, onPress,
 }: {
+  icon: keyof typeof Feather.glyphMap
   title: string
   subtitle?: string
-  badge?: string
-  badgeStyle?: 'success' | 'warning'
+  rightSlot?: React.ReactNode
   onPress: () => void
 }) {
+  const { theme } = useTheme()
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.6}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
-      </View>
-      {badge ? (
-        <View style={[styles.badge, badgeStyle === 'success' ? styles.badgeOk : styles.badgeWarn]}>
-          <Text style={styles.badgeText}>{badge}</Text>
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      <Card style={{ marginBottom: 6 }} padded={false}>
+        <View style={[styles.row, { padding: 14 }]}>
+          <View style={[styles.iconWrap, { backgroundColor: theme.muted }]}>
+            <Feather name={icon} size={16} color={theme.foreground} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.foreground, fontSize: 15, fontWeight: '600' }}>{title}</Text>
+            {subtitle ? (
+              <Text style={{ color: theme.mutedForeground, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          {rightSlot || <Feather name="chevron-right" size={16} color={theme.mutedForeground} />}
         </View>
-      ) : (
-        <Text style={styles.chevron}>›</Text>
-      )}
+      </Card>
     </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  profileCard: { padding: 16, borderRadius: 12, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 16 },
-  profileName: { fontSize: 18, fontWeight: '700' },
-  profileEmail: { fontSize: 13, color: '#666', marginTop: 4 },
-  sectionLabel: { fontSize: 12, fontWeight: '600', color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8, paddingHorizontal: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 8 },
-  rowTitle: { fontSize: 15, fontWeight: '600' },
-  rowSubtitle: { fontSize: 12, color: '#666', marginTop: 2 },
-  chevron: { fontSize: 22, color: '#999' },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  badgeOk: { backgroundColor: '#dcfce7' },
-  badgeWarn: { backgroundColor: '#fef3c7' },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  version: { textAlign: 'center', color: '#999', fontSize: 11, marginTop: 24 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  themeRow: { flexDirection: 'row' },
+  themeChip: { flex: 1, paddingVertical: 14, alignItems: 'center', gap: 4 },
 })

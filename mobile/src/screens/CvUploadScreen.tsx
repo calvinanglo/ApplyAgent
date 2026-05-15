@@ -1,33 +1,23 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
-import * as FileSystem from 'expo-file-system'
 import { useAuth } from '../lib/auth'
+import { useTheme } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 import { authFetch } from '../lib/api'
+import { Button, Textarea, H1, P, Caption, CenteredSpinner } from '../components/ui'
 
-/**
- * CV upload + paste-edit screen.
- *
- * Flow:
- *   1. Tap "Choose file" → expo-document-picker (PDF / DOCX / TXT / MD)
- *   2. Multipart POST to /api/parse-file → returns extracted text
- *   3. User can review/edit the text
- *   4. Save → upsert into cv_documents (active)
- *
- * The same screen can be used to paste text directly without uploading a file.
- */
 export function CvUploadScreen({ navigation }: any) {
   const { user } = useAuth()
+  const { theme } = useTheme()
   const [cvText, setCvText] = useState('')
   const [loading, setLoading] = useState(true)
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [filename, setFilename] = useState<string | null>(null)
 
-  useEffect(() => {
-    void loadCv()
-  }, [user?.id])
+  useEffect(() => { void loadCv() }, [user?.id])
 
   async function loadCv() {
     if (!user) return
@@ -63,11 +53,7 @@ export function CvUploadScreen({ navigation }: any) {
       }
       const asset = picked.assets[0]
 
-      // Read the file's bytes (mobile file://) and POST as multipart so the
-      // backend's parse-file endpoint runs the same mammoth + pdf-parse path
-      // it does for web uploads.
       const formData = new FormData()
-      // RN's FormData accepts { uri, name, type } object for files.
       formData.append('file', {
         uri: asset.uri,
         name: asset.name,
@@ -93,7 +79,6 @@ export function CvUploadScreen({ navigation }: any) {
     setSaving(true)
     try {
       const db = supabase as any
-      // Upsert active CV (same logic as web settings page)
       const { data: existing } = await db
         .from('cv_documents')
         .select('id')
@@ -114,64 +99,67 @@ export function CvUploadScreen({ navigation }: any) {
     }
   }
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" /></View>
-  }
+  if (loading) return <CenteredSpinner />
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Your Resume / CV</Text>
-      <Text style={styles.subtitle}>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <H1>Resume / CV</H1>
+      <P muted style={{ marginTop: 4, marginBottom: 16 }}>
         Upload a PDF or DOCX, or paste your CV text. Used as the source of truth for all generated documents.
-      </Text>
+      </P>
 
-      <TouchableOpacity style={styles.uploadBtn} onPress={handlePickFile} disabled={parsing || saving}>
-        {parsing ? <ActivityIndicator color="#000" /> : (
+      <TouchableOpacity
+        style={[styles.uploadBtn, { borderColor: theme.foreground }]}
+        onPress={handlePickFile}
+        disabled={parsing || saving}
+        activeOpacity={0.7}
+      >
+        {parsing ? (
+          <Feather name="loader" size={20} color={theme.foreground} />
+        ) : (
           <>
-            <Text style={styles.uploadIcon}>+</Text>
-            <Text style={styles.uploadLabel}>{filename || 'Upload PDF / DOCX'}</Text>
+            <Feather name="upload" size={20} color={theme.foreground} />
+            <Text style={{ color: theme.foreground, fontSize: 15, fontWeight: '600' }}>
+              {filename || 'Upload PDF / DOCX'}
+            </Text>
           </>
         )}
       </TouchableOpacity>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Or paste your CV text here..."
+      <Caption style={{ marginBottom: 6 }}>Or paste your CV</Caption>
+      <Textarea
+        rows={14}
+        placeholder="Paste your CV text here..."
         value={cvText}
         onChangeText={setCvText}
-        multiline
-        textAlignVertical="top"
-        placeholderTextColor="#999"
       />
 
-      <View style={styles.charCount}>
-        <Text style={styles.charCountText}>{cvText.length.toLocaleString()} characters</Text>
-      </View>
+      <Text style={{ color: theme.mutedForeground, fontSize: 11, textAlign: 'right', marginTop: 4, marginBottom: 16 }}>
+        {cvText.length.toLocaleString()} characters
+      </Text>
 
-      <TouchableOpacity
-        style={[styles.saveBtn, (!cvText.trim() || saving) && styles.btnDisabled]}
+      <Button
+        loading={saving}
+        disabled={!cvText.trim()}
         onPress={handleSave}
-        disabled={!cvText.trim() || saving}
+        leftIcon={<Feather name="check" size={16} color={theme.primaryForeground} />}
       >
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save CV</Text>}
-      </TouchableOpacity>
+        Save CV
+      </Button>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 80 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '700' },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 16, lineHeight: 18 },
-  uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#000', borderStyle: 'dashed', borderRadius: 12, padding: 18, marginBottom: 16 },
-  uploadIcon: { fontSize: 18, fontWeight: '700', marginRight: 8 },
-  uploadLabel: { fontSize: 15, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 14, fontSize: 13, minHeight: 280, backgroundColor: '#fafafa', fontFamily: 'monospace' },
-  charCount: { alignItems: 'flex-end', marginTop: 6, marginBottom: 16 },
-  charCountText: { fontSize: 11, color: '#999' },
-  saveBtn: { backgroundColor: '#000', borderRadius: 8, padding: 16, alignItems: 'center' },
-  btnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 20,
+  },
 })

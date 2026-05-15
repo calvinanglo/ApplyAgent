@@ -1,115 +1,108 @@
-import { useEffect, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
+import { useState } from 'react'
+import { View, Text, KeyboardAvoidingView, Platform, TouchableOpacity, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../lib/auth'
-import { signInWithGoogle, signInWithApple, isAppleSignInAvailable } from '../lib/oauth'
+import { useTheme } from '../lib/theme'
+import { Button, Input, H1, P, Caption } from '../components/ui'
 
 export function LoginScreen({ navigation }: any) {
   const { signIn } = useAuth()
+  const { theme } = useTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null)
-  const [appleAvailable, setAppleAvailable] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    void isAppleSignInAvailable().then(setAppleAvailable)
-  }, [])
-
   async function handleLogin() {
-    if (!email || !password) return
+    if (!email.trim() || !password) return
     setLoading(true)
     setError('')
     try {
-      await signIn(email, password)
+      await signIn(email.trim(), password)
+      // AuthProvider's onAuthStateChange swaps the navigator automatically.
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      setError(err?.message || 'Login failed. Check your email and password.')
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleGoogle() {
-    setOauthLoading('google')
-    setError('')
-    const result = await signInWithGoogle()
-    setOauthLoading(null)
-    if (!result.ok && result.error !== 'Cancelled') setError(result.error || 'Google sign-in failed')
-  }
-
-  async function handleApple() {
-    setOauthLoading('apple')
-    setError('')
-    const result = await signInWithApple()
-    setOauthLoading(null)
-    if (!result.ok && result.error !== 'Cancelled') setError(result.error || 'Apple sign-in failed')
-  }
-
-  const anyLoading = loading || oauthLoading !== null
-
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View style={styles.inner}>
-        <Text style={styles.title}>ApplyAgent</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {/* OAuth buttons appear above email/password — recommended UX. */}
-        <TouchableOpacity style={styles.oauthBtn} onPress={handleGoogle} disabled={anyLoading}>
-          {oauthLoading === 'google' ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text style={styles.oauthText}>Continue with Google</Text>
-          )}
-        </TouchableOpacity>
-
-        {appleAvailable ? (
-          <TouchableOpacity style={[styles.oauthBtn, styles.appleBtn]} onPress={handleApple} disabled={anyLoading}>
-            {oauthLoading === 'apple' ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={[styles.oauthText, { color: '#fff' }]}>Continue with Apple</Text>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
+        <View style={styles.brand}>
+          <View style={[styles.logoCircle, { backgroundColor: theme.primary }]}>
+            <Feather name="zap" size={24} color={theme.primaryForeground} />
+          </View>
+          <H1 style={{ marginTop: 16 }}>ApplyAgent</H1>
+          <P muted style={{ marginTop: 4 }}>Sign in to your account</P>
         </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
+        {error ? (
+          <View style={[styles.errorBox, { backgroundColor: theme.destructive + '15', borderColor: theme.destructive + '30' }]}>
+            <Feather name="alert-circle" size={16} color={theme.destructive} />
+            <Text style={{ color: theme.destructive, fontSize: 13, flex: 1 }}>{error}</Text>
+          </View>
+        ) : null}
+
+        <Caption style={{ marginBottom: 6 }}>Email</Caption>
+        <Input
+          leftIcon={<Feather name="mail" size={18} color={theme.mutedForeground} />}
+          placeholder="you@example.com"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
+          autoCorrect={false}
           keyboardType="email-address"
-          placeholderTextColor="#999"
-          editable={!anyLoading}
+          editable={!loading}
+          returnKeyType="next"
+          style={{ marginBottom: 12 }}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
+
+        <Caption style={{ marginBottom: 6 }}>Password</Caption>
+        <Input
+          leftIcon={<Feather name="lock" size={18} color={theme.mutedForeground} />}
+          rightIcon={
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={theme.mutedForeground} />
+            </TouchableOpacity>
+          }
+          placeholder="••••••••"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
-          placeholderTextColor="#999"
-          editable={!anyLoading}
+          secureTextEntry={!showPassword}
+          editable={!loading}
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
+          style={{ marginBottom: 16 }}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={anyLoading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
+        <Button
+          loading={loading}
+          disabled={!email.trim() || !password}
+          onPress={handleLogin}
+          rightIcon={<Feather name="arrow-right" size={16} color={theme.primaryForeground} />}
+        >
+          Sign In
+        </Button>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ForgotPassword')}
+          disabled={loading}
+          style={{ marginTop: 12, alignSelf: 'center' }}
+        >
+          <Text style={{ color: theme.mutedForeground, fontSize: 13 }}>Forgot password?</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Signup')} disabled={anyLoading}>
-          <Text style={styles.link}>Don't have an account? Sign up</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Signup')} disabled={loading} style={{ marginTop: 16 }}>
+          <Text style={{ color: theme.mutedForeground, fontSize: 14, textAlign: 'center' }}>
+            Don't have an account?{' '}
+            <Text style={{ color: theme.foreground, fontWeight: '600' }}>Sign up</Text>
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -117,19 +110,9 @@ export function LoginScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 32, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 32 },
-  error: { color: '#dc2626', fontSize: 14, textAlign: 'center', marginBottom: 16, backgroundColor: '#fef2f2', padding: 12, borderRadius: 8 },
-  oauthBtn: { borderWidth: 1, borderColor: '#000', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 10 },
-  appleBtn: { backgroundColor: '#000' },
-  oauthText: { fontSize: 15, fontWeight: '600' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { color: '#999', fontSize: 12, marginHorizontal: 8 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 14, fontSize: 16, marginBottom: 12, backgroundColor: '#fafafa' },
-  button: { backgroundColor: '#000', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { color: '#666', fontSize: 14, textAlign: 'center', marginTop: 20 },
+  brand: { alignItems: 'center', marginBottom: 32 },
+  logoCircle: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 16 },
 })

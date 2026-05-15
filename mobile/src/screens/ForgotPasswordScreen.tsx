@@ -1,54 +1,55 @@
 import { useState } from 'react'
-import { View, Text, KeyboardAvoidingView, Platform, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { useAuth } from '../lib/auth'
+import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import { Button, Input, H1, P, Caption } from '../components/ui'
 
-export function SignupScreen({ navigation }: any) {
-  const { signUp } = useAuth()
+/**
+ * Forgot password — sends a reset link to the user's email via Supabase.
+ * The reset link redirects to a web page (applyagent.ca/reset-password)
+ * since deep-link reset flows on mobile add complexity without much value.
+ */
+export function ForgotPasswordScreen({ navigation }: any) {
   const { theme } = useTheme()
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [sent, setSent] = useState(false)
 
-  async function handleSignup() {
-    if (!name.trim() || !email.trim() || !password) return
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters')
-      return
-    }
+  async function handleSend() {
+    if (!email.trim()) return
     setLoading(true)
     setError('')
     try {
-      await signUp(email.trim(), password, name.trim())
-      setSuccess(true)
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: 'https://applyagent.ca/reset-password',
+      })
+      if (err) throw err
+      setSent(true)
     } catch (err: any) {
-      setError(err?.message || 'Signup failed')
+      setError(err?.message || 'Failed to send reset email')
     } finally {
       setLoading(false)
     }
   }
 
-  if (success) {
+  if (sent) {
     return (
-      <View style={[styles.container, styles.inner, { backgroundColor: theme.background }]}>
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
         <View style={[styles.iconCircle, { backgroundColor: theme.success + '20' }]}>
           <Feather name="mail" size={28} color={theme.success} />
         </View>
         <H1 style={{ marginTop: 20, textAlign: 'center' }}>Check your email</H1>
         <P muted style={{ marginTop: 8, textAlign: 'center' }}>
-          We sent a confirmation link to{'\n'}
+          We sent a password reset link to{'\n'}
           <Text style={{ fontWeight: '600', color: theme.foreground }}>{email}</Text>
         </P>
         <Button
           variant="outline"
           onPress={() => navigation.navigate('Login')}
           style={{ marginTop: 24 }}
+          fullWidth={false}
         >
           Back to Sign In
         </Button>
@@ -63,11 +64,13 @@ export function SignupScreen({ navigation }: any) {
     >
       <View style={styles.inner}>
         <View style={styles.brand}>
-          <View style={[styles.logoCircle, { backgroundColor: theme.primary }]}>
-            <Feather name="zap" size={24} color={theme.primaryForeground} />
+          <View style={[styles.logoCircle, { backgroundColor: theme.muted }]}>
+            <Feather name="key" size={24} color={theme.foreground} />
           </View>
-          <H1 style={{ marginTop: 16 }}>Create Account</H1>
-          <P muted style={{ marginTop: 4 }}>Start your job search with ApplyAgent</P>
+          <H1 style={{ marginTop: 16 }}>Forgot password?</H1>
+          <P muted style={{ marginTop: 4, textAlign: 'center' }}>
+            Enter your email and we'll send you a reset link.
+          </P>
         </View>
 
         {error ? (
@@ -76,16 +79,6 @@ export function SignupScreen({ navigation }: any) {
             <Text style={{ color: theme.destructive, fontSize: 13, flex: 1 }}>{error}</Text>
           </View>
         ) : null}
-
-        <Caption style={{ marginBottom: 6 }}>Full Name</Caption>
-        <Input
-          leftIcon={<Feather name="user" size={18} color={theme.mutedForeground} />}
-          placeholder="Jane Doe"
-          value={name}
-          onChangeText={setName}
-          editable={!loading}
-          style={{ marginBottom: 12 }}
-        />
 
         <Caption style={{ marginBottom: 6 }}>Email</Caption>
         <Input
@@ -97,40 +90,26 @@ export function SignupScreen({ navigation }: any) {
           autoCorrect={false}
           keyboardType="email-address"
           editable={!loading}
-          style={{ marginBottom: 12 }}
-        />
-
-        <Caption style={{ marginBottom: 6 }}>Password</Caption>
-        <Input
-          leftIcon={<Feather name="lock" size={18} color={theme.mutedForeground} />}
-          rightIcon={
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={theme.mutedForeground} />
-            </TouchableOpacity>
-          }
-          placeholder="At least 8 characters"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          editable={!loading}
           style={{ marginBottom: 16 }}
         />
 
         <Button
           loading={loading}
-          disabled={!name.trim() || !email.trim() || !password}
-          onPress={handleSignup}
-          rightIcon={<Feather name="arrow-right" size={16} color={theme.primaryForeground} />}
+          disabled={!email.trim()}
+          onPress={handleSend}
+          rightIcon={<Feather name="send" size={16} color={theme.primaryForeground} />}
         >
-          Create Account
+          Send reset link
         </Button>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={loading} style={{ marginTop: 24 }}>
-          <Text style={{ color: theme.mutedForeground, fontSize: 14, textAlign: 'center' }}>
-            Already have an account?{' '}
-            <Text style={{ color: theme.foreground, fontWeight: '600' }}>Sign in</Text>
-          </Text>
-        </TouchableOpacity>
+        <Button
+          variant="ghost"
+          onPress={() => navigation.navigate('Login')}
+          disabled={loading}
+          style={{ marginTop: 12 }}
+        >
+          Back to Sign In
+        </Button>
       </View>
     </KeyboardAvoidingView>
   )
@@ -138,6 +117,7 @@ export function SignupScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
   brand: { alignItems: 'center', marginBottom: 32 },
   logoCircle: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

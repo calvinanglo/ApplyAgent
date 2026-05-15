@@ -59,7 +59,7 @@ export async function registerPushOnLogin(): Promise<{ ok: boolean; reason?: str
   }
 
   // Get the Expo push token (NOT the device APNs/FCM token — Expo Push proxies).
-  const projectId = '2c381589-1d10-4c4b-b1ba-9ec1f20716d5' // matches app.json EAS projectId
+  const projectId = 'af9a998a-3029-455d-9c58-0c25762ca0ca' // matches app.json EAS projectId
   let tokenObj
   try {
     tokenObj = await Notifications.getExpoPushTokenAsync({ projectId })

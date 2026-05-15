@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import { useTheme } from '../lib/theme'
+import { Card, Badge, Button, Caption, CenteredSpinner, EmptyState } from '../components/ui'
 
 interface Story {
   id: string
@@ -17,13 +20,9 @@ interface Story {
   created_at: string
 }
 
-/**
- * Story Bank — searchable library of STAR+R stories collected from
- * evaluations + voice samples. Mobile UX shows expandable cards (tap to
- * expand the full S/T/A/R/Reflection breakdown).
- */
 export function StoryBankScreen() {
   const { user } = useAuth()
+  const { theme } = useTheme()
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -48,108 +47,122 @@ export function StoryBankScreen() {
   useEffect(() => { void load() }, [load])
 
   async function handleDelete(id: string) {
-    Alert.alert(
-      'Delete story?',
-      'This story will be permanently removed from your bank.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await (supabase as any).from('story_bank').delete().eq('id', id)
-              setStories(prev => prev.filter(s => s.id !== id))
-            } catch (err: any) {
-              Alert.alert('Error', err.message)
-            }
-          },
+    Alert.alert('Delete story?', 'This story will be permanently removed.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await (supabase as any).from('story_bank').delete().eq('id', id)
+            setStories(prev => prev.filter(s => s.id !== id))
+          } catch (err: any) {
+            Alert.alert('Error', err.message)
+          }
         },
-      ]
-    )
+      },
+    ])
   }
 
-  // Collect all unique tags for the filter row
   const allTags = Array.from(new Set(stories.flatMap(s => s.tags || []))).sort()
-  const visible = activeTag
-    ? stories.filter(s => (s.tags || []).includes(activeTag))
-    : stories
+  const visible = activeTag ? stories.filter(s => (s.tags || []).includes(activeTag)) : stories
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" /></View>
-  }
+  if (loading) return <CenteredSpinner />
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       {allTags.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow} contentContainerStyle={styles.tagsContent}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ borderBottomWidth: 1, borderBottomColor: theme.border, maxHeight: 50, flexShrink: 0 }}
+          contentContainerStyle={{ paddingHorizontal: 12, alignItems: 'center', paddingVertical: 8 }}
+        >
           <TouchableOpacity
-            style={[styles.tagChip, !activeTag && styles.tagChipActive]}
             onPress={() => setActiveTag(null)}
+            style={{
+              paddingHorizontal: 12, paddingVertical: 6, marginRight: 6, borderRadius: 14, borderWidth: 1,
+              borderColor: !activeTag ? theme.primary : theme.border,
+              backgroundColor: !activeTag ? theme.primary : 'transparent',
+            }}
           >
-            <Text style={[styles.tagText, !activeTag && styles.tagTextActive]}>All ({stories.length})</Text>
+            <Text style={{ fontSize: 12, color: !activeTag ? theme.primaryForeground : theme.mutedForeground, fontWeight: '600' }}>
+              All ({stories.length})
+            </Text>
           </TouchableOpacity>
-          {allTags.map(t => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.tagChip, activeTag === t && styles.tagChipActive]}
-              onPress={() => setActiveTag(t)}
-            >
-              <Text style={[styles.tagText, activeTag === t && styles.tagTextActive]}>{t}</Text>
-            </TouchableOpacity>
-          ))}
+          {allTags.map(t => {
+            const active = activeTag === t
+            return (
+              <TouchableOpacity
+                key={t}
+                onPress={() => setActiveTag(t)}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 6, marginRight: 6, borderRadius: 14, borderWidth: 1,
+                  borderColor: active ? theme.primary : theme.border,
+                  backgroundColor: active ? theme.primary : 'transparent',
+                }}
+              >
+                <Text style={{ fontSize: 12, color: active ? theme.primaryForeground : theme.mutedForeground, fontWeight: active ? '600' : '500' }}>
+                  {t}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
         </ScrollView>
       )}
 
       <ScrollView
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load() }} />}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load() }} tintColor={theme.foreground} />}
       >
         {visible.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No stories yet</Text>
-            <Text style={styles.emptyText}>
-              Evaluate a job posting and the AI extracts STAR-format stories from your CV automatically. They'll appear here.
-            </Text>
-          </View>
+          <EmptyState
+            icon={<Feather name="book-open" size={32} color={theme.mutedForeground} />}
+            title="No stories yet"
+            description="Evaluate a job posting and the AI extracts STAR-format stories from your CV automatically."
+          />
         ) : (
           visible.map(s => {
             const isExpanded = expanded === s.id
             return (
-              <View key={s.id} style={styles.card}>
-                <TouchableOpacity onPress={() => setExpanded(isExpanded ? null : s.id)}>
-                  <Text style={styles.cardTitle}>{s.title}</Text>
+              <Card key={s.id} style={{ marginBottom: 10 }}>
+                <TouchableOpacity onPress={() => setExpanded(isExpanded ? null : s.id)} activeOpacity={0.7}>
+                  <Text style={{ color: theme.foreground, fontSize: 15, fontWeight: '700' }}>{s.title}</Text>
                   {s.jd_requirement ? (
-                    <Text style={styles.cardReq} numberOfLines={isExpanded ? undefined : 1}>
+                    <Text style={{ color: theme.mutedForeground, fontSize: 12, marginTop: 4 }} numberOfLines={isExpanded ? undefined : 1}>
                       For: {s.jd_requirement}
                     </Text>
                   ) : null}
                   {(s.tags && s.tags.length > 0) && (
-                    <View style={styles.cardTags}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
                       {s.tags.map(t => (
-                        <View key={t} style={styles.cardTagBadge}>
-                          <Text style={styles.cardTagText}>{t}</Text>
-                        </View>
+                        <Badge key={t} tone="secondary">{t}</Badge>
                       ))}
                     </View>
                   )}
                 </TouchableOpacity>
 
                 {isExpanded && (
-                  <View style={styles.expanded}>
-                    <Section label="Situation" value={s.situation} />
-                    <Section label="Task" value={s.task} />
-                    <Section label="Action" value={s.action} />
-                    <Section label="Result" value={s.result} />
-                    <Section label="Reflection" value={s.reflection} />
+                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.border }}>
+                    <StorySection theme={theme} label="Situation" value={s.situation} />
+                    <StorySection theme={theme} label="Task" value={s.task} />
+                    <StorySection theme={theme} label="Action" value={s.action} />
+                    <StorySection theme={theme} label="Result" value={s.result} />
+                    <StorySection theme={theme} label="Reflection" value={s.reflection} />
 
-                    <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(s.id)}>
-                      <Text style={styles.deleteText}>Delete</Text>
-                    </TouchableOpacity>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onPress={() => handleDelete(s.id)}
+                      leftIcon={<Feather name="trash-2" size={12} color={theme.destructive} />}
+                      fullWidth={false}
+                      style={{ alignSelf: 'flex-start', borderColor: theme.destructive, marginTop: 4 }}
+                    >
+                      <Text style={{ color: theme.destructive, fontSize: 12, fontWeight: '600' }}>Delete</Text>
+                    </Button>
                   </View>
                 )}
-              </View>
+              </Card>
             )
           })
         )}
@@ -158,40 +171,12 @@ export function StoryBankScreen() {
   )
 }
 
-function Section({ label, value }: { label: string; value: string | null }) {
+function StorySection({ theme, label, value }: { theme: any; label: string; value: string | null }) {
   if (!value) return null
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>{label}</Text>
-      <Text style={styles.sectionText}>{value}</Text>
+    <View style={{ marginBottom: 12 }}>
+      <Caption style={{ marginBottom: 4 }}>{label}</Caption>
+      <Text style={{ color: theme.foreground, fontSize: 13, lineHeight: 19 }}>{value}</Text>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  tagsRow: { borderBottomWidth: 1, borderBottomColor: '#f3f4f6', maxHeight: 48, flexShrink: 0 },
-  tagsContent: { paddingHorizontal: 12, alignItems: 'center', paddingVertical: 4 },
-  tagChip: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 6, borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb' },
-  tagChipActive: { backgroundColor: '#000', borderColor: '#000' },
-  tagText: { fontSize: 12, color: '#666' },
-  tagTextActive: { color: '#fff', fontWeight: '600' },
-  list: { flex: 1 },
-  listContent: { padding: 16 },
-  empty: { padding: 32, alignItems: 'center' },
-  emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6 },
-  emptyText: { fontSize: 13, color: '#666', textAlign: 'center', lineHeight: 18 },
-  card: { padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 10 },
-  cardTitle: { fontSize: 15, fontWeight: '700' },
-  cardReq: { fontSize: 12, color: '#666', marginTop: 4 },
-  cardTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },
-  cardTagBadge: { backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  cardTagText: { fontSize: 10, color: '#666' },
-  expanded: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  section: { marginBottom: 12 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  sectionText: { fontSize: 13, lineHeight: 19, color: '#333' },
-  deleteBtn: { marginTop: 8, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#fecaca', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
-  deleteText: { color: '#dc2626', fontSize: 12, fontWeight: '600' },
-})

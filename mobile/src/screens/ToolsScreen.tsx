@@ -1,7 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
+import { useTheme } from '../lib/theme'
+import { Card, H1, P, Caption } from '../components/ui'
 
 interface ToolDef {
   id: string
+  icon: keyof typeof Feather.glyphMap
   title: string
   description: string
   credits: number
@@ -11,6 +15,7 @@ interface ToolDef {
 const TOOLS: ToolDef[] = [
   {
     id: 'linkedin-message',
+    icon: 'message-circle',
     title: 'LinkedIn Outreach',
     description: 'Generate connection request messages for a target company + role.',
     credits: 2,
@@ -18,6 +23,7 @@ const TOOLS: ToolDef[] = [
   },
   {
     id: 'compare-offers',
+    icon: 'layers',
     title: 'Compare Offers',
     description: 'Side-by-side analysis of two or more job offers (comp, growth, fit).',
     credits: 5,
@@ -25,52 +31,46 @@ const TOOLS: ToolDef[] = [
   },
 ]
 
-/**
- * Tools hub — list of bonus utilities. Each tile navigates to its own screen.
- * Adding a new tool = add an entry here + the corresponding screen + register
- * in AppNavigator.
- */
 export function ToolsScreen({ navigation }: any) {
+  const { theme } = useTheme()
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Tools</Text>
-      <Text style={styles.subtitle}>Quick AI-powered helpers for your job search.</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <H1>Tools</H1>
+      <P muted style={{ marginTop: 4, marginBottom: 16 }}>
+        Quick AI-powered helpers for your job search.
+      </P>
 
       {TOOLS.map(t => (
-        <TouchableOpacity
-          key={t.id}
-          style={styles.tile}
-          onPress={() => navigation.navigate(t.route)}
-          activeOpacity={0.6}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.tileTitle}>{t.title}</Text>
-            <Text style={styles.tileDesc}>{t.description}</Text>
-          </View>
-          <View style={styles.creditBadge}>
-            <Text style={styles.creditText}>{t.credits}</Text>
-            <Text style={styles.creditLabel}>credits</Text>
-          </View>
+        <TouchableOpacity key={t.id} activeOpacity={0.7} onPress={() => navigation.navigate(t.route)}>
+          <Card style={{ marginBottom: 10 }}>
+            <View style={styles.row}>
+              <View style={[styles.iconWrap, { backgroundColor: theme.muted }]}>
+                <Feather name={t.icon} size={18} color={theme.foreground} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.foreground, fontSize: 15, fontWeight: '700' }}>{t.title}</Text>
+                <Text style={{ color: theme.mutedForeground, fontSize: 12, marginTop: 4, lineHeight: 17 }}>
+                  {t.description}
+                </Text>
+              </View>
+              <View style={[styles.creditBadge, { backgroundColor: theme.muted }]}>
+                <Text style={{ color: theme.foreground, fontSize: 16, fontWeight: '700' }}>{t.credits}</Text>
+                <Text style={{ color: theme.mutedForeground, fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.3 }}>credits</Text>
+              </View>
+            </View>
+          </Card>
         </TouchableOpacity>
       ))}
 
-      <Text style={styles.note}>
-        More tools coming soon. Suggestions? Email support@applyagent.ca.
+      <Text style={{ color: theme.mutedForeground, fontSize: 12, textAlign: 'center', marginTop: 24 }}>
+        More tools coming soon.
       </Text>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: '700' },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 20 },
-  tile: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 10 },
-  tileTitle: { fontSize: 16, fontWeight: '700' },
-  tileDesc: { fontSize: 12, color: '#666', marginTop: 4, lineHeight: 17 },
-  creditBadge: { alignItems: 'center', backgroundColor: '#f9fafb', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginLeft: 12 },
-  creditText: { fontSize: 18, fontWeight: '700' },
-  creditLabel: { fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 0.3 },
-  note: { fontSize: 12, color: '#999', textAlign: 'center', marginTop: 24, lineHeight: 17 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  creditBadge: { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
 })

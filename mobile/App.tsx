@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import * as Updates from 'expo-updates'
 import { AuthProvider } from './src/lib/auth'
+import { ThemeProvider, useTheme } from './src/lib/theme'
 import { AppNavigator, navigationRef } from './src/navigation/AppNavigator'
 import { addNotificationTapHandler } from './src/lib/push'
 
@@ -47,9 +48,17 @@ export default function App() {
   }, [])
 
   return (
-    <AuthProvider>
-      <StatusBar style="dark" />
-      <AppNavigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ThemedStatusBar />
+        <AppNavigator />
+      </AuthProvider>
+    </ThemeProvider>
   )
+}
+
+// Status bar that flips between dark/light icons based on the active theme.
+function ThemedStatusBar() {
+  const { resolvedMode } = useTheme()
+  return <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
 }

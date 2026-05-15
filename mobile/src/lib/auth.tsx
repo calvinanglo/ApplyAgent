@@ -27,20 +27,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Hard timeout: if getSession hangs (bad network, missing env vars,
+    // SecureStore issues), force the app out of the loading state after 8s
+    // so the user lands on the login screen instead of staring at a spinner.
+    let resolved = false
+    const timeoutId = setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        setLoading(false)
+      }
+    }, 8000)
+
     // Configure RevenueCat as soon as the app boots (anonymous mode is fine
     // until login). Internally a no-op on Android since RC_ENABLED is false
     // there — Android uses Stripe via web only.
     void configurePurchases().catch(() => {})
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-      if (session?.user) {
-        // Restored session — re-register push and (on iOS) link RC to user.
-        void registerPushOnLogin().catch(() => {})
-        void loginPurchases(session.user.id).catch(() => {})
-      }
-    })
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (resolved) return
+        resolved = true
+        clearTimeout(timeoutId)
+        setSession(session)
+        setLoading(false)
+        if (session?.user) {
+          // Restored session — re-register push and (on iOS) link RC to user.
+          void registerPushOnLogin().catch(() => {})
+          void loginPurchases(session.user.id).catch(() => {})
+        }
+      })
+      .catch((err) => {
+        if (resolved) return
+        resolved = true
+        clearTimeout(timeoutId)
+        console.warn('[auth] getSession failed:', err?.message || err)
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
@@ -51,7 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function signIn(email: string, password: string) {

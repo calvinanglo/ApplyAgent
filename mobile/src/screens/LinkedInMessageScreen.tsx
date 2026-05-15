@@ -1,20 +1,18 @@
 import { useState } from 'react'
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, Alert } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
 import { authFetch } from '../lib/api'
+import { useTheme } from '../lib/theme'
+import { Button, Input, Textarea, Card, H1, P, Caption } from '../components/ui'
 
 interface MessageVariant {
   variant?: string
   message: string
 }
 
-/**
- * LinkedIn outreach message generator.
- *
- * Inputs: company + role + optional JD text
- * Output: 2-3 message variants the user can copy with one tap.
- */
 export function LinkedInMessageScreen() {
+  const { theme } = useTheme()
   const [company, setCompany] = useState('')
   const [role, setRole] = useState('')
   const [jdText, setJdText] = useState('')
@@ -39,8 +37,6 @@ export function LinkedInMessageScreen() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Generation failed')
-
-      // The API returns { messages: [...] } where each item has { variant, message }
       const list = Array.isArray(data.messages)
         ? data.messages
         : Array.isArray(data.messages?.variants)
@@ -60,78 +56,72 @@ export function LinkedInMessageScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>LinkedIn Outreach</Text>
-      <Text style={styles.subtitle}>2-3 message variants for connection requests (2 credits).</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <H1>LinkedIn Outreach</H1>
+      <P muted style={{ marginTop: 4, marginBottom: 16 }}>
+        2-3 message variants for connection requests (2 credits).
+      </P>
 
-      <Text style={styles.label}>Company</Text>
-      <TextInput
-        style={styles.input}
+      <Caption style={{ marginBottom: 6 }}>Company</Caption>
+      <Input
+        leftIcon={<Feather name="briefcase" size={16} color={theme.mutedForeground} />}
         placeholder="e.g. Stripe"
         value={company}
         onChangeText={setCompany}
-        placeholderTextColor="#999"
+        style={{ marginBottom: 12 }}
       />
 
-      <Text style={styles.label}>Role</Text>
-      <TextInput
-        style={styles.input}
+      <Caption style={{ marginBottom: 6 }}>Role</Caption>
+      <Input
+        leftIcon={<Feather name="user" size={16} color={theme.mutedForeground} />}
         placeholder="e.g. Senior Security Engineer"
         value={role}
         onChangeText={setRole}
-        placeholderTextColor="#999"
+        style={{ marginBottom: 12 }}
       />
 
-      <Text style={styles.label}>Job Description (optional)</Text>
-      <TextInput
-        style={[styles.input, { height: 120, textAlignVertical: 'top' }]}
+      <Caption style={{ marginBottom: 6 }}>Job Description (optional)</Caption>
+      <Textarea
+        rows={5}
         placeholder="Paste the JD for more targeted messages..."
         value={jdText}
         onChangeText={setJdText}
-        multiline
-        placeholderTextColor="#999"
+        style={{ marginBottom: 16 }}
       />
 
-      <TouchableOpacity
-        style={[styles.btn, loading && styles.btnDisabled]}
+      <Button
+        loading={loading}
         onPress={handleGenerate}
-        disabled={loading}
+        leftIcon={<Feather name="message-circle" size={16} color={theme.primaryForeground} />}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate (2 credits)</Text>}
-      </TouchableOpacity>
+        Generate (2 credits)
+      </Button>
 
       {messages.length > 0 && (
-        <View style={styles.messagesWrap}>
-          <Text style={styles.label}>Generated messages</Text>
+        <View style={{ marginTop: 20 }}>
+          <Caption style={{ marginBottom: 8 }}>Generated messages</Caption>
           {messages.map((m, i) => (
-            <View key={i} style={styles.messageCard}>
-              {m.variant ? <Text style={styles.variantLabel}>{m.variant}</Text> : null}
-              <Text style={styles.messageText}>{m.message}</Text>
-              <TouchableOpacity style={styles.copyBtn} onPress={() => copyToClipboard(m.message)}>
-                <Text style={styles.copyText}>Copy</Text>
-              </TouchableOpacity>
-            </View>
+            <Card key={i} style={{ marginBottom: 10 }}>
+              {m.variant ? (
+                <Text style={{ color: theme.mutedForeground, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                  {m.variant}
+                </Text>
+              ) : null}
+              <Text style={{ color: theme.foreground, fontSize: 13, lineHeight: 19 }}>{m.message}</Text>
+              <Button
+                size="sm"
+                variant="outline"
+                onPress={() => copyToClipboard(m.message)}
+                leftIcon={<Feather name="copy" size={12} color={theme.foreground} />}
+                fullWidth={false}
+                style={{ marginTop: 10, alignSelf: 'flex-start' }}
+              >
+                Copy
+              </Button>
+            </Card>
           ))}
         </View>
       )}
     </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: '700' },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: '600', color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, fontSize: 15, backgroundColor: '#fafafa' },
-  btn: { backgroundColor: '#000', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 20 },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  messagesWrap: { marginTop: 12 },
-  messageCard: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 10, backgroundColor: '#f9fafb' },
-  variantLabel: { fontSize: 11, fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  messageText: { fontSize: 13, color: '#333', lineHeight: 19 },
-  copyBtn: { alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#000' },
-  copyText: { fontSize: 12, fontWeight: '600' },
-})

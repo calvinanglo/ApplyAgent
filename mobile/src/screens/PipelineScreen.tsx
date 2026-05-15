@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { authFetch } from '../lib/api'
+import { useTheme } from '../lib/theme'
+import { Button, Input, Card, Badge, CenteredSpinner } from '../components/ui'
 
 type Status = 'pending' | 'processing' | 'done' | 'error'
 
@@ -32,20 +35,8 @@ const TAB_LABELS: Record<Status, string> = {
   error: 'Errors',
 }
 
-/**
- * Pipeline = URL inbox + bulk evaluation queue.
- *
- * Mobile UX:
- *   - Status tabs scroll horizontally (FlatList → ScrollView for simplicity)
- *   - Add URL field at top
- *   - Item rows show company / role / score badge / source / time
- *   - Tap done item → ReportDetail
- *   - "Process All" button on Pending tab fires batch evaluation
- *
- * Note: this v1 doesn't include swipe-to-delete or department filter from
- * the web version — those can ship in a later polish round.
- */
 export function PipelineScreen({ navigation }: any) {
+  const { theme } = useTheme()
   const [activeTab, setActiveTab] = useState<Status>('pending')
   const [items, setItems] = useState<PipelineItem[]>([])
   const [counts, setCounts] = useState<Counts>({ pending: 0, processing: 0, done: 0, error: 0 })
@@ -64,7 +55,7 @@ export function PipelineScreen({ navigation }: any) {
         if (data.counts) setCounts(data.counts)
       }
     } catch {
-      /* soft-fail, pull-to-refresh recovers */
+      /* soft-fail */
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -119,8 +110,6 @@ export function PipelineScreen({ navigation }: any) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'Batch processing failed')
       }
-      // Backend kicks off via after() — poll for updates by reloading every
-      // 5s until pending=0 or 2 min elapsed.
       const start = Date.now()
       while (Date.now() - start < 120_000) {
         await new Promise(r => setTimeout(r, 5000))
@@ -161,117 +150,155 @@ export function PipelineScreen({ navigation }: any) {
     activeTab === 'error' ? i.status === 'error' : i.status === activeTab
   )
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" /></View>
-  }
+  if (loading) return <CenteredSpinner />
 
   return (
-    <View style={styles.container}>
-      {/* Add URL form (always at top) */}
-      <View style={styles.addCard}>
-        <TextInput
-          style={styles.urlInput}
-          placeholder="Paste a job posting URL"
-          value={newUrl}
-          onChangeText={setNewUrl}
-          autoCapitalize="none"
-          keyboardType="url"
-          placeholderTextColor="#999"
-          onSubmitEditing={handleAddUrl}
-        />
-        <TouchableOpacity
-          style={[styles.addBtn, (!newUrl.trim() || adding) && styles.btnDisabled]}
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Add URL form */}
+      <View style={[styles.addCard, { borderBottomColor: theme.border, padding: 12 }]}>
+        <View style={{ flex: 1 }}>
+          <Input
+            leftIcon={<Feather name="link" size={16} color={theme.mutedForeground} />}
+            placeholder="Paste a job posting URL"
+            value={newUrl}
+            onChangeText={setNewUrl}
+            autoCapitalize="none"
+            keyboardType="url"
+            onSubmitEditing={handleAddUrl}
+          />
+        </View>
+        <Button
+          size="default"
+          loading={adding}
+          disabled={!newUrl.trim()}
           onPress={handleAddUrl}
-          disabled={!newUrl.trim() || adding}
+          fullWidth={false}
+          style={{ paddingHorizontal: 14, marginLeft: 8 }}
         >
-          {adding ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.addBtnText}>Add</Text>}
-        </TouchableOpacity>
+          Add
+        </Button>
       </View>
 
       {/* Status tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow} contentContainerStyle={styles.tabsContent}>
-        {(['pending', 'processing', 'done', 'error'] as Status[]).map(t => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.tab, activeTab === t && styles.tabActive]}
-            onPress={() => setActiveTab(t)}
-          >
-            <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
-              {TAB_LABELS[t]} ({counts[t === 'error' ? 'error' : t] || 0})
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.tabsRow, { borderBottomColor: theme.border }]} contentContainerStyle={styles.tabsContent}>
+        {(['pending', 'processing', 'done', 'error'] as Status[]).map(t => {
+          const active = activeTab === t
+          const count = counts[t === 'error' ? 'error' : t] || 0
+          return (
+            <TouchableOpacity
+              key={t}
+              activeOpacity={0.7}
+              onPress={() => setActiveTab(t)}
+              style={[
+                styles.tab,
+                { backgroundColor: active ? theme.primary : 'transparent' },
+              ]}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: active ? theme.primaryForeground : theme.mutedForeground }}>
+                {TAB_LABELS[t]} ({count})
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
       </ScrollView>
 
       {/* Bulk actions */}
       {activeTab === 'pending' && counts.pending > 0 && (
-        <View style={styles.bulkRow}>
-          <TouchableOpacity
-            style={[styles.bulkBtn, styles.bulkPrimary]}
+        <View style={[styles.bulkRow, { borderBottomColor: theme.border }]}>
+          <Button
+            size="sm"
+            loading={processing}
             onPress={handleProcessAll}
-            disabled={processing}
+            leftIcon={<Feather name="play" size={14} color={theme.primaryForeground} />}
+            fullWidth={false}
+            style={{ flex: 1 }}
           >
-            {processing ? <ActivityIndicator color="#fff" size="small" /> : (
-              <Text style={styles.bulkPrimaryText}>Process all ({counts.pending})</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.bulkBtn} onPress={() => handleClear('pending')}>
-            <Text style={styles.bulkText}>Clear</Text>
-          </TouchableOpacity>
+            Process all ({counts.pending})
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onPress={() => handleClear('pending')}
+            fullWidth={false}
+            style={{ marginLeft: 8 }}
+          >
+            Clear
+          </Button>
         </View>
       )}
 
       {activeTab === 'done' && counts.done > 0 && (
-        <View style={styles.bulkRow}>
-          <TouchableOpacity style={styles.bulkBtn} onPress={() => handleClear('done')}>
-            <Text style={styles.bulkText}>Clear done</Text>
-          </TouchableOpacity>
+        <View style={[styles.bulkRow, { borderBottomColor: theme.border }]}>
+          <Button size="sm" variant="outline" onPress={() => handleClear('done')} fullWidth={false}>
+            Clear done
+          </Button>
         </View>
       )}
 
       {activeTab === 'error' && counts.error > 0 && (
-        <View style={styles.bulkRow}>
-          <TouchableOpacity style={styles.bulkBtn} onPress={() => handleClear('errors')}>
-            <Text style={styles.bulkText}>Clear errors</Text>
-          </TouchableOpacity>
+        <View style={[styles.bulkRow, { borderBottomColor: theme.border }]}>
+          <Button size="sm" variant="outline" onPress={() => handleClear('errors')} fullWidth={false}>
+            Clear errors
+          </Button>
         </View>
       )}
 
       {/* List */}
       <ScrollView
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load() }} />}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 12 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load() }} tintColor={theme.foreground} />}
       >
         {visible.length === 0 ? (
-          <Text style={styles.empty}>No {activeTab} items</Text>
+          <View style={{ alignItems: 'center', padding: 40 }}>
+            <Feather name="inbox" size={32} color={theme.mutedForeground} />
+            <Text style={{ color: theme.mutedForeground, fontSize: 13, marginTop: 8 }}>
+              No {activeTab} items
+            </Text>
+          </View>
         ) : (
           visible.map(item => (
             <TouchableOpacity
               key={item.id}
-              style={styles.item}
-              activeOpacity={item.status === 'done' && item.report_id ? 0.6 : 1}
+              activeOpacity={item.status === 'done' && item.report_id ? 0.7 : 1}
               onPress={() => {
                 if (item.status === 'done' && item.report_id) {
                   navigation.navigate('ReportDetail', { reportId: item.report_id })
                 }
               }}
             >
-              <View style={{ flex: 1 }}>
+              <Card style={{ marginBottom: 8, padding: 12 }}>
                 <View style={styles.itemHeaderRow}>
-                  {item.company ? <Text style={styles.itemCompany}>{item.company}</Text> : null}
+                  {item.company && (
+                    <Text style={{ color: theme.foreground, fontSize: 14, fontWeight: '700', flex: 1 }} numberOfLines={1}>
+                      {item.company}
+                    </Text>
+                  )}
                   {item.score !== null && (
-                    <View style={[styles.scoreBadge, { backgroundColor: item.score >= 4.5 ? '#16a34a' : item.score >= 3.5 ? '#ca8a04' : '#dc2626' }]}>
-                      <Text style={styles.scoreText}>{Number(item.score).toFixed(1)}</Text>
-                    </View>
+                    <Badge tone={item.score >= 4.5 ? 'success' : item.score >= 3.5 ? 'warning' : 'destructive'}>
+                      {Number(item.score).toFixed(1)}
+                    </Badge>
                   )}
                 </View>
-                {item.title ? <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text> : null}
+                {item.title && (
+                  <Text style={{ color: theme.mutedForeground, fontSize: 13, marginTop: 4 }} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                )}
                 <View style={styles.itemMeta}>
-                  <Text style={styles.itemSource}>{item.source}</Text>
-                  {item.error_message ? <Text style={styles.itemError} numberOfLines={1}>{item.error_message}</Text> : null}
+                  <View style={styles.metaRow}>
+                    <Feather name="globe" size={11} color={theme.mutedForeground} />
+                    <Text style={{ color: theme.mutedForeground, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                      {item.source}
+                    </Text>
+                  </View>
+                  {item.error_message ? (
+                    <Text style={{ color: theme.destructive, fontSize: 11, marginLeft: 8, flex: 1 }} numberOfLines={1}>
+                      {item.error_message}
+                    </Text>
+                  ) : null}
                 </View>
-              </View>
+              </Card>
             </TouchableOpacity>
           ))
         )}
@@ -281,34 +308,12 @@ export function PipelineScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  addCard: { flexDirection: 'row', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  urlInput: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, backgroundColor: '#fafafa' },
-  addBtn: { backgroundColor: '#000', paddingHorizontal: 16, justifyContent: 'center', borderRadius: 8 },
-  addBtnText: { color: '#fff', fontWeight: '600' },
-  btnDisabled: { opacity: 0.5 },
-  tabsRow: { borderBottomWidth: 1, borderBottomColor: '#f3f4f6', maxHeight: 48, flexShrink: 0 },
-  tabsContent: { paddingHorizontal: 12, alignItems: 'center', paddingVertical: 4 },
-  tab: { paddingHorizontal: 12, paddingVertical: 8, marginRight: 4, borderRadius: 6 },
-  tabActive: { backgroundColor: '#000' },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#666' },
-  tabTextActive: { color: '#fff' },
-  bulkRow: { flexDirection: 'row', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  bulkBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#e5e7eb' },
-  bulkPrimary: { backgroundColor: '#000', borderColor: '#000' },
-  bulkPrimaryText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  bulkText: { fontSize: 13, fontWeight: '600' },
-  list: { flex: 1 },
-  listContent: { padding: 12 },
-  empty: { textAlign: 'center', color: '#999', fontSize: 13, padding: 32 },
-  item: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 8, backgroundColor: '#fff' },
-  itemHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  itemCompany: { fontSize: 14, fontWeight: '700', flex: 1 },
-  scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  scoreText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  itemTitle: { fontSize: 13, color: '#444', marginBottom: 4 },
-  itemMeta: { flexDirection: 'row', alignItems: 'center' },
-  itemSource: { fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: 0.3 },
-  itemError: { fontSize: 11, color: '#dc2626', flex: 1, marginLeft: 8 },
+  addCard: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 },
+  tabsRow: { borderBottomWidth: 1, maxHeight: 50, flexShrink: 0 },
+  tabsContent: { paddingHorizontal: 12, alignItems: 'center', paddingVertical: 6 },
+  tab: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 4, borderRadius: 6 },
+  bulkRow: { flexDirection: 'row', padding: 12, gap: 8, borderBottomWidth: 1 },
+  itemHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 })

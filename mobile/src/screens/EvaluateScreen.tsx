@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { evaluate, pollJob } from '../lib/api'
+import { useTheme } from '../lib/theme'
+import { Button, Textarea, Card, Badge, H1, H3, P, Caption } from '../components/ui'
 
 interface Block {
   key: string
@@ -16,6 +19,7 @@ interface EvaluationResult {
 }
 
 export function EvaluateScreen({ navigation }: any) {
+  const { theme } = useTheme()
   const [jdText, setJdText] = useState('')
   const [loading, setLoading] = useState(false)
   const [progressMessage, setProgressMessage] = useState('')
@@ -34,16 +38,11 @@ export function EvaluateScreen({ navigation }: any) {
     setProgressMessage('Starting evaluation…')
 
     try {
-      // Long-running job pattern: POST returns { job_id }, then poll
-      // /api/jobs/status?id=… until completed/failed. Notification fires
-      // server-side when complete so users can leave the app and come back.
       const { job_id } = await evaluate(jdText)
-      setProgressMessage('Analyzing job description… you can close the app and we\'ll notify you when it\'s ready.')
+      setProgressMessage("Analyzing job description… we'll notify you when it's ready, even if you close the app.")
 
       const status = await pollJob<EvaluationResult>(job_id, { intervalMs: 2500 })
-      if (status.status === 'failed') {
-        throw new Error(status.error || 'Evaluation failed')
-      }
+      if (status.status === 'failed') throw new Error(status.error || 'Evaluation failed')
 
       const result = status.result
       if (result?.score != null) setScore(result.score)
@@ -57,92 +56,85 @@ export function EvaluateScreen({ navigation }: any) {
     }
   }
 
-  const scoreColor = score !== null
-    ? score >= 4.5 ? '#16a34a' : score >= 3.5 ? '#ca8a04' : '#dc2626'
-    : '#000'
+  const scoreTone = score !== null
+    ? score >= 4.5 ? 'success' : score >= 3.5 ? 'warning' : 'destructive'
+    : 'default'
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Evaluate Job Posting</Text>
-      <Text style={styles.subtitle}>Paste a job description to get an A-F evaluation</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <H1>Evaluate Job Posting</H1>
+      <P muted style={{ marginTop: 4, marginBottom: 16 }}>
+        Paste a job description for an AI evaluation across 7 dimensions.
+      </P>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Paste the full job description here..."
+      <Caption style={{ marginBottom: 6 }}>Job description</Caption>
+      <Textarea
+        rows={8}
+        placeholder="Paste the full job description here…"
         value={jdText}
         onChangeText={setJdText}
-        multiline
-        numberOfLines={8}
-        textAlignVertical="top"
-        placeholderTextColor="#999"
+        editable={!loading}
+        style={{ marginBottom: 12 }}
       />
 
-      <TouchableOpacity
-        style={[styles.button, (!jdText.trim() || loading) && styles.buttonDisabled]}
+      <Button
+        loading={loading}
+        disabled={!jdText.trim()}
         onPress={handleEvaluate}
-        disabled={loading || !jdText.trim()}
+        leftIcon={<Feather name="zap" size={16} color={theme.primaryForeground} />}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Evaluate (10 credits)</Text>
-        )}
-      </TouchableOpacity>
+        Evaluate (10 credits)
+      </Button>
 
       {loading && progressMessage ? (
-        <Text style={styles.progress}>{progressMessage}</Text>
+        <View style={[styles.progressBox, { backgroundColor: theme.muted, borderColor: theme.border }]}>
+          <Feather name="loader" size={14} color={theme.mutedForeground} />
+          <Text style={{ color: theme.mutedForeground, fontSize: 13, flex: 1, lineHeight: 18 }}>
+            {progressMessage}
+          </Text>
+        </View>
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={[styles.errorBox, { backgroundColor: theme.destructive + '15', borderColor: theme.destructive + '30' }]}>
+          <Feather name="alert-circle" size={16} color={theme.destructive} />
+          <Text style={{ color: theme.destructive, fontSize: 13, flex: 1 }}>{error}</Text>
+        </View>
+      ) : null}
 
       {score !== null && (
-        <View style={styles.scoreCard}>
-          <View style={[styles.scoreBadge, { backgroundColor: scoreColor }]}>
-            <Text style={styles.scoreNumber}>{Number(score).toFixed(1)}</Text>
-            <Text style={styles.scoreLabel}>/ 5</Text>
-          </View>
+        <Card style={{ marginTop: 20, alignItems: 'center', paddingVertical: 24 }}>
+          <Badge tone={scoreTone as any} style={{ paddingHorizontal: 14, paddingVertical: 8 }}>
+            <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{Number(score).toFixed(1)}</Text>
+          </Badge>
+          <Text style={{ color: theme.mutedForeground, fontSize: 12, marginTop: 6 }}>out of 5</Text>
 
-          {reportId && score >= 4.5 && (
-            <TouchableOpacity
-              style={styles.pipelineBtn}
+          {reportId && (
+            <Button
+              variant="outline"
               onPress={() => navigation.navigate('ReportDetail', { reportId })}
+              rightIcon={<Feather name="arrow-right" size={14} color={theme.foreground} />}
+              style={{ marginTop: 16 }}
             >
-              <Text style={styles.pipelineBtnText}>View Report & Generate Documents</Text>
-            </TouchableOpacity>
+              View full report
+            </Button>
           )}
-        </View>
+        </Card>
       )}
 
       {blocks.map((block, i) => (
-        <View key={i} style={styles.blockCard}>
-          <Text style={styles.blockTitle}>{block.title}</Text>
-          <Text style={styles.blockContent}>
+        <Card key={i} style={{ marginTop: 12 }}>
+          <H3 style={{ marginBottom: 6 }}>{block.title}</H3>
+          <Text style={{ color: theme.foreground, fontSize: 13, lineHeight: 19 }}>
             {typeof block.content === 'string' ? block.content : JSON.stringify(block.content, null, 2)}
           </Text>
-        </View>
+        </Card>
       ))}
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#666', marginBottom: 16 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 14, fontSize: 14, minHeight: 160, marginBottom: 12, backgroundColor: '#fafafa', fontFamily: 'monospace' },
-  button: { backgroundColor: '#000', borderRadius: 8, padding: 16, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  error: { color: '#dc2626', fontSize: 14, marginTop: 12, backgroundColor: '#fef2f2', padding: 12, borderRadius: 8 },
-  progress: { color: '#666', fontSize: 13, marginTop: 12, textAlign: 'center', lineHeight: 18 },
-  scoreCard: { marginTop: 20, alignItems: 'center', padding: 20, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
-  scoreBadge: { borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, flexDirection: 'row', alignItems: 'baseline' },
-  scoreNumber: { color: '#fff', fontSize: 36, fontWeight: '700' },
-  scoreLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 16, marginLeft: 4 },
-  pipelineBtn: { marginTop: 16, backgroundColor: '#16a34a', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
-  pipelineBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  blockCard: { marginTop: 16, padding: 16, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
-  blockTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  blockContent: { fontSize: 13, color: '#374151', lineHeight: 20, fontFamily: 'monospace' },
+  progressBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 8, borderWidth: 1, marginTop: 12 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 8, borderWidth: 1, marginTop: 12 },
 })

@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { authFetch } from '../lib/api'
+import { useTheme } from '../lib/theme'
+import { Button, Input, Textarea, Card, H1, P, Caption } from '../components/ui'
 
 interface Offer {
   company: string
@@ -11,6 +14,7 @@ interface Offer {
 const EMPTY_OFFER: Offer = { company: '', role: '', jd_or_offer_text: '' }
 
 export function CompareOffersScreen() {
+  const { theme } = useTheme()
   const [offers, setOffers] = useState<Offer[]>([{ ...EMPTY_OFFER }, { ...EMPTY_OFFER }])
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
@@ -53,85 +57,70 @@ export function CompareOffersScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Compare Offers</Text>
-      <Text style={styles.subtitle}>Side-by-side AI analysis of comp, growth, and fit (5 credits).</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <H1>Compare Offers</H1>
+      <P muted style={{ marginTop: 4, marginBottom: 16 }}>
+        Side-by-side AI analysis of comp, growth, and fit (5 credits).
+      </P>
 
       {offers.map((offer, idx) => (
-        <View key={idx} style={styles.offerCard}>
-          <View style={styles.offerHeader}>
-            <Text style={styles.offerLabel}>Offer #{idx + 1}</Text>
+        <Card key={idx} style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Caption>Offer #{idx + 1}</Caption>
             {offers.length > 2 && (
               <TouchableOpacity onPress={() => removeOffer(idx)}>
-                <Text style={styles.removeText}>Remove</Text>
+                <Text style={{ color: theme.destructive, fontSize: 12, fontWeight: '600' }}>Remove</Text>
               </TouchableOpacity>
             )}
           </View>
-          <TextInput
-            style={styles.input}
+          <Input
             placeholder="Company"
             value={offer.company}
             onChangeText={v => updateOffer(idx, 'company', v)}
-            placeholderTextColor="#999"
+            style={{ marginBottom: 8 }}
           />
-          <TextInput
-            style={[styles.input, { marginTop: 8 }]}
+          <Input
             placeholder="Role"
             value={offer.role}
             onChangeText={v => updateOffer(idx, 'role', v)}
-            placeholderTextColor="#999"
+            style={{ marginBottom: 8 }}
           />
-          <TextInput
-            style={[styles.input, { marginTop: 8, height: 100, textAlignVertical: 'top' }]}
+          <Textarea
+            rows={4}
             placeholder="Paste offer text or JD..."
             value={offer.jd_or_offer_text}
             onChangeText={v => updateOffer(idx, 'jd_or_offer_text', v)}
-            multiline
-            placeholderTextColor="#999"
           />
-        </View>
+        </Card>
       ))}
 
       {offers.length < 4 && (
-        <TouchableOpacity style={styles.addBtn} onPress={addOffer}>
-          <Text style={styles.addText}>+ Add another offer</Text>
-        </TouchableOpacity>
+        <Button
+          variant="outline"
+          onPress={addOffer}
+          leftIcon={<Feather name="plus" size={14} color={theme.foreground} />}
+        >
+          Add another offer
+        </Button>
       )}
 
-      <TouchableOpacity
-        style={[styles.btn, loading && styles.btnDisabled]}
+      <Button
+        loading={loading}
         onPress={handleCompare}
-        disabled={loading}
+        leftIcon={<Feather name="layers" size={16} color={theme.primaryForeground} />}
+        style={{ marginTop: 12 }}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Compare (5 credits)</Text>}
-      </TouchableOpacity>
+        Compare (5 credits)
+      </Button>
 
       {result && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Comparison</Text>
-          <Text style={styles.resultText}>{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</Text>
-        </View>
+        <Card style={{ marginTop: 16 }}>
+          <Caption style={{ marginBottom: 8 }}>Comparison</Caption>
+          <Text style={{ color: theme.foreground, fontSize: 12, lineHeight: 18, fontFamily: 'monospace' }}>
+            {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+          </Text>
+        </Card>
       )}
     </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: '700' },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 16 },
-  offerCard: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 12 },
-  offerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  offerLabel: { fontSize: 13, fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },
-  removeText: { fontSize: 12, color: '#dc2626', fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#fafafa' },
-  addBtn: { borderWidth: 1, borderColor: '#000', borderStyle: 'dashed', borderRadius: 8, padding: 12, alignItems: 'center' },
-  addText: { fontSize: 13, fontWeight: '600' },
-  btn: { backgroundColor: '#000', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 16 },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  resultCard: { padding: 16, borderRadius: 10, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', marginTop: 16 },
-  resultTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  resultText: { fontSize: 12, color: '#333', lineHeight: 18, fontFamily: 'monospace' },
-})
