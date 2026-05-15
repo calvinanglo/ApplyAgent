@@ -50,6 +50,7 @@
     "scheme": "applyagent",
     "plugins": [
       "expo-secure-store",
+      "./plugins/withAdiRegistration",
       [
         "expo-notifications",
         {
